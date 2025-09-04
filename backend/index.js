@@ -17,10 +17,10 @@ const {
 
 // ======== ENV ========
 const PORT = process.env.PORT || 3000;
-const REGION = process.env.AWS_REGION; 
-const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
-const CLIENT_ID = process.env.COGNITO_CLIENT_ID;
-const CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET || null; 
+const REGION = process.env.AWS_REGION; // e.g. 'ap-southeast-1'
+const USER_POOL_ID = process.env.COGNITO_USER_POOL_ID; // e.g. 'ap-southeast-1_XXXX'
+const CLIENT_ID = process.env.COGNITO_CLIENT_ID; // App client id
+const CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET || null; // optional; needed if your app client has a secret
 
 if (!REGION || !USER_POOL_ID || !CLIENT_ID) {
   throw new Error('Missing required env: AWS_REGION, COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID');
@@ -31,7 +31,7 @@ const cip = new CognitoIdentityProviderClient({ region: REGION });
 
 // ======== Helpers ========
 function secretHash(username) {
-  if (!CLIENT_SECRET) return undefined;
+  if (!CLIENT_SECRET) return undefined; // if client has no secret, omit
   const msg = `${username}${CLIENT_ID}`;
   return crypto.createHmac('sha256', CLIENT_SECRET).update(msg).digest('base64');
 }
