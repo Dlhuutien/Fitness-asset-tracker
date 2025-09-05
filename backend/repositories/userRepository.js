@@ -3,22 +3,31 @@ const {
   SignUpCommand,
   ConfirmSignUpCommand,
   InitiateAuthCommand,
+  GetUserCommand,
   AdminAddUserToGroupCommand,
   AdminCreateUserCommand,
-  AdminSetUserPasswordCommand
+  AdminSetUserPasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
 
-exports.signUp = async (username, password, email, role) => {
+exports.signUp = async (username, password, email, role, extra) => {
   const params = {
     ClientId: CLIENT_ID,
     Username: username,
     Password: password,
     SecretHash: secretHash(username),
-    UserAttributes: [{ Name: 'email', Value: email }],
-    // MessageAction: 'SUPPRESS', // không gửi email
+    UserAttributes: [
+      { Name: 'email', Value: email },
+      { Name: 'name', Value: extra.name },
+      { Name: 'gender', Value: extra.gender },
+      { Name: 'phone_number', Value: extra.phone_number }, // định dạng +84...
+      { Name: 'birthdate', Value: extra.birthdate },       // yyyy-mm-dd
+      { Name: 'address', Value: extra.address },
+      { Name: 'updated_at', Value: new Date().toISOString() },
+    ],
   };
-  
+
   const out = await cip.send(new SignUpCommand(params));
+
   if (role) {
     await cip.send(new AdminAddUserToGroupCommand({
       GroupName: role,
@@ -113,4 +122,18 @@ exports.adminCreateUser = async ({ username, email, password, role }) => {
   }
 
   return { message: 'admin created user' };
+};
+
+exports.getUserInfo = async ({ accessToken }) => {
+  const out = await cip.send(new GetUserCommand({
+    AccessToken: accessToken,
+  }));
+
+  return {
+    username: out.Username,
+    userAttributes: out.UserAttributes.reduce((acc, attr) => {
+      acc[attr.Name] = attr.Value;
+      return acc;
+    }, {}),
+  };
 };
