@@ -1,0 +1,20 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+
+const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const userRoutes = require('./routes/userRoutes');
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+app.use('/auth', authRoutes);
+app.use('/admin', adminRoutes);
+app.use('/', userRoutes); // /me, /admin-only,...
+
+// Health check
+app.get('/health', (req, res) => res.send('OK'));
+
+module.exports = app;
