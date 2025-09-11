@@ -11,8 +11,11 @@ npm install @aws-sdk/client-cognito-identity-provider
 npm install cors
 npm install dotenv
 
+# DynomoDB
+npm install @aws-sdk/client-dynamodb
+npm install @aws-sdk/lib-dynamodb
 
-### =============== Test nhanh bằng Postman ===============
+### =============== Test nhanh User bằng Postman ===============
 
 1. **Tạo các nhóm Cognito**:
 
@@ -74,3 +77,118 @@ npm install dotenv
 ### Ghi chú
 
 * App client bật **USER\_PASSWORD\_AUTH flow**.
+
+
+
+Bạn có thể copy đoạn này thành **README.md** để người khác dễ hiểu và test API luôn.
+Mình format lại Markdown đẹp hơn:
+
+---
+
+````markdown
+#  Vendor API - Fitness Asset Tracker
+
+## API Endpoints
+
+### ➤ Tạo vendor (POST `/vendors`)
+
+**Request body**
+```json
+{
+  "name": "Samsung",
+  "origin": "KOREA",
+  "description": "Electronics and technology"
+}
+````
+
+**Response**
+
+```json
+{
+  "id": "b1b2b3c4-d5e6-789f-1234-56789abcdef0",
+  "name": "Samsung",
+  "origin": "KOREA",
+  "description": "Electronics and technology"
+}
+```
+
+---
+
+### Lấy tất cả vendor (GET `/vendors`)
+
+**Response**
+
+```json
+[
+  {
+    "id": "b1b2b3c4-d5e6-789f-1234-56789abcdef0",
+    "name": "Samsung",
+    "origin": "KOREA",
+    "description": "Electronics and technology"
+  },
+  {
+    "id": "f9e8d7c6-b5a4-3210-9876-54321fedcba0",
+    "name": "Vinamilk",
+    "origin": "VIETNAM",
+    "description": "Dairy products"
+  }
+]
+```
+
+---
+
+### Lấy 1 vendor theo id (GET `/vendors/:id`)
+
+**URL**
+
+```
+http://localhost:3000/vendors/b1b2b3c4-d5e6-789f-1234-56789abcdef0
+```
+
+**Response**
+
+```json
+{
+  "id": "b1b2b3c4-d5e6-789f-1234-56789abcdef0",
+  "name": "Samsung",
+  "origin": "KOREA",
+  "description": "Electronics and technology"
+}
+```
+
+---
+
+### Cập nhật vendor (PUT `/vendors/:id`)
+
+**Request body**
+
+```json
+{
+  "name": "Samsung Electronics",
+  "origin": "KOREA",
+  "description": "Updated description"
+}
+```
+
+**Response**
+
+```json
+{
+  "id": "b1b2b3c4-d5e6-789f-1234-56789abcdef0",
+  "name": "Samsung Electronics",
+  "origin": "KOREA",
+  "description": "Updated description"
+}
+```
+
+---
+
+### Xóa vendor (DELETE `/vendors/:id`)
+
+**Response**
+
+```json
+{
+  "id": "b1b2b3c4-d5e6-789f-1234-56789abcdef0"
+}
+```
