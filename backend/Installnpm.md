@@ -15,6 +15,9 @@ npm install dotenv
 npm install @aws-sdk/client-dynamodb
 npm install @aws-sdk/lib-dynamodb
 
+# S3
+npm install multer 
+npm install @aws-sdk/client-s3
 ### =============== Test nhanh User bằng Postman ===============
 
 1. **Tạo các nhóm Cognito**:

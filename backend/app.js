@@ -7,6 +7,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
 
 const vendorRoutes = require("./routes/vendorRoutes");
+const categoryMainRoutes = require("./routes/categoryMainRouters");
 
 const app = express();
 app.use(cors());
@@ -20,5 +21,6 @@ app.use('/', userRoutes); // /me, /admin-only,...
 app.get('/health', (req, res) => res.send('OK'));
 
 app.use("/vendors", vendorRoutes);
+app.use("/categoryMain", categoryMainRoutes);
 
 module.exports = app;
