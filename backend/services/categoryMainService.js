@@ -5,6 +5,10 @@ const categoryService = {
     if (!data.id || !data.name) {
       throw new Error("Category id and name are required");
     }
+    const existing = await categoryRepository.findById(data.id);
+    if (existing) {
+      throw new Error(`CategoryMain with id ${data.id} already exists`);
+    }
     return await categoryRepository.create(data);
   },
 

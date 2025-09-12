@@ -8,6 +8,7 @@ const userRoutes = require('./routes/userRoutes');
 
 const vendorRoutes = require("./routes/vendorRoutes");
 const categoryMainRoutes = require("./routes/categoryMainRouters");
+const categoryTypeRoutes = require("./routes/categoryTypeRoutes");
 
 const app = express();
 app.use(cors());
@@ -22,5 +23,6 @@ app.get('/health', (req, res) => res.send('OK'));
 
 app.use("/vendors", vendorRoutes);
 app.use("/categoryMain", categoryMainRoutes);
+app.use("/categoryType", categoryTypeRoutes);
 
 module.exports = app;
