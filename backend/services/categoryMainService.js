@@ -1,4 +1,5 @@
 const categoryRepository = require("../repositories/categoryMainRepository");
+const categoryTypeRepository = require("../repositories/categoryTypeRepository");
 
 const categoryService = {
   createCategory: async (data) => {
@@ -28,9 +29,18 @@ const categoryService = {
     return await categoryRepository.update(id, data);
   },
 
-  deleteCategory: async (id) => {
+   deleteCategory: async (id) => {
     const existing = await categoryRepository.findById(id);
     if (!existing) throw new Error("Category not found");
+
+    // Kiểm tra xem có CategoryType nào map tới không
+    const relatedTypes = await categoryTypeRepository.findByMainId(id);
+    if (relatedTypes.length > 0) {
+      throw new Error(
+        `Cannot delete CategoryMain ${id} because ${relatedTypes.length} CategoryType(s) still reference it`
+      );
+    }
+
     return await categoryRepository.delete(id);
   },
 };

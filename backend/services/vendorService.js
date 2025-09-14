@@ -5,6 +5,10 @@ const vendorService = {
     if (!vendorData.name) {
       throw new Error("Vendor name is required");
     }
+    const existing = await vendorRepository.findById(vendorData.id);
+    if (existing) {
+      throw new Error(`Vendor with id ${vendorData.id} already exists`);
+    }
     return await vendorRepository.create(vendorData);
   },
 
