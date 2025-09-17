@@ -8,8 +8,8 @@ const {
   AdminCreateUserCommand,
   AdminSetUserPasswordCommand,
 } = require('@aws-sdk/client-cognito-identity-provider');
-const User = require('../models/User');
 
+const now = new Date().toISOString();
 exports.signUp = async (username, password, email, role, extra) => {
   const params = {
     ClientId: CLIENT_ID,
@@ -23,6 +23,10 @@ exports.signUp = async (username, password, email, role, extra) => {
       { Name: 'phone_number', Value: extra.phone_number }, // định dạng +84...
       { Name: 'birthdate', Value: extra.birthdate },       // yyyy-mm-dd
       { Name: 'address', Value: extra.address },
+      { Name: 'custom:branch_id', Value: extra.branch_id || '' },
+      { Name: 'custom:status', Value: 'Active' },
+      { Name: 'custom:created_at', Value: now },
+      { Name: 'custom:updated_at', Value: now },
     ],
   };
 

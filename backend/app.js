@@ -10,6 +10,9 @@ const vendorRoutes = require("./routes/vendorRoutes");
 const categoryMainRoutes = require("./routes/categoryMainRouters");
 const categoryTypeRoutes = require("./routes/categoryTypeRoutes");
 const equipmentRoutes = require("./routes/equipmentRoutes");
+const attributeRoutes = require('./routes/attributeRoutes');
+const attributeValueRoutes = require('./routes/attributeValueRoutes');
+const invoiceRoutes = require('./routes/invoiceRoutes');
 
 const app = express();
 app.use(cors());
@@ -26,5 +29,8 @@ app.use("/vendors", vendorRoutes);
 app.use("/categoryMain", categoryMainRoutes);
 app.use("/categoryType", categoryTypeRoutes);
 app.use("/equipment", equipmentRoutes);
+app.use("/attribute", attributeRoutes);
+app.use("/attributeValue", attributeValueRoutes);
+app.use("/invoice", invoiceRoutes);
 
 module.exports = app;
