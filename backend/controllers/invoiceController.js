@@ -54,6 +54,15 @@ const invoiceController = {
       res.status(404).json({ error: error.message });
     }
   },
+
+    getInvoiceDetails: async (req, res) => {
+    try {
+      const result = await invoiceService.getInvoiceDetails(req.params.id);
+      res.json(result);
+    } catch (error) {
+      res.status(404).json({ error: error.message });
+    }
+  },
 };
 
 module.exports = invoiceController;

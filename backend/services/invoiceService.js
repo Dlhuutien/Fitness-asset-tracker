@@ -83,6 +83,31 @@ const invoiceService = {
     if (!existing) throw new Error("Invoice not found");
     return await invoiceRepository.delete(id);
   },
+
+  getInvoiceDetails: async (invoiceId) => {
+    // 1. Lấy invoice
+    const invoice = await invoiceRepository.findById(invoiceId);
+    if (!invoice) throw new Error("Invoice not found");
+
+    // 2. Lấy danh sách chi tiết
+    const details = await invoiceDetailRepository.findByInvoiceId(invoiceId);
+
+    // 3. Join với equipment_unit
+    const detailsWithUnits = [];
+    for (const d of details) {
+      const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+      detailsWithUnits.push({
+        ...d,
+        equipment_unit: unit,
+      });
+    }
+
+    return {
+      invoice,
+      details: detailsWithUnits,
+    };
+  },
 };
+
 
 module.exports = invoiceService;

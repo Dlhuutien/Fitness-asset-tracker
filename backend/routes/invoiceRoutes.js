@@ -12,6 +12,9 @@ router.get("/", invoiceController.getInvoices);
 // READ ONE
 router.get("/:id", invoiceController.getInvoiceById);
 
+//READE INVOCIE DETAIL
+router.get("/:id/details", invoiceController.getInvoiceDetails);
+
 // UPDATE
 router.put("/:id", verifyAccessToken, invoiceController.updateInvoice);
 
