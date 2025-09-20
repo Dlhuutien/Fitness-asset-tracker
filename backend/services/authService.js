@@ -16,3 +16,7 @@ exports.signin = async (data) => {
 exports.refresh = async (data) => {
   return await userRepository.refreshToken(data);
 };
+
+exports.firstLoginChangePassword = async (data) => {
+  return await userRepository.firstLoginChangePassword(data);
+};

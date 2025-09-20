@@ -35,3 +35,12 @@ exports.refresh = async (req, res) => {
     res.status(400).json({ error: err.name, message: err.message });
   }
 };
+
+exports.firstLoginChangePassword = async (req, res) => {
+  try {
+    const result = await authService.firstLoginChangePassword(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.name, message: err.message });
+  }
+};

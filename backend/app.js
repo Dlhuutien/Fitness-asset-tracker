@@ -3,7 +3,6 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 const authRoutes = require('./routes/authRoutes');
-const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
 
 const branchRoutes = require("./routes/branchRoutes");
@@ -16,14 +15,14 @@ const attributeValueRoutes = require('./routes/attributeValueRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const equipmentUnitRoutes = require('./routes/equipmentUnitRoutes');
 const maintenanceRoutes = require('./routes/maintenanceRoutes');
+const equipmentTransferRoutes = require("./routes/equipmentTransferRoutes");
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
 app.use('/auth', authRoutes);
-app.use('/admin', adminRoutes);
-app.use('/', userRoutes); // /me, /admin-only,...
+app.use('/user', userRoutes); // /me, /admin-only,...
 
 // Health check
 app.get('/health', (req, res) => res.send('OK'));
@@ -38,5 +37,6 @@ app.use("/attributeValue", attributeValueRoutes);
 app.use("/invoice", invoiceRoutes);
 app.use("/equipmentUnit", equipmentUnitRoutes);
 app.use("/maintenance", maintenanceRoutes);
+app.use("/equipmentTransfer", equipmentTransferRoutes)
 
 module.exports = app;
