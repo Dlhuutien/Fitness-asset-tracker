@@ -24,4 +24,35 @@ router.get('/tech-or-operator',
   userController.techOrOperator
 );
 
+// Admin tạo user
+router.post("/create", verifyAccessToken, userController.createUser);
+
+// Đổi password
+router.post('/change-password', verifyAccessToken, userController.changePassword);
+
+// Cập nhật thông tin
+router.put('/update-info', verifyAccessToken, userController.updateInfo);
+
+// Admin/super-admin cập nhật user status
+router.put('/change-status',
+  verifyAccessToken,
+  requireRole('admin', 'super-admin'),
+  userController.updateStatus
+);
+
+// Admin/super-admin cập nhật thông tin user
+router.put(
+  '/admin-update-user',
+  verifyAccessToken,
+  requireRole('admin', 'super-admin'),
+  userController.adminUpdateUserAttributes
+);
+
+// Admin/super-admin lấy danh sách users
+router.get('/list-user',
+  verifyAccessToken,
+  requireRole('admin', 'super-admin'),
+  userController.listUsers
+);
+
 module.exports = router;
