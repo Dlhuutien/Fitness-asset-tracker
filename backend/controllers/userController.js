@@ -64,7 +64,7 @@ exports.changePassword = async (req, res) => {
     }
 
     const { oldPassword, newPassword } = req.body;
-    const result = await userService.changePassword(accessToken, oldPassword, newPassword);
+    const result = await userService.changePassword({ accessToken, oldPassword, newPassword });
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.name, message: err.message });
@@ -80,7 +80,7 @@ exports.updateInfo = async (req, res) => {
 
     // ví dụ: { name: "...", phone_number: "...", address: "..." }
     const attributes = req.body; 
-    const result = await userService.updateUserAttributes(accessToken, attributes);
+    const result = await userService.updateUserAttributes({accessToken, attributes});
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.name, message: err.message });

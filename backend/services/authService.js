@@ -1,22 +1,34 @@
 const userRepository = require('../repositories/userRepository');
 
-exports.signup = async (data) => {
-  const { username, password, email, role, extra } = data;
-  return await userRepository.signUp(username, password, email, role, extra);
+const authService = {
+  signUp: async (data) => {
+    if (!data.username || !data.password || !data.email) {
+      throw new Error("username, password, email are required");
+    }
+    return await userRepository.signUp(data);
+  },
+
+  confirmSignUp: async (data) => {
+    if (!data.username || !data.code) throw new Error("username and code required");
+    return await userRepository.confirmSignUp(data);
+  },
+
+  signIn: async (data) => {
+    if (!data.username || !data.password) throw new Error("username and password required");
+    return await userRepository.signIn(data);
+  },
+
+  refreshToken: async (data) => {
+    if (!data.refreshToken) throw new Error("refreshToken is required");
+    return await userRepository.refreshToken(data);
+  },
+
+  firstLoginChangePassword: async (data) => {
+    if (!data.username || !data.newPassword || !data.session) {
+      throw new Error("username, newPassword, and session are required");
+    }
+    return await userRepository.firstLoginChangePassword(data);
+  },
 };
 
-exports.confirm = async (data) => {
-  return await userRepository.confirmSignUp(data);
-};
-
-exports.signin = async (data) => {
-  return await userRepository.signIn(data);
-};
-
-exports.refresh = async (data) => {
-  return await userRepository.refreshToken(data);
-};
-
-exports.firstLoginChangePassword = async (data) => {
-  return await userRepository.firstLoginChangePassword(data);
-};
+module.exports = authService;
