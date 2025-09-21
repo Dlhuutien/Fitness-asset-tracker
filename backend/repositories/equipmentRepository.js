@@ -7,9 +7,9 @@ const equipmentRepository = {
   update: async (id, data) => await EquipmentModel.updateEquipment(id, data),
   delete: async (id) => await EquipmentModel.deleteEquipment(id),
   findByCategoryTypeId: async (category_type_id) =>
-    EquipmentModel.getEquipmentsByCategoryTypeId(category_type_id),
+    EquipmentModel.getByCategoryTypeId(category_type_id),
   findByVendorId: async (vendor_id) =>
-    EquipmentModel.getEquipmentsByVendorId(vendor_id),
+    EquipmentModel.getByVendorId(vendor_id),
 };
 
 module.exports = equipmentRepository;
