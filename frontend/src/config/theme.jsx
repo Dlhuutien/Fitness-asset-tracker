@@ -1,21 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: "class", // 👈 Bật chế độ dark bằng class
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Primary / Secondary cho theme chung
-        primary: {
-          DEFAULT: "#2563eb", // xanh dương
-          foreground: "#ffffff",
-        },
-        secondary: {
-          DEFAULT: "#f97316", // cam
-          foreground: "#ffffff",
-        },
-
-        // Thêm brand riêng cho app
         brand: {
           DEFAULT: "#22c55e", // xanh lá chính
           dark: "#15803d",
@@ -33,8 +21,8 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["Poppins", "sans-serif"], // font mặc định
-        heading: ["Inter", "sans-serif"], // font cho heading
+        sans: ["Inter", "sans-serif"],
+        heading: ["Poppins", "sans-serif"],
       },
       boxShadow: {
         neon: "0 0 20px rgba(34, 197, 94, 0.6)",
@@ -44,16 +32,11 @@ module.exports = {
         "spin-slow": "spin 6s linear infinite",
         "pulse-slow": "pulse 4s ease-in-out infinite",
         float: "float 4s ease-in-out infinite",
-        "gradient-x": "gradient-x 6s ease infinite",
       },
       keyframes: {
         float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-10px)" },
-        },
-        "gradient-x": {
-          "0%, 100%": { backgroundPosition: "0% 50%" },
-          "50%": { backgroundPosition: "100% 50%" },
         },
       },
     },
