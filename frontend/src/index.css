@@ -1,5 +1,74 @@
-/* @import "tailwindcss"; */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-/*  */
+
+/* ================= BACKGROUND ================= */
+.login-bg-dark {
+  @apply bg-gradient-to-br from-bg-dark to-brand-dark text-white;
+}
+
+.login-bg-light {
+  @apply bg-gradient-to-br from-bg-light to-brand-light text-black;
+}
+
+/* ================= LOGO GLOW ================= */
+@keyframes glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 15px theme("colors.brand.DEFAULT"));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px theme("colors.brand.light"));
+  }
+}
+
+.animate-glow {
+  animation: glow 2.5s infinite ease-in-out;
+}
+
+/* ================= FORM CARD ================= */
+.form-card {
+  @apply bg-white/10 dark:bg-bg-card/80 rounded-2xl backdrop-blur-2xl 
+         border border-white/20 shadow-lg transition-transform;
+}
+.form-card:hover {
+  @apply scale-[1.02] shadow-neon;
+}
+
+/* ================= TITLE ================= */
+.form-title {
+  @apply text-3xl font-bold text-center bg-gradient-to-r from-brand to-accent 
+         bg-clip-text text-transparent;
+}
+
+/* ================= INPUT ================= */
+.form-input {
+  @apply w-full h-14 rounded-2xl border border-gray-300/40 dark:border-gray-700 
+         bg-white/80 dark:bg-gray-800/50 px-4 text-base 
+         focus:border-brand focus:ring-2 focus:ring-brand/40 outline-none transition;
+}
+
+/* ================= BUTTON ================= */
+.form-btn {
+  @apply w-full h-14 rounded-full text-lg font-semibold 
+         bg-gradient-to-r from-brand via-emerald-400 to-accent 
+         text-white shadow-md transition;
+}
+.form-btn:hover {
+  @apply scale-[1.03] shadow-glow;
+}
+
+/* ================= ANIMATIONS ================= */
+@keyframes gradient-x {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+.animate-gradient-x {
+  animation: gradient-x 6s ease infinite;
+  background-size: 200% 200%;
+}
