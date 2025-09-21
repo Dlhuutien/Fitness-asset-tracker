@@ -9,6 +9,7 @@
 # Mục lục
 
 1. [Thiết lập ban đầu](#thiết-lập-ban-đầu)
+
 2. [Auth APIs (`/auth`)](#auth-apis-auth)
 
    - `/auth/signup` — Signup
@@ -551,6 +552,320 @@ Có ràng buộc: nếu vendor đã được gắn vào `Equipment`, không th�
 
 ```json
 { "error": "Cannot delete vendor because it is linked to equipment" }
+```
+
+---
+
+## Branch APIs (`/branch`)
+
+> **Authentication**:
+>
+> - Tạo / sửa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Roles: chỉ `admin`, `super-admin` được phép **create / update**.
+> - Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** branch.
+
+---
+
+### POST `/branch`
+
+Tạo branch mới (chỉ `admin`, `super-admin`).
+
+**Request body**:
+
+```json
+{
+  "id": "GV",
+  "name": "Gò Vấp Branch",
+  "address": "123 Nguyễn Văn Bảo, Gò Vấp, HCM"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "GV",
+  "name": "Gò Vấp Branch",
+  "address": "123 Nguyễn Văn Bảo, Gò Vấp, HCM",
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T10:00:00.000Z"
+}
+```
+
+**Lỗi (400 - thiếu id/name):**
+
+```json
+{ "error": "Branch id and name are required" }
+```
+
+**Lỗi (400 - branch đã tồn tại):**
+
+```json
+{ "error": "Branch with id GV already exists" }
+```
+
+---
+
+### GET `/branch`
+
+Lấy danh sách tất cả branches (mọi user đăng nhập).
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "GV",
+    "name": "Gò Vấp Branch",
+    "address": "123 Nguyễn Văn Bảo, Gò Vấp, HCM",
+    "created_at": "2025-09-21T10:00:00.000Z",
+    "updated_at": "2025-09-21T10:00:00.000Z"
+  },
+  {
+    "id": "TD",
+    "name": "Thủ Đức Branch",
+    "address": "456 Kha Vạn Cân, Thủ Đức, HCM",
+    "created_at": "2025-09-21T11:00:00.000Z",
+    "updated_at": "2025-09-21T11:00:00.000Z"
+  }
+]
+```
+
+---
+
+### GET `/branch/:id`
+
+Lấy chi tiết branch theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "GV",
+  "name": "Gò Vấp Branch",
+  "address": "123 Nguyễn Văn Bảo, Gò Vấp, HCM",
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T10:00:00.000Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Branch not found" }
+```
+
+---
+
+### PUT `/branch/:id`
+
+Cập nhật branch (chỉ `admin`, `super-admin`).
+
+**Request body:**
+
+```json
+{
+  "name": "Gò Vấp Branch Updated",
+  "address": "789 Phạm Văn Đồng, Gò Vấp, HCM"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "GV",
+  "name": "Gò Vấp Branch Updated",
+  "address": "789 Phạm Văn Đồng, Gò Vấp, HCM",
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T12:30:00.000Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Branch not found" }
+```
+
+---
+
+## Category Main APIs (`/category`)
+
+> **Authentication**:
+>
+> - Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
+> - Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** category.
+>
+> **Upload file**: dùng middleware `upload` (S3). Nếu có file kèm theo (`multipart/form-data`), server sẽ upload và gán vào field `image`.
+
+---
+
+### POST `/category`
+
+Tạo category mới (chỉ `admin`, `super-admin`).
+
+**Request body (form-data):**
+
+```json
+{
+  "name": "Treadmill Pro",
+  "vendor_id": "MT",
+  "category_type_id": "TM",
+  "description": "Máy chạy bộ cao cấp",
+  "image": "https://example.com/treadmill.png",
+  "warranty_duration": 2
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "updated_at": "2025-09-21T08:59:26.737Z",
+  "created_at": "2025-09-21T08:59:26.737Z",
+  "image": "https://example.com/treadmill.png",
+  "warranty_duration": 2,
+  "description": "Máy chạy bộ cao cấp",
+  "id": "CAOTMMT",
+  "name": "Treadmill Pro",
+  "category_type_id": "TM",
+  "vendor_id": "MT"
+}
+```
+
+**Lỗi (400 - thiếu id/name):**
+
+```json
+{ "error": "Category id and name are required" }
+```
+
+**Lỗi (400 - id đã tồn tại):**
+
+```json
+{ "error": "CategoryMain with id CARDIO already exists" }
+```
+
+---
+
+### GET `/category`
+
+Lấy danh sách tất cả categories (mọi user đăng nhập).
+
+**Response (200):**
+
+```json
+[
+  {
+    "updated_at": "2025-09-21T08:59:26.737Z",
+    "created_at": "2025-09-21T08:59:26.737Z",
+    "image": "https://example.com/treadmill.png",
+    "warranty_duration": 2,
+    "description": "Máy chạy bộ cao cấp",
+    "id": "CAOTMMT",
+    "name": "Treadmill Pro",
+    "category_type_id": "TM",
+    "vendor_id": "MT"
+    },
+    ...
+]
+```
+
+---
+
+### GET `/category/:id`
+
+Lấy chi tiết category theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "updated_at": "2025-09-21T08:59:26.737Z",
+  "created_at": "2025-09-21T08:59:26.737Z",
+  "image": "https://example.com/treadmill.png",
+  "warranty_duration": 2,
+  "description": "Máy chạy bộ cao cấp",
+  "id": "CAOTMMT",
+  "name": "Treadmill Pro",
+  "category_type_id": "TM",
+  "vendor_id": "MT"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Category not found" }
+```
+
+---
+
+### PUT `/category/:id`
+
+Cập nhật category (chỉ `admin`, `super-admin`).
+
+**Request body (form-data):**
+
+```json
+{
+  "name": "Treadmill Pro",
+  "vendor_id": "MT",
+  "category_type_id": "TM",
+  "description": "Máy chạy bộ cao cấp",
+  "image": "https://example.com/treadmill.png",
+  "warranty_duration": 2
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "updated_at": "2025-09-21T08:59:26.737Z",
+  "created_at": "2025-09-21T08:59:26.737Z",
+  "image": "https://example.com/treadmill.png",
+  "warranty_duration": 2,
+  "description": "Máy chạy bộ cao cấp",
+  "id": "CAOTMMT",
+  "name": "Treadmill Pro",
+  "category_type_id": "TM",
+  "vendor_id": "MT"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Category not found" }
+```
+
+---
+
+### DELETE `/category/:id`
+
+Xóa category (chỉ `admin`, `super-admin`).
+Có ràng buộc: **nếu vẫn còn CategoryType tham chiếu tới category này thì không thể xóa**.
+
+**Response (200):**
+
+```json
+{ "message": "Category deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Category not found" }
+```
+
+**Lỗi (400 - khi có ràng buộc CategoryType):**
+
+```json
+{
+  "error": "Cannot delete CategoryMain CARDIO because 3 CategoryType(s) still reference it"
+}
 ```
 
 ---
