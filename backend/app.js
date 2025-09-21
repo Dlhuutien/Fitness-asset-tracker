@@ -7,7 +7,7 @@ const userRoutes = require('./routes/userRoutes');
 
 const branchRoutes = require("./routes/branchRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
-const categoryMainRoutes = require("./routes/categoryMainRouters");
+const categoryMainRoutes = require("./routes/categoryMainRoutes");
 const categoryTypeRoutes = require("./routes/categoryTypeRoutes");
 const equipmentRoutes = require("./routes/equipmentRoutes");
 const attributeRoutes = require('./routes/attributeRoutes');

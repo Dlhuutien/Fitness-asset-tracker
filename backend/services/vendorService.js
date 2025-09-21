@@ -1,4 +1,5 @@
 const vendorRepository = require("../repositories/vendorRepository");
+const equipmentRepository = require("../repositories/equipmentRepository");
 
 const vendorService = {
   createVendor: async (vendorData) => {
@@ -34,9 +35,16 @@ const vendorService = {
 
   deleteVendor: async (vendorId) => {
     const existing = await vendorRepository.findById(vendorId);
-    if (!existing) {
-      throw new Error("Vendor not found");
+    if (!existing) throw new Error("Vendor not found");
+
+    // Check Equipment reference
+    const equipments = await equipmentRepository.findByVendorId(vendorId);
+    if (equipments.length > 0) {
+      throw new Error(
+        `Cannot delete Vendor ${vendorId} because ${equipments.length} equipment(s) still reference it`
+      );
     }
+
     return await vendorRepository.delete(vendorId);
   },
 };
