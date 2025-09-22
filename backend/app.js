@@ -28,7 +28,7 @@ app.use('/user', userRoutes); // /me, /admin-only,...
 app.get('/health', (req, res) => res.send('OK'));
 
 app.use("/branch", branchRoutes);
-app.use("/vendors", vendorRoutes);
+app.use("/vendor", vendorRoutes);
 app.use("/categoryMain", categoryMainRoutes);
 app.use("/categoryType", categoryTypeRoutes);
 app.use("/equipment", equipmentRoutes);

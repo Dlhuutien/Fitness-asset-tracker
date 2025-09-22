@@ -12,26 +12,77 @@
 
 2. [Auth APIs (`/auth`)](#auth-apis-auth)
 
-   - `/auth/signup` — Signup
-   - `/auth/confirm` — Confirm sign up
-   - `/auth/signin` — Sign in
-   - `/auth/refresh` — Refresh token
-   - `/auth/firstLogin` — NEW_PASSWORD_REQUIRED (first login change password)
+   * `/auth/signup` — Signup
+   * `/auth/confirm` — Confirm sign up
+   * `/auth/signin` — Sign in
+   * `/auth/refresh` — Refresh token
+   * `/auth/firstLogin` — NEW\_PASSWORD\_REQUIRED (first login change password)
 
 3. [User APIs (`/user`)](#user-apis-user)
 
-   - `/user/me` — Lấy thông tin hiện tại
-   - `/user/admin-only` — ví dụ protected
-   - `/user/super-admin-only` — ví dụ protected
-   - `/user/tech-or-operator` — ví dụ protected
-   - `/user/create` — Admin tạo user (Admin API)
-   - `/user/change-password` — Đổi password (user)
-   - `/user/update-info` — Cập nhật thông tin user (user tự cập nhật)
-   - `/user/change-status` — Admin/SA enable/disable user
-   - `/user/admin-update-user` — Admin/SA cập nhật attributes người dùng
-   - `/user/list-user` — Admin/SA lấy danh sách users
+   * `/user/me` — Lấy thông tin hiện tại
+   * `/user/admin-only` — ví dụ protected
+   * `/user/super-admin-only` — ví dụ protected
+   * `/user/tech-or-operator` — ví dụ protected
+   * `/user/create` — Admin tạo user (Admin API)
+   * `/user/change-password` — Đổi password (user)
+   * `/user/update-info` — Cập nhật thông tin user (user tự cập nhật)
+   * `/user/change-status` — Admin/SA enable/disable user
+   * `/user/admin-update-user` — Admin/SA cập nhật attributes người dùng
+   * `/user/list-user` — Admin/SA lấy danh sách users
 
 4. [Lỗi thường gặp](#lỗi-thường-gặp)
+
+5. [Vendor APIs (`/vendor`)](#vendor-apis-vendor)
+
+   * `POST /vendor` — Tạo vendor
+   * `GET /vendor` — Lấy danh sách vendor
+   * `GET /vendor/:id` — Lấy chi tiết vendor
+   * `PUT /vendor/:id` — Cập nhật vendor
+   * `DELETE /vendor/:id` — Xóa vendor
+
+6. [Branch APIs (`/branch`)](#branch-apis-branch)
+
+   * `POST /branch` — Tạo branch
+   * `GET /branch` — Lấy danh sách branch
+   * `GET /branch/:id` — Lấy chi tiết branch
+   * `PUT /branch/:id` — Cập nhật branch
+   * `DELETE /branch/:id` — Xóa branch
+
+7. [Category Main APIs (`/categoryMain`)](#category-main-apis-categorymain)
+
+   * `POST /categoryMain` — Tạo category main
+   * `GET /categoryMain` — Lấy danh sách category main
+   * `GET /categoryMain/:id` — Lấy chi tiết category main
+   * `PUT /categoryMain/:id` — Cập nhật category main
+   * `DELETE /categoryMain/:id` — Xóa category main
+
+8. [Category Type APIs (`/categoryType`)](#category-type-apis-categorytype)
+
+   * `POST /categoryType` — Tạo category type
+   * `GET /categoryType` — Lấy danh sách category type
+   * `GET /categoryType/:id` — Lấy chi tiết category type
+   * `GET /categoryType/main/:category_main_id` — Lấy category type theo category main
+   * `PUT /categoryType/:id` — Cập nhật category type
+   * `DELETE /categoryType/:id` — Xóa category type
+
+9. [Attribute APIs (`/attribute`)](#attribute-apis-attribute)
+
+   * `POST /attribute` — Tạo attribute
+   * `GET /attribute` — Lấy danh sách attribute
+   * `GET /attribute/:id` — Lấy chi tiết attribute
+   * `PUT /attribute/:id` — Cập nhật attribute
+   * `DELETE /attribute/:id` — Xóa attribute
+
+10. [Attribute Value APIs (`/attributeValue`)](#attribute-value-apis-attributevalue)
+
+    * `POST /attributeValue` — Tạo attribute value
+    * `GET /attributeValue` — Lấy danh sách attribute value
+    * `GET /attributeValue/:id` — Lấy chi tiết attribute value
+    * `GET /attributeValue/equipment/:equipment_id` — Lấy attribute value theo equipment
+    * `GET /attributeValue/attribute/:attribute_id` — Lấy attribute value theo attribute
+    * `PUT /attributeValue/:id` — Cập nhật attribute value
+    * `DELETE /attributeValue/:id` — Xóa attribute value
 
 ---
 
@@ -690,7 +741,7 @@ Cập nhật branch (chỉ `admin`, `super-admin`).
 
 ---
 
-## Category Main APIs (`/category`)
+## Category Main APIs (`/categoryMain`)
 
 > **Authentication**:
 >
@@ -702,7 +753,7 @@ Cập nhật branch (chỉ `admin`, `super-admin`).
 
 ---
 
-### POST `/category`
+### POST `/categoryMain`
 
 Tạo category mới (chỉ `admin`, `super-admin`).
 
@@ -749,7 +800,7 @@ Tạo category mới (chỉ `admin`, `super-admin`).
 
 ---
 
-### GET `/category`
+### GET `/categoryMain`
 
 Lấy danh sách tất cả categories (mọi user đăng nhập).
 
@@ -774,7 +825,7 @@ Lấy danh sách tất cả categories (mọi user đăng nhập).
 
 ---
 
-### GET `/category/:id`
+### GET `/categoryMain/:id`
 
 Lấy chi tiết category theo `id`.
 
@@ -802,7 +853,7 @@ Lấy chi tiết category theo `id`.
 
 ---
 
-### PUT `/category/:id`
+### PUT `/categoryMain/:id`
 
 Cập nhật category (chỉ `admin`, `super-admin`).
 
@@ -843,7 +894,7 @@ Cập nhật category (chỉ `admin`, `super-admin`).
 
 ---
 
-### DELETE `/category/:id`
+### DELETE `/categoryMain/:id`
 
 Xóa category (chỉ `admin`, `super-admin`).
 Có ràng buộc: **nếu vẫn còn CategoryType tham chiếu tới category này thì không thể xóa**.
@@ -866,6 +917,524 @@ Có ràng buộc: **nếu vẫn còn CategoryType tham chiếu tới category n�
 {
   "error": "Cannot delete CategoryMain CARDIO because 3 CategoryType(s) still reference it"
 }
+```
+
+---
+
+## Category Type APIs (`/categoryType`)
+
+> **Authentication**:
+>
+> - Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
+> - Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** category type.
+
+---
+
+### POST `/categoryType`
+
+Tạo Category Type mới (chỉ `admin`, `super-admin`).
+
+**Request body (JSON):**
+
+```json
+{
+  "id": "TM",
+  "category_main_id": "CAO",
+  "name": "Treadmill",
+  "description": "Máy chạy bộ"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "TM",
+  "category_main_id": "CAO",
+  "name": "Treadmill",
+  "description": "Máy chạy bộ",
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T10:00:00.000Z"
+}
+```
+
+**Lỗi (400 - thiếu dữ liệu):**
+
+```json
+{ "error": "CategoryType id, name and category_main_id are required" }
+```
+
+**Lỗi (400 - id đã tồn tại):**
+
+```json
+{ "error": "CategoryType with id TREADMILL already exists" }
+```
+
+**Lỗi (400 - category_main_id không tồn tại):**
+
+```json
+{ "error": "Category_main with id CARDIO not exist" }
+```
+
+---
+
+### GET `/categoryType`
+
+Lấy danh sách tất cả Category Types (mọi user đăng nhập).
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "TM",
+    "category_main_id": "CAO",
+    "name": "Treadmill",
+    "description": "Máy chạy bộ",
+    "created_at": "2025-09-21T10:00:00.000Z",
+    "updated_at": "2025-09-21T10:00:00.000Z"
+  },
+  ...
+]
+```
+
+---
+
+### GET `/categoryType/:id`
+
+Lấy chi tiết Category Type theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "TM",
+  "category_main_id": "CAO",
+  "name": "Treadmill",
+  "description": "Máy chạy bộ",
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T10:00:00.000Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "CategoryType not found" }
+```
+
+---
+
+### GET `/categoryType/main/:category_main_id`
+
+Lấy danh sách Category Types theo `category_main_id`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "TM",
+    "category_main_id": "CAO",
+    "name": "Treadmill",
+    "description": "Máy chạy bộ",
+    "created_at": "2025-09-21T10:00:00.000Z",
+    "updated_at": "2025-09-21T10:00:00.000Z"
+  },
+  ...
+]
+```
+
+---
+
+### PUT `/categoryType/:id`
+
+Cập nhật Category Type (chỉ `admin`, `super-admin`).
+
+**Request body:**
+
+```json
+{
+  "category_main_id": "CAO",
+  "name": "Treadmill",
+  "description": "Máy chạy bộ"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "TM",
+  "category_main_id": "CAO",
+  "name": "Treadmill",
+  "description": "Máy chạy bộ",
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T10:00:00.000Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "CategoryType not found" }
+```
+
+---
+
+### DELETE `/categoryType/:id`
+
+Xóa Category Type (chỉ `admin`, `super-admin`).
+
+**Response (200):**
+
+```json
+{ "message": "CategoryType deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "CategoryType not found" }
+```
+
+---
+
+## Attribute APIs (`/attribute`)
+
+> **Authentication**:
+>
+> * Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> * Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
+> * Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** attribute.
+
+---
+
+### POST `/attribute`
+
+Tạo attribute mới (chỉ `admin`, `super-admin`).
+
+**Request body (JSON):**
+
+```json
+{
+  "name": "khối lượng"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42",
+  "name": "khối lượng"
+}
+```
+
+**Lỗi (400 - thiếu dữ liệu):**
+
+```json
+{ "error": "Attribute name is required" }
+```
+
+---
+
+### GET `/attribute`
+
+Lấy danh sách tất cả attributes (mọi user đăng nhập).
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42",
+    "name": "khối lượng"
+  },
+  {
+    "id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11",
+    "name": "màu sắc"
+  }
+]
+```
+
+---
+
+### GET `/attribute/:id`
+
+Lấy chi tiết attribute theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42",
+  "name": "khối lượng"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Attribute not found" }
+```
+
+---
+
+### PUT `/attribute/:id`
+
+Cập nhật attribute (chỉ `admin`, `super-admin`).
+
+**Request body:**
+
+```json
+{
+  "name": "khối lượng tối đa"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42",
+  "name": "khối lượng tối đa"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Attribute not found" }
+```
+
+---
+
+### DELETE `/attribute/:id`
+
+Xóa attribute (chỉ `admin`, `super-admin`).
+
+**Response (200):**
+
+```json
+{ "message": "Attribute deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Attribute not found" }
+```
+
+---
+
+## Attribute Value APIs (`/attributeValue`)
+
+> **Authentication**:
+>
+> * Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> * Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
+> * Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** attribute value.
+
+---
+
+### POST `/attributeValue`
+
+Tạo attribute value mới (chỉ `admin`, `super-admin`).
+
+**Request body (JSON):**
+
+```json
+{
+  "equipment_id": "CAOTMMT",
+  "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+  "value": "đỏ"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "7c4b2f1a-9811-4c2b-a8d9-223eabc43d55",
+  "equipment_id": "CAOTMMT",
+  "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+  "value": "đỏ"
+}
+```
+
+**Lỗi (400 - thiếu dữ liệu):**
+
+```json
+{ "error": "attribute_id, equipment_id, and value are required" }
+```
+
+**Lỗi (400 - attribute không tồn tại):**
+
+```json
+{ "error": "Attribute with id 81a0b2c3... does not exist" }
+```
+
+**Lỗi (400 - equipment không tồn tại):**
+
+```json
+{ "error": "Equipment with id CAOTMMT does not exist" }
+```
+
+**Lỗi (400 - đã tồn tại attribute\_id + equipment\_id):**
+
+```json
+{ "error": "AttributeValue with equipment_id CAOTMMT and attribute_id 81a0b2c3... already exists" }
+```
+
+---
+
+### GET `/attributeValue`
+
+Lấy danh sách tất cả attribute values.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "7c4b2f1a-9811-4c2b-a8d9-223eabc43d55",
+    "equipment_id": "CAOTMMT",
+    "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+    "value": "đỏ"
+  },
+  {
+    "id": "9e8f1c2d-12ab-47de-bb33-98a7aa2a71e5",
+    "equipment_id": "CAOTMMT",
+    "attribute_id": "77a0f9c3-1a2b-4b2e-b227-12fd32a08aaa",
+    "value": "20kg"
+  }
+]
+```
+
+---
+
+### GET `/attributeValue/:id`
+
+Lấy chi tiết attribute value theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "7c4b2f1a-9811-4c2b-a8d9-223eabc43d55",
+  "equipment_id": "CAOTMMT",
+  "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+  "value": "đỏ"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "AttributeValue not found" }
+```
+
+---
+
+### GET `/attributeValue/equipment/:equipment_id`
+
+Lấy tất cả attribute values theo `equipment_id`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "7c4b2f1a-9811-4c2b-a8d9-223eabc43d55",
+    "equipment_id": "CAOTMMT",
+    "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+    "value": "đỏ"
+  },
+  {
+    "id": "9e8f1c2d-12ab-47de-bb33-98a7aa2a71e5",
+    "equipment_id": "CAOTMMT",
+    "attribute_id": "77a0f9c3-1a2b-4b2e-b227-12fd32a08aaa",
+    "value": "20kg"
+  }
+]
+```
+
+---
+
+### GET `/attributeValue/attribute/:attribute_id`
+
+Lấy tất cả attribute values theo `attribute_id`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "7c4b2f1a-9811-4c2b-a8d9-223eabc43d55",
+    "equipment_id": "CAOTMMT",
+    "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+    "value": "đỏ"
+  },
+  {
+    "id": "9e8f1c2d-12ab-47de-bb33-98a7aa2a71e5",
+    "equipment_id": "OTHER123",
+    "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+    "value": "xanh"
+  }
+]
+```
+
+---
+
+### PUT `/attributeValue/:id`
+
+Cập nhật attribute value (chỉ `admin`, `super-admin`).
+
+**Request body:**
+
+```json
+{
+  "equipment_id": "CAOTMMT",
+  "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+  "value": "xanh"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "7c4b2f1a-9811-4c2b-a8d9-223eabc43d55",
+  "equipment_id": "CAOTMMT",
+  "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce",
+  "value": "xanh"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "AttributeValue not found" }
+```
+
+---
+
+### DELETE `/attributeValue/:id`
+
+Xóa attribute value (chỉ `admin`, `super-admin`).
+
+**Response (200):**
+
+```json
+{ "message": "AttributeValue deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "AttributeValue not found" }
 ```
 
 ---

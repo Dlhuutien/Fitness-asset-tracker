@@ -14,15 +14,25 @@ if (!REGION || !USER_POOL_ID || !CLIENT_ID) {
   throw new Error('Missing required env: AWS_REGION, COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID');
 }
 
+const credentials = {
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+};
+
 // ======== AWS SDK v3 client ========
-const cip = new CognitoIdentityProviderClient({ region: REGION });
+// const cip = new CognitoIdentityProviderClient({ region: REGION });
+const cip = new CognitoIdentityProviderClient({ region: REGION, credentials });
+
 
 // ======== DynamoDB v3 ========
-const ddbClient = new DynamoDBClient({ region: REGION });
+// const ddbClient = new DynamoDBClient({ region: REGION });
+const ddbClient = new DynamoDBClient({ region: REGION, credentials });
 const dynamodb = DynamoDBDocumentClient.from(ddbClient);
 
+
 // ======== S3 ========
-const s3 = new S3Client({ region: REGION });
+// const s3 = new S3Client({ region: REGION });
+const s3 = new S3Client({ region: REGION, credentials });
 
 // ======== Helpers ========
 function secretHash(username) {
