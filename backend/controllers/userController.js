@@ -135,3 +135,23 @@ exports.listUsers = async (req, res) => {
     res.status(400).json({ error: err.name, message: err.message });
   }
 };
+
+exports.setUserRole = async (req, res) => {
+  try {
+    const updatedByRole = req.user?.["cognito:groups"]?.[0];
+    if (!updatedByRole) {
+      return res.status(403).json({ error: "Forbidden", message: "User role is missing" });
+    }
+
+    const { username, newRole } = req.body;
+    if (!username || !newRole) {
+      return res.status(400).json({ error: "ValidationError", message: "username and newRole are required" });
+    }
+
+    const result = await userService.setUserRole({ username, newRole, updatedByRole });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.name, message: err.message });
+  }
+};
+

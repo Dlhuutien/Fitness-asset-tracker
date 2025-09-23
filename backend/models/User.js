@@ -21,6 +21,7 @@ const {
   AdminEnableUserCommand,
   AdminDisableUserCommand,
   AdminListGroupsForUserCommand,
+  AdminRemoveUserFromGroupCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
 const now = () => new Date().toISOString();
@@ -143,7 +144,9 @@ const UserModel = {
   },
 
   getUserInfo: async ({ accessToken }) => {
-    const out = await cip.send(new GetUserCommand({ AccessToken: accessToken }));
+    const out = await cip.send(
+      new GetUserCommand({ AccessToken: accessToken })
+    );
     return {
       username: out.Username,
       userAttributes: out.UserAttributes.reduce((acc, attr) => {
@@ -256,7 +259,9 @@ const UserModel = {
 
   updateUserStatus: async ({ username, enabled, updatedByRole }) => {
     if (!username || typeof enabled !== "boolean" || !updatedByRole) {
-      throw new Error("username, enabled (boolean), and updatedByRole are required");
+      throw new Error(
+        "username, enabled (boolean), and updatedByRole are required"
+      );
     }
 
     const resp = await cip.send(
@@ -267,14 +272,20 @@ const UserModel = {
     );
 
     const targetRole =
-      resp.UserAttributes.find((attr) => attr.Name === "cognito:groups")?.Value || null;
+      resp.UserAttributes.find((attr) => attr.Name === "cognito:groups")
+        ?.Value || null;
 
     if (!["admin", "super-admin"].includes(updatedByRole)) {
       throw new Error(`${updatedByRole} is not allowed to change user status`);
     }
 
-    if (updatedByRole === "admin" && ["admin", "super-admin"].includes(targetRole)) {
-      throw new Error("Admin cannot change status of another admin or super-admin");
+    if (
+      updatedByRole === "admin" &&
+      ["admin", "super-admin"].includes(targetRole)
+    ) {
+      throw new Error(
+        "Admin cannot change status of another admin or super-admin"
+      );
     }
 
     if (enabled) {
@@ -293,12 +304,27 @@ const UserModel = {
       );
     }
 
-    return { message: `User ${username} ${enabled ? "enabled" : "disabled"} successfully` };
+    return {
+      message: `User ${username} ${
+        enabled ? "enabled" : "disabled"
+      } successfully`,
+    };
   },
 
-  adminUpdateUserAttributes: async ({ username, attributes, updatedByRole }) => {
-    if (!username || !attributes || typeof attributes !== "object" || !updatedByRole) {
-      throw new Error("username, attributes object and updatedByRole are required");
+  adminUpdateUserAttributes: async ({
+    username,
+    attributes,
+    updatedByRole,
+  }) => {
+    if (
+      !username ||
+      !attributes ||
+      typeof attributes !== "object" ||
+      !updatedByRole
+    ) {
+      throw new Error(
+        "username, attributes object and updatedByRole are required"
+      );
     }
 
     const groupResp = await cip.send(
@@ -309,19 +335,28 @@ const UserModel = {
     );
 
     const targetRole = groupResp.Groups?.[0]?.GroupName;
-    if (!targetRole) throw new Error(`User ${username} does not belong to any group`);
+    if (!targetRole)
+      throw new Error(`User ${username} does not belong to any group`);
 
     const allowedUpdate = {
       admin: ["technician", "operator"],
       "super-admin": ["admin", "technician", "operator"],
     };
 
-    if (!allowedUpdate[updatedByRole] || !allowedUpdate[updatedByRole].includes(targetRole)) {
-      throw new Error(`${updatedByRole} is not allowed to update a user with role ${targetRole}`);
+    if (
+      !allowedUpdate[updatedByRole] ||
+      !allowedUpdate[updatedByRole].includes(targetRole)
+    ) {
+      throw new Error(
+        `${updatedByRole} is not allowed to update a user with role ${targetRole}`
+      );
     }
 
     const formattedAttrs = [
-      ...Object.entries(attributes).map(([key, value]) => ({ Name: key, Value: value })),
+      ...Object.entries(attributes).map(([key, value]) => ({
+        Name: key,
+        Value: value,
+      })),
       { Name: "custom:updated_at", Value: now() },
     ];
 
@@ -347,6 +382,7 @@ const UserModel = {
       throw new Error(`${role} is not allowed to list users`);
     }
 
+    // Lấy danh sách user
     const resp = await cip.send(
       new ListUsersCommand({
         UserPoolId: USER_POOL_ID,
@@ -354,19 +390,77 @@ const UserModel = {
       })
     );
 
-    const users = resp.Users.map((user) => ({
-      username: user.Username,
-      status: user.UserStatus,
-      enabled: user.Enabled,
-      createdAt: user.UserCreateDate,
-      updatedAt: user.UserLastModifiedDate,
-      attributes: user.Attributes.reduce((acc, attr) => {
-        acc[attr.Name] = attr.Value;
-        return acc;
-      }, {}),
-    }));
+    const users = [];
+
+    for (const user of resp.Users) {
+      // Lấy nhóm (role) của user
+      const groupResp = await cip.send(
+        new AdminListGroupsForUserCommand({
+          UserPoolId: USER_POOL_ID,
+          Username: user.Username,
+        })
+      );
+
+      const userRole = groupResp.Groups?.map((g) => g.GroupName) || [];
+
+      users.push({
+        username: user.Username,
+        status: user.UserStatus,
+        enabled: user.Enabled,
+        createdAt: user.UserCreateDate,
+        updatedAt: user.UserLastModifiedDate,
+        attributes: user.Attributes.reduce((acc, attr) => {
+          acc[attr.Name] = attr.Value;
+          return acc;
+        }, {}),
+        roles: userRole,
+      });
+    }
 
     return { users };
+  },
+  
+  adminSetUserRole: async ({ username, newRole, updatedByRole }) => {
+    if (!["admin", "super-admin"].includes(updatedByRole)) {
+      throw new Error(`${updatedByRole} is not allowed to set roles`);
+    }
+
+    // Với admin thì chỉ được gán role cho technician / operator
+    if (
+      updatedByRole === "admin" &&
+      !["technician", "operator"].includes(newRole)
+    ) {
+      throw new Error("Admin can only set role to technician or operator");
+    }
+
+    // Xoá tất cả role cũ trước (Cognito user có thể thuộc nhiều group)
+    const groupsResp = await cip.send(
+      new AdminListGroupsForUserCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: username,
+      })
+    );
+
+    for (const g of groupsResp.Groups || []) {
+      await cip.send(
+        new AdminRemoveUserFromGroupCommand({
+          UserPoolId: USER_POOL_ID,
+          Username: username,
+          GroupName: g.GroupName,
+        })
+      );
+    }
+
+    // Thêm role mới
+    await cip.send(
+      new AdminAddUserToGroupCommand({
+        UserPoolId: USER_POOL_ID,
+        Username: username,
+        GroupName: newRole,
+      })
+    );
+
+    return { message: `Role of ${username} set to ${newRole}` };
   },
 };
 
