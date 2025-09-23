@@ -3,7 +3,19 @@ const maintenanceService = require("../services/maintenanceService");
 const maintenanceController = {
   create: async (req, res) => {
     try {
-      const maintenance = await maintenanceService.createMaintenance(req.body);
+      const { role, sub } = req.user;
+
+      const data = {
+        ...req.body,
+        assigned_by: sub,
+      };
+
+      // Nếu role là operator thì gán luôn user_id
+      if (role === "operator") {
+        data.user_id = sub;
+      }
+
+      const maintenance = await maintenanceService.createMaintenance(data);
       res.status(201).json(maintenance);
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -12,9 +24,10 @@ const maintenanceController = {
 
   progress: async (req, res) => {
     try {
+      const { sub } = req.user; // user_id lấy từ token
       const maintenance = await maintenanceService.progressMaintenance(
         req.params.id,
-        req.body
+        { user_id: sub }
       );
       res.json(maintenance);
     } catch (error) {

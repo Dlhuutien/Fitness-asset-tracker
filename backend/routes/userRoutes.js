@@ -55,4 +55,13 @@ router.get('/list-user',
   userController.listUsers
 );
 
+// Admin/super-admin đổi role user
+router.put(
+  "/set-role",
+  verifyAccessToken,
+  requireRole("admin", "super-admin"),
+  userController.setUserRole
+);
+
+
 module.exports = router;

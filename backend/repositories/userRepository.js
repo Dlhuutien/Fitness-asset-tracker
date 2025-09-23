@@ -17,6 +17,7 @@ const userRepository = {
   // Admin / Super-admin actions
   // ===========================
   adminCreateUser: async (data) => UserModel.adminCreateUser(data),
+  setUserRole: async (data) => UserModel.adminSetUserRole(data),
   updateUserStatus: async (data) => UserModel.updateUserStatus(data),
   adminUpdateUserAttributes: async (data) => UserModel.adminUpdateUserAttributes(data),
   listUsers: async (data) => UserModel.listUsers(data),

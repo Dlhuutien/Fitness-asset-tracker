@@ -8,7 +8,7 @@ const equipmentTransferController = {
         equipment_unit_id: req.body.equipment_unit_id,
         from_branch_id: req.body.from_branch_id,
         to_branch_id: req.body.to_branch_id,
-        approved_by: req.user?.id || req.body.approved_by, // lấy từ token nếu có
+        approved_by: req.user?.id || req.body.approved_by,
         description: req.body.description,
         move_start_date: req.body.move_start_date,
       });

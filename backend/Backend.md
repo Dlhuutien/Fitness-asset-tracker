@@ -12,77 +12,121 @@
 
 2. [Auth APIs (`/auth`)](#auth-apis-auth)
 
-   * `/auth/signup` — Signup
-   * `/auth/confirm` — Confirm sign up
-   * `/auth/signin` — Sign in
-   * `/auth/refresh` — Refresh token
-   * `/auth/firstLogin` — NEW\_PASSWORD\_REQUIRED (first login change password)
+   - `POST /auth/signup` — Signup
+   - `POST /auth/confirm` — Confirm sign up
+   - `POST /auth/signin` — Sign in
+   - `POST /auth/refresh` — Refresh token
+   - `POST /auth/firstLogin` — NEW_PASSWORD_REQUIRED (first login change password)
 
 3. [User APIs (`/user`)](#user-apis-user)
 
-   * `/user/me` — Lấy thông tin hiện tại
-   * `/user/admin-only` — ví dụ protected
-   * `/user/super-admin-only` — ví dụ protected
-   * `/user/tech-or-operator` — ví dụ protected
-   * `/user/create` — Admin tạo user (Admin API)
-   * `/user/change-password` — Đổi password (user)
-   * `/user/update-info` — Cập nhật thông tin user (user tự cập nhật)
-   * `/user/change-status` — Admin/SA enable/disable user
-   * `/user/admin-update-user` — Admin/SA cập nhật attributes người dùng
-   * `/user/list-user` — Admin/SA lấy danh sách users
+   - `GET /user/me` — Lấy thông tin user hiện tại (token + attributes)
+   - `POST /user/create` — Admin/Super-admin tạo user mới
+   - `POST /user/change-password` — Đổi mật khẩu
+   - `PUT /user/update-info` — Cập nhật thông tin cá nhân
+   - `PUT /user/change-status` — Admin/Super-admin bật/tắt user
+   - `PUT /user/admin-update-user` — Admin/Super-admin cập nhật thông tin user khác
+   - `PUT /user/set-role` — Admin/Super-admin thay đổi role của user
+   - `GET /user/list-user` — Admin/Super-admin lấy danh sách user kèm role
+   - `GET /user/admin-only` — Test API chỉ admin/super-admin truy cập
+   - `GET /user/super-admin-only` — Test API chỉ super-admin truy cập
+   - `GET /user/tech-or-operator` — Test API cho technician/operator/admin/super-admin
 
 4. [Lỗi thường gặp](#lỗi-thường-gặp)
 
 5. [Vendor APIs (`/vendor`)](#vendor-apis-vendor)
 
-   * `POST /vendor` — Tạo vendor
-   * `GET /vendor` — Lấy danh sách vendor
-   * `GET /vendor/:id` — Lấy chi tiết vendor
-   * `PUT /vendor/:id` — Cập nhật vendor
-   * `DELETE /vendor/:id` — Xóa vendor
+   - `POST /vendor` — Tạo vendor
+   - `GET /vendor` — Lấy danh sách vendor
+   - `GET /vendor/:id` — Lấy chi tiết vendor
+   - `PUT /vendor/:id` — Cập nhật vendor
+   - `DELETE /vendor/:id` — Xóa vendor
 
 6. [Branch APIs (`/branch`)](#branch-apis-branch)
 
-   * `POST /branch` — Tạo branch
-   * `GET /branch` — Lấy danh sách branch
-   * `GET /branch/:id` — Lấy chi tiết branch
-   * `PUT /branch/:id` — Cập nhật branch
-   * `DELETE /branch/:id` — Xóa branch
+   - `POST /branch` — Tạo branch
+   - `GET /branch` — Lấy danh sách branch
+   - `GET /branch/:id` — Lấy chi tiết branch
+   - `PUT /branch/:id` — Cập nhật branch
+   - `DELETE /branch/:id` — Xóa branch
 
 7. [Category Main APIs (`/categoryMain`)](#category-main-apis-categorymain)
 
-   * `POST /categoryMain` — Tạo category main
-   * `GET /categoryMain` — Lấy danh sách category main
-   * `GET /categoryMain/:id` — Lấy chi tiết category main
-   * `PUT /categoryMain/:id` — Cập nhật category main
-   * `DELETE /categoryMain/:id` — Xóa category main
+   - `POST /categoryMain` — Tạo category main
+   - `GET /categoryMain` — Lấy danh sách category main
+   - `GET /categoryMain/:id` — Lấy chi tiết category main
+   - `PUT /categoryMain/:id` — Cập nhật category main
+   - `DELETE /categoryMain/:id` — Xóa category main
 
 8. [Category Type APIs (`/categoryType`)](#category-type-apis-categorytype)
 
-   * `POST /categoryType` — Tạo category type
-   * `GET /categoryType` — Lấy danh sách category type
-   * `GET /categoryType/:id` — Lấy chi tiết category type
-   * `GET /categoryType/main/:category_main_id` — Lấy category type theo category main
-   * `PUT /categoryType/:id` — Cập nhật category type
-   * `DELETE /categoryType/:id` — Xóa category type
+   - `POST /categoryType` — Tạo category type
+   - `GET /categoryType` — Lấy danh sách category type
+   - `GET /categoryType/:id` — Lấy chi tiết category type
+   - `GET /categoryType/main/:category_main_id` — Lấy category type theo category main
+   - `PUT /categoryType/:id` — Cập nhật category type
+   - `DELETE /categoryType/:id` — Xóa category type
 
 9. [Attribute APIs (`/attribute`)](#attribute-apis-attribute)
 
-   * `POST /attribute` — Tạo attribute
-   * `GET /attribute` — Lấy danh sách attribute
-   * `GET /attribute/:id` — Lấy chi tiết attribute
-   * `PUT /attribute/:id` — Cập nhật attribute
-   * `DELETE /attribute/:id` — Xóa attribute
+   - `POST /attribute` — Tạo attribute
+   - `GET /attribute` — Lấy danh sách attribute
+   - `GET /attribute/:id` — Lấy chi tiết attribute
+   - `PUT /attribute/:id` — Cập nhật attribute
+   - `DELETE /attribute/:id` — Xóa attribute
 
 10. [Attribute Value APIs (`/attributeValue`)](#attribute-value-apis-attributevalue)
 
-    * `POST /attributeValue` — Tạo attribute value
-    * `GET /attributeValue` — Lấy danh sách attribute value
-    * `GET /attributeValue/:id` — Lấy chi tiết attribute value
-    * `GET /attributeValue/equipment/:equipment_id` — Lấy attribute value theo equipment
-    * `GET /attributeValue/attribute/:attribute_id` — Lấy attribute value theo attribute
-    * `PUT /attributeValue/:id` — Cập nhật attribute value
-    * `DELETE /attributeValue/:id` — Xóa attribute value
+    - `POST /attributeValue` — Tạo attribute value
+    - `GET /attributeValue` — Lấy danh sách attribute value
+    - `GET /attributeValue/:id` — Lấy chi tiết attribute value
+    - `GET /attributeValue/equipment/:equipment_id` — Lấy attribute value theo equipment
+    - `GET /attributeValue/attribute/:attribute_id` — Lấy attribute value theo attribute
+    - `PUT /attributeValue/:id` — Cập nhật attribute value
+    - `DELETE /attributeValue/:id` — Xóa attribute value
+
+11. [Equipment APIs (`/equipment`)](#equipment-apis-equipment)
+
+    - `POST /equipment` — Tạo equipment
+    - `GET /equipment` — Lấy danh sách equipment
+    - `GET /equipment/:id` — Lấy chi tiết equipment
+    - `GET /equipment/categoryType/:category_type_id` — Lấy equipment theo category_type_id
+    - `GET /equipment/vendor/:vendor_id` — Lấy equipment theo vendor_id
+    - `PUT /equipment/:id` — Cập nhật equipment
+    - `DELETE /equipment/:id` — Xóa equipment
+
+12. [Invoice APIs (`/invoice`)](#invoice-apis-invoice)
+
+    - `POST /invoice` — Tạo invoice
+    - `GET /invoice` — Lấy danh sách invoice
+    - `GET /invoice/:id` — Lấy chi tiết invoice
+    - `GET /invoice/:id/details` — Lấy invoice kèm chi tiết
+    - `PUT /invoice/:id` — Cập nhật invoice
+    - `DELETE /invoice/:id` — Xóa invoice
+
+13. [Equipment Unit APIs (`/equipmentUnit`)](#equipment-unit-apis-equipmentunit)
+
+    - `GET /equipmentUnit` — Lấy danh sách equipment units
+    - `GET /equipmentUnit/:id` — Lấy chi tiết equipment unit
+    - `PUT /equipmentUnit/:id` — Cập nhật equipment unit
+    - `DELETE /equipmentUnit/:id` — Xóa equipment unit
+
+14. [Equipment Transfer APIs (`/equipmentTransfer`)](#equipment-transfer-apis-equipmenttransfer)
+
+    - `POST /equipmentTransfer` — Tạo yêu cầu chuyển thiết bị
+    - `GET /equipmentTransfer` — Lấy danh sách yêu cầu chuyển thiết bị
+    - `GET /equipmentTransfer/:id` — Lấy chi tiết một yêu cầu chuyển thiết bị
+    - `PUT /equipmentTransfer/:id/complete` — Hoàn tất chuyển thiết bị (cập nhật trạng thái + ngày nhận)
+    - `DELETE /equipmentTransfer/:id` — Xóa yêu cầu chuyển thiết bị
+
+15. [Maintenance APIs (`/maintenance`)](#maintenance-apis-maintenance)
+
+    - `POST /maintenance` — Tạo yêu cầu bảo trì thiết bị
+    - `GET /maintenance` — Lấy danh sách yêu cầu bảo trì
+    - `GET /maintenance/:id` — Lấy chi tiết một yêu cầu bảo trì
+    - `PUT /maintenance/:id/progress` — Bắt đầu bảo trì (In Progress)
+    - `PUT /maintenance/:id/complete` — Hoàn tất bảo trì (Ready / Failed)
+    - `DELETE /maintenance/:id` — Xóa yêu cầu bảo trì
 
 ---
 
@@ -365,6 +409,49 @@ Response (200):
 
 ```json
 { "message": "User information updated successfully" }
+```
+
+---
+
+### PUT `/user/set-role`
+
+Admin hoặc Super-admin thay đổi role (nhóm Cognito) của user.
+
+**Header**:
+`Authorization: Bearer <accessToken>`
+
+**Body (JSON)**:
+
+```json
+{
+  "username": "user123",
+  "role": "technician"
+}
+```
+
+* `username`: Username trong Cognito cần đổi role
+* `role`: Role mới cần set (`super-admin`, `admin`, `operator`, `technician`)
+
+**Response (200):**
+
+```json
+{
+  "message": "User user123 role updated to technician successfully"
+}
+```
+
+**Quy tắc phân quyền:**
+
+* `super-admin`: có thể set role cho mọi user (kể cả admin).
+* `admin`: chỉ được set role cho `technician` và `operator`, **không được set cho admin/super-admin**.
+
+**Response lỗi ví dụ (403):**
+
+```json
+{
+  "error": "Forbidden",
+  "message": "admin is not allowed to change role of super-admin"
+}
 ```
 
 ---
@@ -1105,9 +1192,9 @@ Xóa Category Type (chỉ `admin`, `super-admin`).
 
 > **Authentication**:
 >
-> * Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
-> * Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
-> * Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** attribute.
+> - Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
+> - Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** attribute.
 
 ---
 
@@ -1233,9 +1320,9 @@ Xóa attribute (chỉ `admin`, `super-admin`).
 
 > **Authentication**:
 >
-> * Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
-> * Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
-> * Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** attribute value.
+> - Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
+> - Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** attribute value.
 
 ---
 
@@ -1282,10 +1369,12 @@ Tạo attribute value mới (chỉ `admin`, `super-admin`).
 { "error": "Equipment with id CAOTMMT does not exist" }
 ```
 
-**Lỗi (400 - đã tồn tại attribute\_id + equipment\_id):**
+**Lỗi (400 - đã tồn tại attribute_id + equipment_id):**
 
 ```json
-{ "error": "AttributeValue with equipment_id CAOTMMT and attribute_id 81a0b2c3... already exists" }
+{
+  "error": "AttributeValue with equipment_id CAOTMMT and attribute_id 81a0b2c3... already exists"
+}
 ```
 
 ---
@@ -1435,6 +1524,925 @@ Xóa attribute value (chỉ `admin`, `super-admin`).
 
 ```json
 { "error": "AttributeValue not found" }
+```
+
+---
+
+## Equipment APIs (`/equipment`)
+
+> **Authentication**:
+>
+> - Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**.
+> - Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết** equipment.
+
+---
+
+### POST `/equipment`
+
+Tạo equipment mới (chỉ `admin`, `super-admin`).
+
+**Request body (JSON):**
+
+```json
+{
+  "name": "Treadmill Pro",
+  "vendor_id": "MT",
+  "category_type_id": "TM",
+  "description": "Máy chạy bộ cao cấp",
+  "image": "https://example.com/treadmill.png",
+  "warranty_duration": 2
+}
+```
+
+> 📌 `id` sẽ được sinh tự động theo format: `category_main_id + category_type_id + vendor_id`.
+
+**Response (201):**
+
+```json
+{
+  "id": "CAOTMMT",
+  "vendor_id": "MT",
+  "category_type_id": "TM",
+  "category_main_id": "CAO",
+  "name": "Treadmill Pro",
+  "image": "https://example.com/treadmill.png",
+  "description": "Máy chạy bộ cao cấp",
+  "warranty_duration": 2,
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T10:00:00.000Z"
+}
+```
+
+**Lỗi (400 - thiếu dữ liệu):**
+
+```json
+{ "error": "Equipment name, vendor_id, category_type_id are required" }
+```
+
+**Lỗi (400 - vendor không tồn tại):**
+
+```json
+{ "error": "Vendor with id MT does not exist" }
+```
+
+**Lỗi (400 - category_type không tồn tại):**
+
+```json
+{ "error": "CategoryType with id TM does not exist" }
+```
+
+---
+
+### GET `/equipment`
+
+Lấy danh sách tất cả equipments.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "CAOTMMT",
+    "vendor_id": "MT",
+    "category_type_id": "TM",
+    "category_main_id": "CAO",
+    "name": "Treadmill Pro",
+    "image": "https://example.com/treadmill.png",
+    "description": "Máy chạy bộ cao cấp",
+    "warranty_duration": 2,
+    "created_at": "2025-09-21T10:00:00.000Z",
+    "updated_at": "2025-09-21T10:00:00.000Z"
+  },
+  ...
+]
+```
+
+---
+
+### GET `/equipment/:id`
+
+Lấy chi tiết equipment theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "CAOTMMT",
+  "vendor_id": "MT",
+  "category_type_id": "TM",
+  "category_main_id": "CAO",
+  "name": "Treadmill Pro",
+  "image": "https://example.com/treadmill.png",
+  "description": "Máy chạy bộ cao cấp",
+  "warranty_duration": 2,
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T10:00:00.000Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment not found" }
+```
+
+---
+
+### GET `/equipment/categoryType/:category_type_id`
+
+Lấy tất cả equipments theo `category_type_id`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "CAOTMMT",
+    "vendor_id": "MT",
+    "category_type_id": "TM",
+    "category_main_id": "CAO",
+    "name": "Treadmill Pro",
+    "description": "Máy chạy bộ cao cấp"
+  },
+  {
+    "id": "CAOTMJS",
+    "vendor_id": "JS",
+    "category_type_id": "TM",
+    "category_main_id": "CAO",
+    "name": "Treadmill Johnson",
+    "description": "Máy chạy bộ Johnson"
+  }
+]
+```
+
+---
+
+### GET `/equipment/vendor/:vendor_id`
+
+Lấy tất cả equipments theo `vendor_id`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "CAOTMMT",
+    "vendor_id": "MT",
+    "category_type_id": "TM",
+    "category_main_id": "CAO",
+    "name": "Treadmill Pro",
+    "description": "Máy chạy bộ cao cấp"
+  },
+  {
+    "id": "CAOOPMT",
+    "vendor_id": "MT",
+    "category_type_id": "OP",
+    "category_main_id": "CAO",
+    "name": "Máy leo cầu thang",
+    "description": "Thiết bị cardio"
+  }
+]
+```
+
+---
+
+### PUT `/equipment/:id`
+
+Cập nhật equipment (chỉ `admin`, `super-admin`).
+
+**Request body (JSON):**
+
+```json
+{
+  "name": "Treadmill Pro 2025",
+  "vendor_id": "MT",
+  "category_type_id": "TM",
+  "description": "Máy chạy bộ cao cấp phiên bản mới",
+  "image": "https://example.com/treadmill-v2.png",
+  "warranty_duration": 3
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "CAOTMMT",
+  "vendor_id": "MT",
+  "category_type_id": "TM",
+  "category_main_id": "CAO",
+  "name": "Treadmill Pro 2025",
+  "image": "https://example.com/treadmill-v2.png",
+  "description": "Máy chạy bộ cao cấp phiên bản mới",
+  "warranty_duration": 3,
+  "created_at": "2025-09-21T10:00:00.000Z",
+  "updated_at": "2025-09-21T12:30:00.000Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment not found" }
+```
+
+---
+
+### DELETE `/equipment/:id`
+
+Xóa equipment (chỉ `admin`, `super-admin`).
+
+**Response (200):**
+
+```json
+{ "message": "Equipment deleted" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment not found" }
+```
+
+---
+
+# Invoice APIs (`/invoice`)
+
+> **Authentication**:
+>
+> - Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Các role (`operator`, `technician`, `admin`, `super-admin`) đều có thể xem danh sách & chi tiết invoice.
+
+---
+
+### POST `/invoice`
+
+Tạo invoice mới với danh sách thiết bị.
+**Request body (JSON):**
+
+```json
+{
+  "items": [
+    {
+      "equipment_id": "eq123",
+      "branch_id": "b001",
+      "quantity": 2,
+      "cost": 100,
+      "warranty_duration": 1
+    },
+    {
+      "equipment_id": "eq456",
+      "branch_id": "b001",
+      "quantity": 1,
+      "cost": 250,
+      "warranty_duration": 2
+    }
+  ]
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "invoice": {
+    "id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
+    "user_id": "a98a551c-e041-70f3-8c2b-5f53a6b54e1c",
+    "total": 450,
+    "created_at": "2025-09-17T14:45:46.675Z",
+    "updated_at": "2025-09-17T14:45:47.135Z"
+  },
+  "details": [
+    {
+      "id": "7e678fb3-5432-4cbe-98e8-88beebd2fe9b",
+      "invoice_id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
+      "equipment_unit_id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+      "cost": 100,
+      "created_at": "2025-09-17T14:45:46.991Z"
+    },
+    ...
+  ]
+}
+```
+
+---
+
+### GET `/invoice`
+
+Lấy danh sách invoices.
+**Response (200):**
+
+```json
+[
+  {
+    "id": "de3dbbef-3716-4091-af13-19cf4a9b0ac9",
+    "user_id": "a98a551c-e041-70f3-8c2b-5f53a6b54e1c",
+    "total": 450,
+    "created_at": "2025-09-17T14:44:09.412Z",
+    "updated_at": "2025-09-17T14:44:09.953Z"
+  },
+  {
+    "id": "21350ea9-f923-423d-b80c-d8a38474a3d9",
+    "user_id": "a98a551c-e041-70f3-8c2b-5f53a6b54e1c",
+    "total": 1500000,
+    "created_at": "2025-09-16T15:06:31.919Z",
+    "updated_at": "2025-09-16T15:06:31.919Z"
+  }
+]
+```
+
+---
+
+### GET `/invoice/:id`
+
+Lấy chi tiết invoice theo `id`.
+**Response (200):**
+
+```json
+{
+  "id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
+  "user_id": "a98a551c-e041-70f3-8c2b-5f53a6b54e1c",
+  "total": 450,
+  "created_at": "2025-09-17T14:45:46.675Z",
+  "updated_at": "2025-09-17T14:45:47.135Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Invoice not found" }
+```
+
+---
+
+### GET `/invoice/:id/details`
+
+Lấy invoice kèm theo chi tiết (join sang `equipment_unit`).
+**Response (200):**
+
+```json
+{
+  "invoice": {
+    "id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
+    "user_id": "a98a551c-e041-70f3-8c2b-5f53a6b54e1c",
+    "total": 450,
+    "created_at": "2025-09-17T14:45:46.675Z",
+    "updated_at": "2025-09-17T14:45:47.135Z"
+  },
+  "details": [
+    {
+      "id": "7e678fb3-5432-4cbe-98e8-88beebd2fe9b",
+      "invoice_id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
+      "equipment_unit_id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+      "cost": 100,
+      "created_at": "2025-09-17T14:45:46.991Z",
+      "equipment_unit": {
+        "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+        "sku": "eq123-d27ec9",
+        "equipment_id": "eq123",
+        "branch_id": "b001",
+        "status": "In Stock",
+        "cost": 100,
+        "warranty_start_date": "2025-09-17T14:45:46.945Z",
+        "warranty_end_date": "2026-09-17T14:45:46.945Z"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### PUT `/invoice/:id`
+
+Cập nhật invoice (chỉ cho phép cập nhật `total`).
+**Request body:**
+
+```json
+{ "total": 500 }
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
+  "user_id": "a98a551c-e041-70f3-8c2b-5f53a6b54e1c",
+  "total": 500,
+  "created_at": "2025-09-17T14:45:46.675Z",
+  "updated_at": "2025-09-17T14:50:10.000Z"
+}
+```
+
+---
+
+### DELETE `/invoice/:id`
+
+Xóa invoice.
+
+**Response (200):**
+
+```json
+{ "message": "Invoice deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Invoice not found" }
+```
+
+---
+
+Rồi 👍 mình sẽ viết tiếp **backend.md** phần **Equipment Unit APIs (`/equipmentUnit`)** và thêm vào mục lục cho bạn nhé.
+
+---
+
+## Equipment Unit APIs (`/equipmentUnit`)
+
+> **Authentication**:
+>
+> - `GET`: Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể gọi.
+> - `PUT` & `DELETE`: yêu cầu header `Authorization: Bearer <accessToken>`.
+
+---
+
+### GET `/equipmentUnit`
+
+Lấy danh sách tất cả equipment units.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+    "equipment_id": "eq123",
+    "branch_id": "b001",
+    "sku": "eq123-d27ec9",
+    "cost": 100,
+    "description": "Imported via invoice",
+    "status": "In Stock",
+    "warranty_start_date": "2025-09-17T14:45:46.945Z",
+    "warranty_end_date": "2026-09-17T14:45:46.945Z",
+    "created_at": "2025-09-17T14:45:46.945Z",
+    "updated_at": "2025-09-17T14:45:46.945Z"
+  },
+  {
+    "id": "2d56f592-a160-4700-b8dd-7a59bc43a63a",
+    "equipment_id": "eq456",
+    "branch_id": "b001",
+    "sku": "eq456-2d56f5",
+    "cost": 250,
+    "description": "Imported via invoice",
+    "status": "In Stock",
+    "warranty_start_date": "2025-09-17T14:45:47.038Z",
+    "warranty_end_date": "2027-09-17T14:45:47.038Z",
+    "created_at": "2025-09-17T14:45:47.038Z",
+    "updated_at": "2025-09-17T14:45:47.038Z"
+  }
+]
+```
+
+---
+
+### GET `/equipmentUnit/:id`
+
+Lấy chi tiết equipment unit theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+  "equipment_id": "eq123",
+  "branch_id": "b001",
+  "sku": "eq123-d27ec9",
+  "cost": 100,
+  "description": "Imported via invoice",
+  "status": "In Stock",
+  "warranty_start_date": "2025-09-17T14:45:46.945Z",
+  "warranty_end_date": "2026-09-17T14:45:46.945Z",
+  "created_at": "2025-09-17T14:45:46.945Z",
+  "updated_at": "2025-09-17T14:45:46.945Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment Unit not found" }
+```
+
+---
+
+### PUT `/equipmentUnit/:id`
+
+Cập nhật equipment unit (ví dụ thay đổi `status`).
+
+**Request body:**
+
+```json
+{
+  "status": "In Use"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+  "equipment_id": "eq123",
+  "branch_id": "b001",
+  "sku": "eq123-d27ec9",
+  "cost": 100,
+  "description": "Imported via invoice",
+  "status": "In Use",
+  "warranty_start_date": "2025-09-17T14:45:46.945Z",
+  "warranty_end_date": "2026-09-17T14:45:46.945Z",
+  "created_at": "2025-09-17T14:45:46.945Z",
+  "updated_at": "2025-09-18T09:30:00.000Z"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment Unit not found" }
+```
+
+---
+
+### DELETE `/equipmentUnit/:id`
+
+Xóa equipment unit.
+
+**Response (200):**
+
+```json
+{ "message": "Equipment Unit deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment Unit not found" }
+```
+
+---
+
+## Equipment Transfer APIs (`/equipmentTransfer`)
+
+> **Authentication**:
+>
+> - `POST`, `PUT`, `DELETE`: yêu cầu header `Authorization: Bearer <accessToken>` (admin/super-admin).
+> - `GET`: ai cũng có thể gọi.
+
+---
+
+### POST `/equipmentTransfer`
+
+Tạo một yêu cầu chuyển thiết bị giữa các chi nhánh.
+
+**Request body:**
+
+```json
+{
+  "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
+  "from_branch_id": "GV",
+  "to_branch_id": "Q3",
+  "approved_by": "ADMIN001",
+  "description": "Chuyển máy chạy bộ từ BR-01 sang BR-02"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "7168f980-ca98-47f6-8b6a-891a8c0a0fb0",
+  "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
+  "from_branch_id": "GV",
+  "to_branch_id": "Q3",
+  "approved_by": "ADMIN001",
+  "description": "Chuyển máy chạy bộ từ BR-01 sang BR-02",
+  "status": "Pending",
+  "move_start_date": "2025-09-23T13:55:33.954Z",
+  "move_receive_date": null
+}
+```
+
+---
+
+### GET `/equipmentTransfer`
+
+Lấy danh sách các yêu cầu chuyển thiết bị.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "7168f980-ca98-47f6-8b6a-891a8c0a0fb0",
+    "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
+    "from_branch_id": "GV",
+    "to_branch_id": "Q3",
+    "approved_by": "ADMIN001",
+    "description": "Chuyển máy chạy bộ từ BR-01 sang BR-02",
+    "status": "Pending",
+    "move_start_date": "2025-09-23T13:55:33.954Z",
+    "move_receive_date": null
+  }
+]
+```
+
+---
+
+### GET `/equipmentTransfer/:id`
+
+Lấy chi tiết một yêu cầu chuyển thiết bị theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "7168f980-ca98-47f6-8b6a-891a8c0a0fb0",
+  "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
+  "from_branch_id": "GV",
+  "to_branch_id": "Q3",
+  "approved_by": "ADMIN001",
+  "description": "Chuyển máy chạy bộ từ BR-01 sang BR-02",
+  "status": "Pending",
+  "move_start_date": "2025-09-23T13:55:33.954Z",
+  "move_receive_date": null
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "EquipmentTransfer not found" }
+```
+
+---
+
+### PUT `/equipmentTransfer/:id/complete`
+
+Hoàn tất một yêu cầu chuyển thiết bị (chỉ cập nhật `status = Completed` + `move_receive_date`).
+
+**Request body:**
+
+```json
+{
+  "move_receive_date": "2025-09-19T14:00:00.000Z"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "7168f980-ca98-47f6-8b6a-891a8c0a0fb0",
+  "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
+  "from_branch_id": "GV",
+  "to_branch_id": "Q3",
+  "approved_by": "ADMIN001",
+  "description": "Chuyển máy chạy bộ từ BR-01 sang BR-02",
+  "status": "Completed",
+  "move_start_date": "2025-09-23T13:55:33.954Z",
+  "move_receive_date": "2025-09-19T14:00:00.000Z"
+}
+```
+
+---
+
+### DELETE `/equipmentTransfer/:id`
+
+Xóa một yêu cầu chuyển thiết bị.
+
+**Response (200):**
+
+```json
+{ "message": "EquipmentTransfer deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "EquipmentTransfer not found" }
+```
+
+---
+
+Rồi 👍 mình viết tiếp phần **backend.md** cho **Maintenance APIs (`/maintenance`)** và bổ sung vào mục lục nhé.
+
+---
+
+## Maintenance APIs (`/maintenance`)
+
+> **Authentication**:
+>
+> - Các API `POST`, `PUT`, `DELETE` yêu cầu header `Authorization: Bearer <accessToken>`.
+> - `GET` có thể được gọi bởi tất cả các user.
+>
+> **Roles**:
+>
+> - `operator`, `admin`, `super-admin`: tạo yêu cầu bảo trì.
+> - `technician`: nhận xử lý (progress) hoặc hoàn tất (complete).
+
+---
+
+### POST `/maintenance`
+
+Tạo yêu cầu bảo trì mới.
+
+**Request body:**
+
+```json
+{
+  "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
+  "branch_id": "BR-01",
+  "warranty": true,
+  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
+  "status": "Temporary Urgent"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "05779ead-00fb-4994-9d3f-674baffde459",
+  "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
+  "branch_id": "BR-01",
+  "user_id": null,
+  "assigned_by": "OPERATOR001",
+  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
+  "maintenance_detail": null,
+  "start_date": "2025-09-23T14:02:46.411Z",
+  "end_date": null,
+  "warranty": true
+}
+```
+
+---
+
+### GET `/maintenance`
+
+Lấy danh sách các yêu cầu bảo trì.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "8625d86c-98f0-4ac9-b129-266f52cbf6a1",
+    "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
+    "branch_id": "BR-01",
+    "user_id": "TECH001",
+    "assigned_by": "TECH001",
+    "maintenance_reason": "Máy chạy phát ra tiếng ồn",
+    "maintenance_detail": null,
+    "start_date": "2025-09-23T14:03:31.187Z",
+    "end_date": null,
+    "warranty": true
+  }
+]
+```
+
+---
+
+### GET `/maintenance/:id`
+
+Lấy chi tiết một yêu cầu bảo trì.
+
+**Response (200):**
+
+```json
+{
+  "id": "8625d86c-98f0-4ac9-b129-266f52cbf6a1",
+  "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
+  "branch_id": "BR-01",
+  "user_id": "TECH001",
+  "assigned_by": "TECH001",
+  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
+  "maintenance_detail": null,
+  "start_date": "2025-09-23T14:03:31.187Z",
+  "end_date": null,
+  "warranty": true
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Maintenance not found" }
+```
+
+---
+
+### PUT `/maintenance/:id/progress`
+
+Cập nhật yêu cầu bảo trì sang trạng thái **In Progress** (kỹ thuật viên nhận việc).
+Chỉ có 3 role được PUT: super-admin, admin, technican
+**Response (200):**
+
+```json
+{
+  "id": "8625d86c-98f0-4ac9-b129-266f52cbf6a1",
+  "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
+  "branch_id": "BR-01",
+  "user_id": "TECH003",
+  "assigned_by": "TECH001",
+  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
+  "maintenance_detail": null,
+  "start_date": "2025-09-23T14:03:31.187Z",
+  "end_date": null,
+  "warranty": true
+}
+```
+
+---
+
+### PUT `/maintenance/:id/complete`
+
+Hoàn tất yêu cầu bảo trì với kết quả **Ready** hoặc **Failed**.
+
+**Request body (Ready):**
+
+```json
+{
+  "user_id": "TECH003",
+  "maintenance_detail": "Đã thay ổ bi mới, hoạt động ổn định",
+  "status": "Ready",
+  "cost": 0
+}
+```
+
+**Response (200 - Ready):**
+
+```json
+{
+  "id": "8625d86c-98f0-4ac9-b129-266f52cbf6a1",
+  "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
+  "branch_id": "BR-01",
+  "user_id": "TECH003",
+  "assigned_by": "TECH001",
+  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
+  "maintenance_detail": "Đã thay ổ bi mới, hoạt động ổn định",
+  "start_date": "2025-09-23T14:03:31.187Z",
+  "end_date": "2025-09-23T14:06:31.216Z",
+  "warranty": true
+}
+```
+
+**Request body (Failed):**
+
+```json
+{
+  "user_id": "TECH003",
+  "maintenance_detail": "Sửa không được",
+  "status": "Failed",
+  "cost": 0
+}
+```
+
+**Response (200 - Failed):**
+
+```json
+{
+  "id": "05779ead-00fb-4994-9d3f-674baffde459",
+  "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
+  "branch_id": "BR-01",
+  "user_id": "TECH003",
+  "assigned_by": "OPERATOR001",
+  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
+  "maintenance_detail": "Sửa không được",
+  "start_date": "2025-09-23T14:02:46.411Z",
+  "end_date": "2025-09-23T14:08:18.121Z",
+  "warranty": true
+}
+```
+
+---
+
+### DELETE `/maintenance/:id`
+
+Xóa một yêu cầu bảo trì.
+
+**Response (200):**
+
+```json
+{ "message": "Maintenance deleted successfully" }
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Maintenance not found" }
 ```
 
 ---
