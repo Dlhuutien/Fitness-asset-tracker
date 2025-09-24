@@ -108,6 +108,7 @@
 
     - `GET /equipmentUnit` — Lấy danh sách equipment units
     - `GET /equipmentUnit/:id` — Lấy chi tiết equipment unit
+    - `GET /equipmentUnit/equipment/:equipment_id` — Lấy tất cả unit theo equipment_id
     - `PUT /equipmentUnit/:id` — Cập nhật equipment unit
     - `DELETE /equipmentUnit/:id` — Xóa equipment unit
 
@@ -429,8 +430,8 @@ Admin hoặc Super-admin thay đổi role (nhóm Cognito) của user.
 }
 ```
 
-* `username`: Username trong Cognito cần đổi role
-* `role`: Role mới cần set (`super-admin`, `admin`, `operator`, `technician`)
+- `username`: Username trong Cognito cần đổi role
+- `role`: Role mới cần set (`super-admin`, `admin`, `operator`, `technician`)
 
 **Response (200):**
 
@@ -442,8 +443,8 @@ Admin hoặc Super-admin thay đổi role (nhóm Cognito) của user.
 
 **Quy tắc phân quyền:**
 
-* `super-admin`: có thể set role cho mọi user (kể cả admin).
-* `admin`: chỉ được set role cho `technician` và `operator`, **không được set cho admin/super-admin**.
+- `super-admin`: có thể set role cho mọi user (kể cả admin).
+- `admin`: chỉ được set role cho `technician` và `operator`, **không được set cho admin/super-admin**.
 
 **Response lỗi ví dụ (403):**
 
@@ -1956,10 +1957,6 @@ Xóa invoice.
 
 ---
 
-Rồi 👍 mình sẽ viết tiếp **backend.md** phần **Equipment Unit APIs (`/equipmentUnit`)** và thêm vào mục lục cho bạn nhé.
-
----
-
 ## Equipment Unit APIs (`/equipmentUnit`)
 
 > **Authentication**:
@@ -2034,6 +2031,88 @@ Lấy chi tiết equipment unit theo `id`.
 
 ```json
 { "error": "Equipment Unit not found" }
+```
+
+Rồi 👍 mình sẽ bổ sung tài liệu `backend.md` để có mục riêng cho **EquipmentUnit APIs** và thêm endpoint mới `GET /equipmentUnit/equipment/:equipment_id`.
+
+---
+
+## 📘 Bổ sung vào **backend.md**
+
+### Mục lục (bổ sung thêm Equipment Unit)
+
+```md
+12. [Equipment Unit APIs (`/equipmentUnit`)](#equipment-unit-apis-equipmentunit)
+
+    - `GET /equipmentUnit` — Lấy tất cả equipment unit
+    - `GET /equipmentUnit/:id` — Lấy chi tiết 1 equipment unit
+    - `GET /equipmentUnit/equipment/:equipment_id` — Lấy tất cả unit theo equipment_id
+    - `PUT /equipmentUnit/:id` — Cập nhật equipment unit (status, ...)
+    - `DELETE /equipmentUnit/:id` — Xóa equipment unit
+```
+
+---
+
+### 12. Equipment Unit APIs (`/equipmentUnit`)
+
+#### `GET /equipmentUnit`
+
+Lấy danh sách tất cả equipment unit.
+Response (200):
+
+```json
+[
+  {
+    "id": "unit001",
+    "equipment_id": "eq123",
+    "branch_id": "b001",
+    "status": "In Stock",
+    "sku": "eq123-unit001",
+    "created_at": "2025-09-20T12:00:00.000Z"
+  }
+]
+```
+
+---
+
+#### `GET /equipmentUnit/:id`
+
+Lấy chi tiết 1 equipment unit theo `id`.
+Response (200):
+
+```json
+{
+  "id": "unit001",
+  "equipment_id": "eq123",
+  "branch_id": "b001",
+  "status": "In Stock",
+  "sku": "eq123-unit001",
+  "created_at": "2025-09-20T12:00:00.000Z"
+}
+```
+
+---
+
+#### `GET /equipmentUnit/equipment/:equipment_id`
+
+Lấy tất cả unit theo 1 `equipment_id`.
+Response (200):
+
+```json
+[
+  {
+    "id": "unit001",
+    "equipment_id": "eq123",
+    "branch_id": "b001",
+    "status": "In Stock"
+  },
+  {
+    "id": "unit002",
+    "equipment_id": "eq123",
+    "branch_id": "b002",
+    "status": "Ready"
+  }
+]
 ```
 
 ---
@@ -2237,10 +2316,6 @@ Xóa một yêu cầu chuyển thiết bị.
 
 ---
 
-Rồi 👍 mình viết tiếp phần **backend.md** cho **Maintenance APIs (`/maintenance`)** và bổ sung vào mục lục nhé.
-
----
-
 ## Maintenance APIs (`/maintenance`)
 
 > **Authentication**:
@@ -2257,17 +2332,26 @@ Rồi 👍 mình viết tiếp phần **backend.md** cho **Maintenance APIs (`/m
 
 ### POST `/maintenance`
 
-Tạo yêu cầu bảo trì mới.
+Tạo một yêu cầu bảo trì mới.
 
-**Request body:**
+**Role cho phép**: `super-admin`, `admin`, `operator`, `technician`
+**Rule**:
+
+- Nếu **equipment_unit** đang ở trạng thái:
+  `Inactive, Temporary Urgent, In Progress, Ready, Failed, Deleted, Moving` -> **không được phép** tạo maintenance.
+- **warranty** sẽ được tự động tính theo `warranty_end_date` của unit (không nhập trong body).
+- **assigned_by** được set theo `req.user.sub`.
+- Nếu role = `operator` -> auto gán `user_id = sub`.
+- Nếu role = `technician` -> unit được set ngay sang **In Progress**.
+- Role khác -> unit được set sang **Temporary Urgent**.
+
+**Body (JSON):**
 
 ```json
 {
   "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
   "branch_id": "BR-01",
-  "warranty": true,
-  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
-  "status": "Temporary Urgent"
+  "maintenance_reason": "Máy chạy phát ra tiếng ồn"
 }
 ```
 
@@ -2346,8 +2430,13 @@ Lấy chi tiết một yêu cầu bảo trì.
 
 ### PUT `/maintenance/:id/progress`
 
-Cập nhật yêu cầu bảo trì sang trạng thái **In Progress** (kỹ thuật viên nhận việc).
-Chỉ có 3 role được PUT: super-admin, admin, technican
+Chuyển yêu cầu sang trạng thái **In Progress**.
+
+**Role cho phép**: `super-admin`, `admin`, `technician`
+
+- Không nhập body.
+- Unit được update sang trạng thái **In Progress**.
+
 **Response (200):**
 
 ```json
@@ -2355,8 +2444,8 @@ Chỉ có 3 role được PUT: super-admin, admin, technican
   "id": "8625d86c-98f0-4ac9-b129-266f52cbf6a1",
   "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
   "branch_id": "BR-01",
-  "user_id": "TECH003",
-  "assigned_by": "TECH001",
+  "user_id": "TECH001",
+  "assigned_by": "ADMIN001",
   "maintenance_reason": "Máy chạy phát ra tiếng ồn",
   "maintenance_detail": null,
   "start_date": "2025-09-23T14:03:31.187Z",
@@ -2369,9 +2458,12 @@ Chỉ có 3 role được PUT: super-admin, admin, technican
 
 ### PUT `/maintenance/:id/complete`
 
-Hoàn tất yêu cầu bảo trì với kết quả **Ready** hoặc **Failed**.
+Hoàn tất maintenance (thành công hoặc thất bại).
 
-**Request body (Ready):**
+**Authorization**: `Bearer <accessToken>`
+**Role cho phép**: `super-admin`, `admin`, `technician`
+
+**Body (JSON):**
 
 ```json
 {
@@ -2382,7 +2474,13 @@ Hoàn tất yêu cầu bảo trì với kết quả **Ready** hoặc **Failed**.
 }
 ```
 
-**Response (200 - Ready):**
+**Rule**:
+
+- `status` có thể là `Ready` hoặc `Failed`.
+- Nếu `Ready` -> tạo thêm `maintenance_invoice` (cost = 0 nếu còn bảo hành).
+- Unit chuyển trạng thái theo `status`.
+
+**Response (200):**
 
 ```json
 {
@@ -2390,39 +2488,11 @@ Hoàn tất yêu cầu bảo trì với kết quả **Ready** hoặc **Failed**.
   "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
   "branch_id": "BR-01",
   "user_id": "TECH003",
-  "assigned_by": "TECH001",
+  "assigned_by": "ADMIN001",
   "maintenance_reason": "Máy chạy phát ra tiếng ồn",
   "maintenance_detail": "Đã thay ổ bi mới, hoạt động ổn định",
   "start_date": "2025-09-23T14:03:31.187Z",
   "end_date": "2025-09-23T14:06:31.216Z",
-  "warranty": true
-}
-```
-
-**Request body (Failed):**
-
-```json
-{
-  "user_id": "TECH003",
-  "maintenance_detail": "Sửa không được",
-  "status": "Failed",
-  "cost": 0
-}
-```
-
-**Response (200 - Failed):**
-
-```json
-{
-  "id": "05779ead-00fb-4994-9d3f-674baffde459",
-  "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
-  "branch_id": "BR-01",
-  "user_id": "TECH003",
-  "assigned_by": "OPERATOR001",
-  "maintenance_reason": "Máy chạy phát ra tiếng ồn",
-  "maintenance_detail": "Sửa không được",
-  "start_date": "2025-09-23T14:02:46.411Z",
-  "end_date": "2025-09-23T14:08:18.121Z",
   "warranty": true
 }
 ```

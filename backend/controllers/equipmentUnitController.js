@@ -36,6 +36,17 @@ const equipmentUnitController = {
       res.status(404).json({ error: err.message });
     }
   },
+
+  getUnitsByEquipmentId: async (req, res) => {
+    try {
+      const units = await equipmentUnitService.getUnitsByEquipmentId(
+        req.params.equipment_id
+      );
+      res.json(units);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
 };
 
 module.exports = equipmentUnitController;

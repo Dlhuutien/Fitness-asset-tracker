@@ -15,7 +15,7 @@ const maintenanceController = {
         data.user_id = sub;
       }
 
-      const maintenance = await maintenanceService.createMaintenance(data);
+      const maintenance = await maintenanceService.createMaintenance(data, role);
       res.status(201).json(maintenance);
     } catch (error) {
       res.status(400).json({ error: error.message });
