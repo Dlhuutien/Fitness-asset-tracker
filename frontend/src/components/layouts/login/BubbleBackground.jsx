@@ -1,8 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
-const BubbleBackground = React.forwardRef((props, ref) => {
-  const localRef = useRef(null);
-  const bubbleLayerRef = ref || localRef;
+export default function BubbleBackground() {
+  const bubbleLayerRef = useRef(null);
+  const rafRef = useRef(null);
 
   useEffect(() => {
     const container = bubbleLayerRef.current;
@@ -10,23 +10,19 @@ const BubbleBackground = React.forwardRef((props, ref) => {
 
     let W = container.clientWidth;
     let H = container.clientHeight;
-    const NUM = window.innerWidth < 640 ? 15 : 30;
+    const NUM = window.innerWidth < 640 ? 18 : 35;
 
     const rand = (a, b) => a + Math.random() * (b - a);
     const bubbles = [];
 
     for (let i = 0; i < NUM; i++) {
       const el = document.createElement("div");
-      el.className = "bubble";
-      const size = rand(40, 120);
+      const size = rand(40, 160);
       el.style.width = `${size}px`;
       el.style.height = `${size}px`;
       el.style.borderRadius = "50%";
       el.style.position = "absolute";
-      el.style.background = `rgba(${rand(20, 80)}, ${rand(150, 250)}, ${rand(
-        100,
-        220
-      )}, ${rand(0.06, 0.18)})`;
+      el.style.background = `rgba(34,197,94,${rand(0.08, 0.25)})`;
       el.style.opacity = 0;
       el.style.transform = "scale(0)";
 
@@ -50,28 +46,34 @@ const BubbleBackground = React.forwardRef((props, ref) => {
       });
     }
 
+    const onResize = () => {
+      W = container.clientWidth;
+      H = container.clientHeight;
+    };
+    window.addEventListener("resize", onResize);
+
     function step() {
       for (let b of bubbles) {
         b.x += b.vx;
         b.y += b.vy;
-
         if (b.x < 0 || b.x + b.radius * 2 > W) b.vx *= -0.7;
         if (b.y < 0 || b.y + b.radius * 2 > H) b.vy *= -0.7;
-
-        b.el.style.transform = `translate3d(${b.x}px, ${b.y}px, 0) scale(1)`;
+        b.x = Math.max(0, Math.min(b.x, W - b.radius * 2));
+        b.y = Math.max(0, Math.min(b.y, H - b.radius * 2));
+        const scale = 0.95 + Math.random() * 0.08;
+        b.el.style.transform = `translate3d(${b.x}px, ${b.y}px, 0) scale(${scale})`;
       }
-
-      requestAnimationFrame(step);
+      rafRef.current = requestAnimationFrame(step);
     }
 
-    requestAnimationFrame(step);
+    rafRef.current = requestAnimationFrame(step);
 
     return () => {
+      cancelAnimationFrame(rafRef.current);
+      window.removeEventListener("resize", onResize);
       bubbles.forEach((b) => b.el.remove());
     };
   }, []);
 
   return <div ref={bubbleLayerRef} className="absolute inset-0 z-0"></div>;
-});
-
-export default BubbleBackground;
+}
