@@ -1,6 +1,24 @@
+/* ================= IMPORT FONTS ================= */
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/700.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/montserrat/400.css";
+@import "@fontsource/montserrat/700.css";
+@import "@fontsource/montserrat/900.css";
+@import "@fontsource/plus-jakarta-sans/600.css";
+@import "@fontsource/be-vietnam-pro/600.css";
+@import "@fontsource/be-vietnam-pro/700.css";
+@import "@fontsource/be-vietnam-pro/800.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ================= GLOBAL FONT ================= */
+body {
+  font-family: "Inter", "Poppins", sans-serif;
+}
 
 /* ================= BACKGROUND ================= */
 .login-bg-dark {
@@ -21,7 +39,6 @@
     filter: drop-shadow(0 0 30px theme("colors.brand.light"));
   }
 }
-
 .animate-glow {
   animation: glow 2.5s infinite ease-in-out;
 }
@@ -51,7 +68,7 @@
 /* ================= BUTTON ================= */
 .form-btn {
   @apply w-full h-14 rounded-full text-lg font-semibold 
-         bg-gradient-to-r from-brand via-emerald-400 to-accent 
+         bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 
          text-white shadow-md transition;
 }
 .form-btn:hover {
@@ -71,4 +88,16 @@
 .animate-gradient-x {
   animation: gradient-x 6s ease infinite;
   background-size: 200% 200%;
+}
+
+@layer utilities {
+  .font-title {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, Helvetica, Arial, sans-serif !important;
+  }
+
+  .font-body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+      Roboto, Helvetica, Arial, sans-serif !important;
+  }
 }

@@ -33,8 +33,11 @@ module.exports = {
         },
       },
       fontFamily: {
-        sans: ["Poppins", "sans-serif"], // font mặc định
-        heading: ["Inter", "sans-serif"], // font cho heading
+        montserrat: ["Montserrat", "sans-serif"],
+        sans: ["Inter", "Poppins", "sans-serif"],
+        inter: ["Inter", "sans-serif"],
+        poppins: ["Poppins", "sans-serif"],
+        jakarta: ["Plus Jakarta Sans", "sans-serif"],
       },
       boxShadow: {
         neon: "0 0 20px rgba(34, 197, 94, 0.6)",
