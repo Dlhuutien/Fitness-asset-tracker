@@ -1782,6 +1782,53 @@ Xóa equipment (chỉ `admin`, `super-admin`).
 Tạo invoice mới với danh sách thiết bị.
 **Request body (JSON):**
 
+Mỗi **Equipment Unit** được sinh ra từ `items` trong Invoice sẽ có `id` (và cũng là `sku`) theo công thức:
+
+```
+EQUIPMENT_ID-DAYMONTHYEAR-COUNT
+```
+
+Trong đó:
+
+* `EQUIPMENT_ID` = Mã của thiết bị (ví dụ: `CAOTMJS`)
+* `DAY` = ngày nhập hàng (2 chữ số, `01`–`31`)
+* `MONTH` = tháng nhập hàng (2 chữ số, `01`–`12`)
+* `YEAR` = 2 số cuối của năm (`25` = 2025)
+* `COUNT` = số thứ tự của thiết bị trong lô nhập (bắt đầu từ `1` đến `quantity` trong invoice item)
+* Trường hợp nhập thiết bị trùng trong cùng 1 ngày, thì sẽ đếm EQUIPMENT_ID-DAYMONTHYEAR để tính tiếp `COUNT`
+---
+
+### Ví dụ:
+
+**Request:**
+
+```json
+{
+  "items": [
+    {
+      "equipment_id": "CAOTMJS",
+      "branch_id": "BR-01",
+      "quantity": 3,
+      "cost": 1500,
+      "warranty_duration": 2
+    }
+  ]
+}
+```
+
+**Ngày nhập hàng:** `29/08/2025`
+
+**Kết quả ID cho 3 unit được tạo:**
+
+```
+CAOTMJS-290825-1
+CAOTMJS-290825-2
+CAOTMJS-290825-3
+```
+
+---
+
+
 ```json
 {
   "items": [
@@ -1818,7 +1865,7 @@ Tạo invoice mới với danh sách thiết bị.
     {
       "id": "7e678fb3-5432-4cbe-98e8-88beebd2fe9b",
       "invoice_id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
-      "equipment_unit_id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+      "equipment_unit_id": "CAOTMJS-2509251",
       "cost": 100,
       "created_at": "2025-09-17T14:45:46.991Z"
     },
@@ -1896,12 +1943,11 @@ Lấy invoice kèm theo chi tiết (join sang `equipment_unit`).
     {
       "id": "7e678fb3-5432-4cbe-98e8-88beebd2fe9b",
       "invoice_id": "8fd1fba7-b78b-4ae4-80f0-f9919a01548a",
-      "equipment_unit_id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+      "equipment_unit_id": "CAOTMJS-2509251",
       "cost": 100,
       "created_at": "2025-09-17T14:45:46.991Z",
       "equipment_unit": {
-        "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
-        "sku": "eq123-d27ec9",
+        "id": "CAOTMJS-2509251",
         "equipment_id": "eq123",
         "branch_id": "b001",
         "status": "In Stock",
@@ -1975,10 +2021,9 @@ Lấy danh sách tất cả equipment units.
 ```json
 [
   {
-    "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+    "id": "CAOTMJS-2509251",
     "equipment_id": "eq123",
     "branch_id": "b001",
-    "sku": "eq123-d27ec9",
     "cost": 100,
     "description": "Imported via invoice",
     "status": "In Stock",
@@ -1991,7 +2036,6 @@ Lấy danh sách tất cả equipment units.
     "id": "2d56f592-a160-4700-b8dd-7a59bc43a63a",
     "equipment_id": "eq456",
     "branch_id": "b001",
-    "sku": "eq456-2d56f5",
     "cost": 250,
     "description": "Imported via invoice",
     "status": "In Stock",
@@ -2013,10 +2057,9 @@ Lấy chi tiết equipment unit theo `id`.
 
 ```json
 {
-  "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+  "id": "CAOTMJS-2509251",
   "equipment_id": "eq123",
   "branch_id": "b001",
-  "sku": "eq123-d27ec9",
   "cost": 100,
   "description": "Imported via invoice",
   "status": "In Stock",
@@ -2067,7 +2110,6 @@ Response (200):
     "equipment_id": "eq123",
     "branch_id": "b001",
     "status": "In Stock",
-    "sku": "eq123-unit001",
     "created_at": "2025-09-20T12:00:00.000Z"
   }
 ]
@@ -2086,7 +2128,6 @@ Response (200):
   "equipment_id": "eq123",
   "branch_id": "b001",
   "status": "In Stock",
-  "sku": "eq123-unit001",
   "created_at": "2025-09-20T12:00:00.000Z"
 }
 ```
@@ -2133,10 +2174,9 @@ Cập nhật equipment unit (ví dụ thay đổi `status`).
 
 ```json
 {
-  "id": "d27ec9db-06d3-462a-8adb-e4bb8522f3f2",
+  "id": "CAOTMJS-2509251",
   "equipment_id": "eq123",
   "branch_id": "b001",
-  "sku": "eq123-d27ec9",
   "cost": 100,
   "description": "Imported via invoice",
   "status": "In Use",
@@ -2191,9 +2231,7 @@ Tạo một yêu cầu chuyển thiết bị giữa các chi nhánh.
 ```json
 {
   "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
-  "from_branch_id": "GV",
   "to_branch_id": "Q3",
-  "approved_by": "ADMIN001",
   "description": "Chuyển máy chạy bộ từ BR-01 sang BR-02"
 }
 ```
@@ -2341,6 +2379,7 @@ Tạo một yêu cầu bảo trì mới.
   `Inactive, Temporary Urgent, In Progress, Ready, Failed, Deleted, Moving` -> **không được phép** tạo maintenance.
 - **warranty** sẽ được tự động tính theo `warranty_end_date` của unit (không nhập trong body).
 - **assigned_by** được set theo `req.user.sub`.
+- **branch_id** được set theo branch_id của equipment Unit
 - Nếu role = `operator` -> auto gán `user_id = sub`.
 - Nếu role = `technician` -> unit được set ngay sang **In Progress**.
 - Role khác -> unit được set sang **Temporary Urgent**.
@@ -2350,7 +2389,6 @@ Tạo một yêu cầu bảo trì mới.
 ```json
 {
   "equipment_unit_id": "fb29c3e8-a214-45ee-af21-7cfe2ffd78de",
-  "branch_id": "BR-01",
   "maintenance_reason": "Máy chạy phát ra tiếng ồn"
 }
 ```
