@@ -1,9 +1,9 @@
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { motion } from "framer-motion"
-import { useNavigate } from "react-router-dom"
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 import {
   Card,
@@ -11,9 +11,9 @@ import {
   CardTitle,
   CardContent,
   CardFooter,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 import {
   AlertDialog,
@@ -21,19 +21,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogDescription,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
-// Schema validate
+// ✅ Schema validate
 const schema = z.object({
   username: z.string().min(1, "Tài khoản không được để trống"),
   password: z.string().min(8, "Mật khẩu phải ít nhất 8 ký tự"),
-})
+});
 
 export default function LoginForm() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [shakeKey, setShakeKey] = useState(0)
-  const [open, setOpen] = useState(false)
-  const navigate = useNavigate()
+  const [showPassword, setShowPassword] = useState(false);
+  const [shakeKey, setShakeKey] = useState(0);
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -41,33 +41,36 @@ export default function LoginForm() {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(schema),
-  })
+  });
 
-  const onSubmit = (values) => {
+  const onSubmit = () => {
     if (errors.username || errors.password) {
-      setShakeKey((prev) => prev + 1)
+      setShakeKey((prev) => prev + 1);
     } else {
-      setOpen(true)
-      // Sau 2 giây tự động chuyển
+      setOpen(true);
       setTimeout(() => {
-        setOpen(false)
-        navigate("/app")
-      }, 2000)
+        setOpen(false);
+        navigate("/app");
+      }, 2000);
     }
-  }
+  };
 
   const shake = {
     x: [0, -8, 8, -6, 6, -3, 3, 0],
     transition: { duration: 0.4 },
-  }
+  };
 
   return (
     <>
-      {/* Form login */}
-      <Card className="p-10 rounded-3xl bg-gradient-to-br from-gray-900/70 via-gray-800/50 to-gray-900/70 border border-white/10 backdrop-blur-2xl shadow-[0_0_30px_rgba(0,255,180,0.15)] font-sans">
+      {/* Login Card */}
+      <Card className="p-10 rounded-3xl bg-gradient-to-br from-gray-900/70 via-gray-800/50 to-gray-900/70 border border-white/10 backdrop-blur-2xl shadow-[0_0_30px_rgba(0,255,180,0.15)]">
         <CardHeader>
-          <CardTitle className="text-center text-4xl font-extrabold bg-gradient-to-r from-green-400 via-emerald-300 to-teal-400 bg-clip-text text-transparent">
-            Welcome to <span className="text-green-400">FITX</span>
+          <CardTitle
+            className="font-sans text-center text-4xl font-extrabold 
+             bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500
+             bg-clip-text text-transparent tracking-wide"
+          >
+            Welcome to <span className="text-cyan-400">FITX</span>
           </CardTitle>
         </CardHeader>
 
@@ -112,11 +115,9 @@ export default function LoginForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-green-400 transition"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition"
               >
-                <span className="text-xl">
-                  {showPassword ? "🙈" : "👁️"}
-                </span>
+                <span className="text-xl">{showPassword ? "🙈" : "👁️"}</span>
               </button>
               {errors.password && (
                 <p className="absolute -bottom-5 left-0 text-sm text-red-400">
@@ -125,50 +126,90 @@ export default function LoginForm() {
               )}
             </motion.div>
 
-            <Button type="submit" className="form-btn w-full">
+            <Button
+              type="submit"
+              className="form-btn bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500"
+            >
               Log in
             </Button>
           </CardContent>
 
           <CardFooter className="flex justify-between text-sm text-gray-400 mt-2">
             <label className="flex items-center gap-2">
-              <input type="checkbox" className="accent-green-500" /> Remember me
+              <input type="checkbox" className="accent-cyan-400" /> Remember me
             </label>
-            <a href="#" className="hover:text-green-300 transition-colors">
+            <a href="#" className="hover:text-cyan-400 transition-colors">
               Forget password?
             </a>
           </CardFooter>
         </form>
       </Card>
 
-      {/* AlertDialog thông báo với border xoay + slide up */}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="sm:max-w-md text-center p-0 bg-transparent border-0 shadow-none">
           <motion.div
-            initial={{ opacity: 0, y: 60, scale: 0.95 }}
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.95 }}
-            transition={{ duration: 0.45, ease: "easeOut" }}
-            className="relative p-[2px] rounded-2xl overflow-hidden"
+            exit={{ opacity: 0, y: 30, scale: 0.95 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="relative rounded-3xl overflow-hidden"
           >
-            {/* Border gradient xoay */}
-            <div className="absolute inset-0 bg-[conic-gradient(at_top_left,_#34d399,_#3b82f6,_#a855f7,_#f59e0b)] animate-spin-slow"></div>
+            <div
+              className="relative z-10 p-8 rounded-3xl 
+        bg-gradient-to-br from-gray-900 via-gray-800 to-black 
+        border border-white/10 shadow-[0_0_40px_rgba(6,182,212,0.5)] 
+        backdrop-blur-xl text-center"
+            >
+              {/* Icon */}
+              <motion.div
+                initial={{ scale: 0, rotate: -20 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 15,
+                  delay: 0.2,
+                }}
+                className="w-16 h-16 mx-auto flex items-center justify-center 
+            rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 shadow-lg"
+              >
+                <span className="text-white text-3xl font-bold">✔</span>
+              </motion.div>
 
-            {/* Nội dung alert */}
-            <div className="relative z-10 p-8 rounded-2xl bg-gradient-to-br from-gray-900 via-gray-800 to-black border border-white/20 shadow-2xl backdrop-blur-xl">
+              {/* Nội dung */}
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-2xl font-extrabold bg-gradient-to-r from-green-400 via-emerald-300 to-teal-400 bg-clip-text text-transparent">
-                  🎉 Đăng nhập thành công!
-                </AlertDialogTitle>
-                <AlertDialogDescription className="mt-3 text-gray-300 text-base font-light">
-                  Chào mừng bạn đến hệ thống quản trị của{" "}
-                  <span className="font-semibold text-green-400">FitX Gym</span>
-                </AlertDialogDescription>
+                {/* Tiêu đề */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.5 }}
+                >
+                  <AlertDialogTitle
+                    className="mt-6 text-2xl font-jakarta tracking-wide justify-center
+              text-white drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]"
+                  >
+                    🎉 Đăng nhập thành công
+                  </AlertDialogTitle>
+                </motion.div>
+
+                {/* Mô tả */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.45, duration: 0.5 }}
+                >
+                  <AlertDialogDescription className="mt-3 text-gray-300 text-lg leading-relaxed justify-center">
+                    Chào mừng bạn trở lại{" "}
+                    <span className="font-semiboldbg text-cyan-400">
+                      FitX Gym
+                    </span>
+                  </AlertDialogDescription>
+                </motion.div>
               </AlertDialogHeader>
             </div>
           </motion.div>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }
