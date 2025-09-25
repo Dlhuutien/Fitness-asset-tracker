@@ -4,6 +4,7 @@ const {
   ScanCommand,
   UpdateCommand,
   DeleteCommand,
+  QueryCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const { dynamodb } = require("../utils/aws-helper");
 
@@ -28,6 +29,20 @@ const EquipmentUnitModel = {
 
   getAllUnits: async () => {
     const result = await dynamodb.send(new ScanCommand({ TableName: tableName }));
+    return result.Items || [];
+  },
+
+  getByEquipmentId: async (equipment_id) => {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "equipment_id-index",
+        KeyConditionExpression: "equipment_id = :eid",
+        ExpressionAttributeValues: {
+          ":eid": equipment_id,
+        },
+      })
+    );
     return result.Items || [];
   },
 

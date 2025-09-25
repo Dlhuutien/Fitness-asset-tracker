@@ -22,6 +22,10 @@ const equipmentUnitService = {
     if (!existing) throw new Error("Equipment Unit not found");
     return await equipmentUnitRepository.delete(id);
   },
+
+  getUnitsByEquipmentId: async (equipment_id) => {
+    return await equipmentUnitRepository.findByEquipmentId(equipment_id);
+  },
 };
 
 module.exports = equipmentUnitService;

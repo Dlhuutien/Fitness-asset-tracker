@@ -6,6 +6,8 @@ const equipmentUnitRepository = {
   findAll: async () => EquipmentUnitModel.getAllUnits(),
   update: async (id, data) => EquipmentUnitModel.updateUnit(id, data),
   delete: async (id) => EquipmentUnitModel.deleteUnit(id),
+  findByEquipmentId: async (equipment_id) =>
+    EquipmentUnitModel.getByEquipmentId(equipment_id),
 };
 
 module.exports = equipmentUnitRepository;
