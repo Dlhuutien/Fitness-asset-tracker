@@ -14,7 +14,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button"; // ✅ chữ thường
+import { Button } from "@/components/ui/Button"; // ✅ chữ thường
 
 // Schema
 const schema = z.object({
