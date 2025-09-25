@@ -1,4 +1,5 @@
-const app = require('./app');
-const PORT = process.env.PORT || 3000;
+const app = require("./app");
+const serverless = require("serverless-http");
 
-app.listen(PORT, () => console.log(`API listening on http://localhost:${PORT}`));
+// AWS Lambda handler
+module.exports.handler = serverless(app);
