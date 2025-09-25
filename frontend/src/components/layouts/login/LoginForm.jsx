@@ -2,8 +2,13 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { motion } from "framer-motion";
 import {
-  Card, CardHeader, CardTitle, CardContent, CardFooter,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardFooter,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,13 +21,29 @@ const schema = z.object({
 
 export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const [shakeKey, setShakeKey] = useState(0); // để reset animation
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
     resolver: zodResolver(schema),
   });
 
   const onSubmit = (values) => {
-    console.log("Login data:", values);
-    alert("Đăng nhập thành công (demo) 🎉");
+    if (errors.username || errors.password) {
+      setShakeKey((prev) => prev + 1); // trigger rung lại nhiều lần
+    } else {
+      console.log("Login data:", values);
+      alert("Đăng nhập thành công (demo) 🎉");
+    }
+  };
+
+  // hiệu ứng rung
+  const shake = {
+    x: [0, -8, 8, -6, 6, -3, 3, 0],
+    transition: { duration: 0.4 },
   };
 
   return (
@@ -34,28 +55,36 @@ export default function LoginForm() {
       </CardHeader>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-8">
           {/* Username */}
-          <div className="relative group">
-            {/* prefix emoji có khung cố định */}
-            <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-              <span className="w-6 text-center text-xl leading-none">📧</span>
+          <motion.div
+            key={`username-${shakeKey}`}
+            className="relative min-h-[64px]"
+            animate={errors.username ? shake : {}}
+          >
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+              <span className="text-xl">📧</span>
             </div>
-            {/* dùng !pl-14 để chắc chắn override mọi padding khác */}
             <Input
               placeholder="Email hoặc Username"
               className="!pl-14"
               {...register("username")}
             />
             {errors.username && (
-              <p className="text-sm text-red-400 mt-1">{errors.username.message}</p>
+              <p className="absolute -bottom-5 left-0 text-sm text-red-400">
+                {errors.username.message}
+              </p>
             )}
-          </div>
+          </motion.div>
 
           {/* Password */}
-          <div className="relative group">
-            <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center">
-              <span className="w-6 text-center text-xl leading-none">🔒</span>
+          <motion.div
+            key={`password-${shakeKey}`}
+            className="relative min-h-[64px]"
+            animate={errors.password ? shake : {}}
+          >
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+              <span className="text-xl">🔒</span>
             </div>
             <Input
               type={showPassword ? "text" : "password"}
@@ -63,20 +92,25 @@ export default function LoginForm() {
               className="!pl-14 !pr-14"
               {...register("password")}
             />
-            {/* Eye toggle */}
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute inset-y-0 right-4 flex items-center text-gray-500 hover:text-green-400 transition"
+              className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center justify-center text-gray-500 hover:text-green-400 transition"
             >
-              {showPassword ? "🙈" : "👁️"}
+              <span className="text-xl">
+                {showPassword ? "🙈" : "👁️"}
+              </span>
             </button>
             {errors.password && (
-              <p className="text-sm text-red-400 mt-1">{errors.password.message}</p>
+              <p className="absolute -bottom-5 left-0 text-sm text-red-400">
+                {errors.password.message}
+              </p>
             )}
-          </div>
+          </motion.div>
 
-          <Button type="submit" className="form-btn w-full">Log in</Button>
+          <Button type="submit" className="form-btn w-full">
+            Log in
+          </Button>
         </CardContent>
 
         <CardFooter className="flex justify-between text-sm text-gray-400 mt-2">
