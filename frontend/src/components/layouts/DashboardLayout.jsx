@@ -1,4 +1,7 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+import PageTransition from "@/components/common/PageTransition";
+import LoginLogo from "./login/LoginLogo";
 
 export default function DashboardLayout() {
   const location = useLocation();
@@ -15,6 +18,7 @@ export default function DashboardLayout() {
     <div className="flex min-h-screen">
       {/* Sidebar */}
       <aside className="w-64 bg-white shadow-md p-4">
+        <LoginLogo />
         <h2 className="text-2xl font-bold text-green-600 mb-6">FitX Gym</h2>
         <nav className="space-y-2">
           {menuItems.map((item) => (
@@ -34,8 +38,12 @@ export default function DashboardLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 bg-gray-50 p-6">
-        <Outlet />
+      <main className="flex-1 bg-gray-50 p-6 overflow-hidden">
+        <AnimatePresence mode="wait">
+          <PageTransition key={location.pathname}>
+            <Outlet />
+          </PageTransition>
+        </AnimatePresence>
       </main>
     </div>
   );
