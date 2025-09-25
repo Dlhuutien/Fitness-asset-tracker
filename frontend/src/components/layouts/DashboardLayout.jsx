@@ -59,18 +59,18 @@ export default function DashboardLayout({ children }) {
         text-white shadow-2xl flex flex-col"
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-6 justify-center">
+        <div className="flex items-center gap-4 px-6 py-8 justify-center">
           <img
             src={oldLogo}
             alt="FitX Gym"
-            className="w-8 h-8 object-contain animate-glow"
+            className="w-14 h-14 object-contain animate-glow"
           />
           {!collapsed && (
             <motion.span
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
-              className="text-xl font-bold tracking-wide bg-gradient-to-r 
+              className="text-2xl font-bold tracking-wide bg-gradient-to-r 
                 from-emerald-400 via-cyan-400 to-blue-400 bg-clip-text text-transparent"
             >
               FitX Gym
@@ -78,33 +78,15 @@ export default function DashboardLayout({ children }) {
           )}
         </div>
 
-        {/* Toggle Collapse */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="absolute top-1/2 -right-3 transform -translate-y-1/2 
-            w-7 h-7 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 
-            text-white flex items-center justify-center shadow-lg 
-            hover:scale-110 transition"
-        >
-          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
-
         {/* Menu */}
-        <nav className="mt-6 flex-1">
+        <nav className="mt-4 flex-1 overflow-y-auto">
           <ul
             className={`${
-              collapsed ? "flex flex-col items-center gap-6" : "space-y-4 px-3"
+              collapsed ? "flex flex-col items-center gap-6" : "space-y-2 px-3"
             }`}
           >
             {menuItems.map((item, idx) => (
-              <li
-                key={item.key}
-                className={`w-full ${
-                  !collapsed && idx !== menuItems.length - 1
-                    ? "border-b border-white/10 pb-2"
-                    : ""
-                }`}
-              >
+              <li key={item.key} className="w-full">
                 {/* Parent item */}
                 <button
                   onClick={() => item.children && toggleMenu(item.key)}
@@ -122,7 +104,7 @@ export default function DashboardLayout({ children }) {
                   >
                     <item.icon size={collapsed ? 28 : 22} />
                     {!collapsed && (
-                      <span className="text-[15px] font-medium">
+                      <span className="text-[16px] font-medium">
                         {item.label}
                       </span>
                     )}
@@ -139,15 +121,14 @@ export default function DashboardLayout({ children }) {
                   {/* Tooltip khi collapsed */}
                   {collapsed && (
                     <span
-                      className="absolute left-full ml-2 px-2 py-1 rounded bg-gray-800 text-xs 
-              text-white opacity-0 group-hover:opacity-100 whitespace-nowrap"
+                      className="absolute left-full ml-2 px-2 py-1 rounded bg-gray-800 text-sm 
+              text-white opacity-0 group-hover:opacity-100 whitespace-nowrap shadow-lg"
                     >
                       {item.label}
                     </span>
                   )}
                 </button>
 
-                {/* Submenu */}
                 {/* Submenu */}
                 <AnimatePresence>
                   {item.children && openMenus[item.key] && !collapsed && (
@@ -156,7 +137,7 @@ export default function DashboardLayout({ children }) {
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className="ml-10 mt-2 space-y-1 text-[15px] text-gray-300 overflow-hidden"
+                      className="ml-10 mt-2 space-y-2 text-[15px] text-gray-300 overflow-hidden"
                     >
                       {item.children.map((sub, idx) => (
                         <li key={idx}>
@@ -172,6 +153,11 @@ export default function DashboardLayout({ children }) {
                     </motion.ul>
                   )}
                 </AnimatePresence>
+
+                {/* Đường kẻ ngăn cách giữa các mục */}
+                {!collapsed && idx !== menuItems.length - 1 && (
+                  <div className="border-b border-white/10 my-2"></div>
+                )}
               </li>
             ))}
           </ul>
@@ -187,6 +173,17 @@ export default function DashboardLayout({ children }) {
             © 2025 FitX Gym
           </motion.div>
         )}
+
+        {/* Toggle Collapse (floating middle-right) */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute top-1/2 -right-3 transform -translate-y-1/2 
+            w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-500 
+            text-white flex items-center justify-center shadow-lg 
+            hover:scale-110 hover:shadow-[0_0_15px_rgba(6,182,212,0.6)] transition"
+        >
+          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
       </motion.aside>
 
       {/* Main Content */}
