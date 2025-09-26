@@ -1,25 +1,31 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LoginPage from "@/pages/LoginPage";
-import DashboardLayout from "@/components/layouts/DashboardLayout";
-import DashboardPage from "@/pages/DashboardPage";
-import StaffPage from "@/pages/StaffPage";
+import { useEffect, useState } from "react"
+import { BrowserRouter as Router, useRoutes } from "react-router-dom"
+import routes from "@/config/routes"
+import { Toaster } from "./components/ui/toaster"
+
+function AppRoutes() {
+  return useRoutes(routes)
+}
 
 export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        {/* Trang login */}
-        <Route path="/" element={<LoginPage />} />
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light")
 
-        {/* Layout chính */}
-        <Route path="/app" element={<DashboardLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="staff" element={<StaffPage />} />
-          <Route path="devices" element={<div>Danh sách thiết bị (để trống)</div>} />
-          <Route path="vendors" element={<div>Danh sách NCC (để trống)</div>} />
-          <Route path="involve" element={<div>Thống kê (để trống)</div>} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  );
+  useEffect(() => {
+    const root = document.documentElement
+    if (theme === "dark") {
+      root.classList.add("dark")
+    } else {
+      root.classList.remove("dark")
+    }
+    localStorage.setItem("theme", theme)
+  }, [theme])
+
+  return (
+    <Router>
+      <div className="min-h-screen bg-bg-light dark:bg-bg-dark transition-colors duration-300">
+        <AppRoutes />
+<Toaster />
+      </div>
+    </Router>
+  )
 }

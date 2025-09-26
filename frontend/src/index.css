@@ -15,12 +15,41 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ================= GLOBAL FONT ================= */
-body {
-  font-family: "Inter", "Poppins", sans-serif;
+html,
+body,
+#root {
+  @apply min-h-screen transition-colors duration-300;
 }
 
-/* ================= BACKGROUND ================= */
+/* ================= THEME BACKGROUNDS ================= */
+
+/* Light mode */
+html.light {
+  @apply bg-bg-light text-gray-900;
+}
+
+/* Dark mode */
+html.dark {
+  @apply bg-bg-dark text-gray-100;
+}
+
+
+@keyframes gradient-move {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* ================= GLOBAL FONT ================= */
+body {
+  @apply font-sans bg-bg-light text-gray-900 dark:bg-bg-dark dark:text-gray-100 transition-colors duration-300;
+}
+
+/* ================= BACKGROUND LOGIN ================= */
 .login-bg-dark {
   @apply bg-gradient-to-br from-bg-dark to-brand-dark text-white;
 }
@@ -31,8 +60,7 @@ body {
 
 /* ================= LOGO GLOW ================= */
 @keyframes glow {
-  0%,
-  100% {
+  0%, 100% {
     filter: drop-shadow(0 0 15px theme("colors.brand.DEFAULT"));
   }
   50% {
@@ -46,7 +74,7 @@ body {
 /* ================= FORM CARD ================= */
 .form-card {
   @apply bg-white/10 dark:bg-bg-card/80 rounded-2xl backdrop-blur-2xl 
-         border border-white/20 shadow-lg transition-transform;
+         border border-white/20 dark:border-gray-700 shadow-lg transition-transform;
 }
 .form-card:hover {
   @apply scale-[1.02] shadow-neon;
@@ -77,8 +105,7 @@ body {
 
 /* ================= ANIMATIONS ================= */
 @keyframes gradient-x {
-  0%,
-  100% {
+  0%, 100% {
     background-position: 0% 50%;
   }
   50% {
@@ -92,12 +119,10 @@ body {
 
 @layer utilities {
   .font-title {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, Helvetica, Arial, sans-serif !important;
+    font-family: "Poppins", "Montserrat", sans-serif !important;
   }
 
   .font-body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, Helvetica, Arial, sans-serif !important;
+    font-family: "Inter", "Be Vietnam Pro", sans-serif !important;
   }
 }
