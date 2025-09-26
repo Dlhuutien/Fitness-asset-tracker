@@ -12,23 +12,29 @@ const tableName = "Equipment_unit";
 
 const EquipmentUnitModel = {
   createUnit: async (data) => {
-    await dynamodb.send(new PutCommand({
-      TableName: tableName,
-      Item: data,
-    }));
+    await dynamodb.send(
+      new PutCommand({
+        TableName: tableName,
+        Item: data,
+      })
+    );
     return data;
   },
 
   getUnitById: async (id) => {
-    const result = await dynamodb.send(new GetCommand({
-      TableName: tableName,
-      Key: { id },
-    }));
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: tableName,
+        Key: { id },
+      })
+    );
     return result.Item;
   },
 
   getAllUnits: async () => {
-    const result = await dynamodb.send(new ScanCommand({ TableName: tableName }));
+    const result = await dynamodb.send(
+      new ScanCommand({ TableName: tableName })
+    );
     return result.Items || [];
   },
 
@@ -47,28 +53,53 @@ const EquipmentUnitModel = {
   },
 
   updateUnit: async (id, data) => {
-    const result = await dynamodb.send(new UpdateCommand({
-      TableName: tableName,
-      Key: { id },
-      UpdateExpression: "set #s = :status, #u = :updatedAt",
-      ExpressionAttributeNames: {
-        "#s": "status",
-        "#u": "updated_at",
-      },
-      ExpressionAttributeValues: {
-        ":status": data.status,
-        ":updatedAt": new Date().toISOString(),
-      },
-      ReturnValues: "ALL_NEW",
-    }));
+    const allowedFields = ["branch_id", "status", "description"];
+    const updateExp = [];
+    const expAttrNames = {};
+    const expAttrValues = {};
+
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        const placeholder = `#${key}`;
+        const valueKey = `:${key}`;
+        updateExp.push(`${placeholder} = ${valueKey}`);
+        expAttrNames[placeholder] = key;
+        expAttrValues[valueKey] = data[key];
+      }
+    }
+
+    if (updateExp.length === 0) {
+      throw new Error(
+        "No valid fields to update (only branch_id, status, description allowed)"
+      );
+    }
+
+    // luôn update updated_at
+    updateExp.push("#updated_at = :updatedAt");
+    expAttrNames["#updated_at"] = "updated_at";
+    expAttrValues[":updatedAt"] = new Date().toISOString();
+
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: tableName,
+        Key: { id },
+        UpdateExpression: "set " + updateExp.join(", "),
+        ExpressionAttributeNames: expAttrNames,
+        ExpressionAttributeValues: expAttrValues,
+        ReturnValues: "ALL_NEW",
+      })
+    );
+
     return result.Attributes;
   },
 
   deleteUnit: async (id) => {
-    await dynamodb.send(new DeleteCommand({
-      TableName: tableName,
-      Key: { id },
-    }));
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: tableName,
+        Key: { id },
+      })
+    );
     return { id };
   },
 };

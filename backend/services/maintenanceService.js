@@ -11,10 +11,18 @@ const maintenanceService = {
       throw new Error(`Equipment unit ${data.equipment_unit_id} not found`);
     }
 
+    // Lấy branch_id từ unit
+    const branch_id = unit.branch_id;
+    if (!branch_id) {
+      throw new Error(
+        `Equipment unit ${unit.id} is not assigned to any branch`
+      );
+    }
+
     // Check Branch tồn tại
-    const branch = await branchRepository.findById(data.branch_id);
+    const branch = await branchRepository.findById(branch_id);
     if (!branch) {
-      throw new Error(`Branch ${data.branch_id} not found`);
+      throw new Error(`Branch ${branch_id} not found`);
     }
 
     // Các trạng thái không được phép tạo maintenance
@@ -42,18 +50,19 @@ const maintenanceService = {
       warranty = warrantyEnd >= now;
     }
 
-    // Nếu hợp lệ thì tạo maintenance
+    // Nếu hợp lệ thì tạo maintenance (branch_id auto lấy từ unit)
     const m = await maintenanceRepository.create({
       ...data,
+      branch_id,
       warranty,
     });
 
+    // Update status Unit
     if (role === "technician") {
       await equipmentUnitRepository.update(data.equipment_unit_id, {
         status: "In Progress",
       });
     } else {
-      // Ngược lại thì là "Temporary Urgent"
       await equipmentUnitRepository.update(data.equipment_unit_id, {
         status: "Temporary Urgent",
       });
@@ -70,7 +79,9 @@ const maintenanceService = {
     });
 
     // update Unit status = In Progress
-    await equipmentUnitRepository.update(m.equipment_unit_id, { status: "In Progress" });
+    await equipmentUnitRepository.update(m.equipment_unit_id, {
+      status: "In Progress",
+    });
 
     return m;
   },

@@ -1,4 +1,5 @@
 const attributeRepository = require("../repositories/attributeRepository");
+const attributeValueRepository = require("../repositories/attributeValueRepository");
 
 const attributeService = {
   createAttribute: async (data) => {
@@ -26,6 +27,15 @@ const attributeService = {
   deleteAttribute: async (id) => {
     const existing = await attributeRepository.findById(id);
     if (!existing) throw new Error("Attribute not found");
+
+    // Check nếu Attribute đang được dùng trong AttributeValue
+    const values = await attributeValueRepository.findByAttributeId(id);
+    if (values.length > 0) {
+      throw new Error(
+        `Cannot delete Attribute ${id} because it is still in use by equipment(s)`
+      );
+    }
+
     return await attributeRepository.delete(id);
   },
 };

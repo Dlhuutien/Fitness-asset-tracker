@@ -1,10 +1,11 @@
+const equipmentRepository = require("../repositories/equipmentRepository");
 const invoiceRepository = require("../repositories/invoiceRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
 const invoiceDetailRepository = require("../repositories/invoiceDetailRepository");
-const { v4: uuidv4 } = require("uuid");
+const branchRepository = require("../repositories/branchRepository");
 
 const invoiceService = {
-  createInvoice: async (data) => {
+ createInvoice: async (data) => {
     if (!data.user_id || !data.items) {
       throw new Error("user_id and items are required");
     }
@@ -18,18 +19,50 @@ const invoiceService = {
     let total = 0;
     const details = [];
 
+    // Ngày nhập hàng (format ddMMyy)
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const year = String(now.getFullYear()).slice(-2);
+    const datePrefix = `${day}${month}${year}`;
+
     // 2. Loop qua items
     for (const item of data.items) {
-      const { equipment_id, branch_id, quantity, cost, warranty_duration } = item;
+      const { equipment_id, branch_id, quantity, cost } = item;
+
+      // Check branch tồn tại
+      const branch = await branchRepository.findById(branch_id);
+      if (!branch) {
+        throw new Error(`Branch ${branch_id} not found`);
+      }
+
+      // Check equipment tồn tại
+      const equipment = await equipmentRepository.findById(equipment_id);
+      if (!equipment) {
+        throw new Error(`Equipment ${equipment_id} not found`);
+      }
+
+       // Lấy warranty_duration từ equipment
+      const warranty_duration = equipment.warranty_duration;
+
+      // --- Lấy count hiện tại từ DB ---
+      const existingUnits = await equipmentUnitRepository.findAll();
+      const prefix = `${equipment_id}-${datePrefix}`;
+      const sameDayUnits = existingUnits.filter((u) =>
+        u.id.startsWith(prefix)
+      );
+
+      let count = sameDayUnits.length; // số hiện tại đã có
 
       for (let i = 0; i < quantity; i++) {
+        count++;
+        const unitId = `${equipment_id}-${datePrefix}-${count}`;
+
         // 2.1 Tạo equipment_unit
-        const unitId = uuidv4();
         const unit = await equipmentUnitRepository.create({
           id: unitId,
           equipment_id,
           branch_id,
-          sku: `${equipment_id}-${unitId.slice(0, 6)}`,
           cost,
           description: "Imported via invoice",
           status: "In Stock",
@@ -108,6 +141,5 @@ const invoiceService = {
     };
   },
 };
-
 
 module.exports = invoiceService;
