@@ -121,7 +121,7 @@ export default function DashboardLayout({ children }) {
                   {/* Tooltip khi collapsed */}
                   {collapsed && (
                     <span
-                      className="absolute left-full ml-2 px-2 py-1 rounded bg-gray-800 text-sm 
+                      className="absolute left-full ml-2 px-2 py-1 rounded bg-gray-800 text-[15px] font-medium 
               text-white opacity-0 group-hover:opacity-100 whitespace-nowrap shadow-lg"
                     >
                       {item.label}
@@ -130,25 +130,31 @@ export default function DashboardLayout({ children }) {
                 </button>
 
                 {/* Submenu */}
+                {/* Submenu */}
                 <AnimatePresence>
                   {item.children && openMenus[item.key] && !collapsed && (
                     <motion.ul
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className="ml-10 mt-2 space-y-2 text-[15px] text-gray-300 overflow-hidden"
+                      initial={{ opacity: 0, y: -5, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: -5, height: 0 }}
+                      transition={{ duration: 0.25, ease: "easeInOut" }}
+                      className="ml-6 mt-2 mb-1 space-y-1 text-[13px] text-gray-300 overflow-hidden"
                     >
                       {item.children.map((sub, idx) => (
-                        <li key={idx}>
+                        <motion.li
+                          key={idx}
+                          whileHover={{ x: 3 }}
+                          transition={{ type: "spring", stiffness: 200 }}
+                        >
                           <a
                             href="#"
-                            className="block px-3 py-2 rounded-md 
-              hover:text-cyan-400 hover:bg-white/5 transition"
+                            className="block px-4 py-2 rounded-md 
+              hover:text-cyan-400 hover:bg-white/5 transition 
+              hover:shadow-[0_0_8px_rgba(34,211,238,0.3)]"
                           >
                             {sub}
                           </a>
-                        </li>
+                        </motion.li>
                       ))}
                     </motion.ul>
                   )}
@@ -174,7 +180,7 @@ export default function DashboardLayout({ children }) {
           </motion.div>
         )}
 
-        {/* Toggle Collapse (floating middle-right) */}
+        {/* Toggle Collapse */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className="absolute top-1/2 -right-3 transform -translate-y-1/2 
