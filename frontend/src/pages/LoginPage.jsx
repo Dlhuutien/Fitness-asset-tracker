@@ -17,8 +17,6 @@ export default function LoginPage() {
       {/* Hiệu ứng bong bóng */}
       <BubbleBackground />
 
-      {/* Nút đổi theme */}
-      <ThemeSwitch darkMode={darkMode} setDarkMode={setDarkMode} />
 
       {/* Khối chính */}
 <motion.div

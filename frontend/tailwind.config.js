@@ -1,11 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  darkMode: "class", // 👈 Bật chế độ dark bằng class
+  darkMode: "class", // ✅ Bật dark mode theo class
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Primary / Secondary cho theme chung
+        // ✅ Màu chính
         primary: {
           DEFAULT: "#2563eb", // xanh dương
           foreground: "#ffffff",
@@ -15,7 +15,7 @@ module.exports = {
           foreground: "#ffffff",
         },
 
-        // Thêm brand riêng cho app
+        // ✅ Màu riêng cho thương hiệu
         brand: {
           DEFAULT: "#22c55e", // xanh lá chính
           dark: "#15803d",
@@ -26,19 +26,24 @@ module.exports = {
           dark: "#0369a1",
           light: "#38bdf8",
         },
+
+        // ✅ Nền sáng/tối
         bg: {
-          dark: "#0f172a", // nền tối
           light: "#f8fafc", // nền sáng
+          dark: "#0f172a", // nền tối
           card: "#1e293b", // nền card
+          vibrant: "#ffdde1",
         },
       },
+
+      // ✅ Font dùng chung
       fontFamily: {
-        montserrat: ["Montserrat", "sans-serif"],
         sans: ["Inter", "Poppins", "sans-serif"],
-        inter: ["Inter", "sans-serif"],
-        poppins: ["Poppins", "sans-serif"],
+        montserrat: ["Montserrat", "sans-serif"],
         jakarta: ["Plus Jakarta Sans", "sans-serif"],
       },
+
+      // ✅ Hiệu ứng
       boxShadow: {
         neon: "0 0 20px rgba(34, 197, 94, 0.6)",
         glow: "0 0 40px rgba(14, 165, 233, 0.5)",

@@ -1,21 +1,11 @@
-import { motion, AnimatePresence } from "framer-motion"
-import { useLocation } from "react-router-dom"
+import { motion } from "framer-motion"
 
-export default function PageTransition({ children }) {
-  const location = useLocation()
-
+export default function PageContainer({ children }) {
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -15 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
-        className="h-full w-full"
-      >
+    <div className="max-w-8xl mx-auto w-full">
+      <div className="rounded-xl border bg-white shadow-md p-6 space-y-6">
         {children}
-      </motion.div>
-    </AnimatePresence>
-  )
+      </div>
+    </div>
+  );
 }
