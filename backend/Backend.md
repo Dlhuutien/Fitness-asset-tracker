@@ -1543,16 +1543,20 @@ Xóa attribute value (chỉ `admin`, `super-admin`).
 
 Tạo equipment mới (chỉ `admin`, `super-admin`).
 
-**Request body (JSON):**
+- `attribute_id` là id của bảng Attribute, `value` của AttributeValue
+  **Request body (JSON):**
 
 ```json
 {
-  "name": "Treadmill Pro",
-  "vendor_id": "MT",
-  "category_type_id": "TM",
-  "description": "Máy chạy bộ cao cấp",
+  "name": "Tạ đơn bubble",
+  "vendor_id": "JS",
+  "category_type_id": "TD",
+  "description": "",
   "image": "https://example.com/treadmill.png",
-  "warranty_duration": 2
+  "warranty_duration": 2,
+  "attributes": [
+    { "attribute_id": "81a0b2c3-9d3a-41bb-b227-12fd32a08dce", "value": "Đen" }
+  ]
 }
 ```
 
@@ -1562,16 +1566,19 @@ Tạo equipment mới (chỉ `admin`, `super-admin`).
 
 ```json
 {
-  "id": "CAOTMMT",
-  "vendor_id": "MT",
-  "category_type_id": "TM",
-  "category_main_id": "CAO",
-  "name": "Treadmill Pro",
+  "name": "Tạ đơn bubble",
+  "vendor_id": "JS",
+  "category_type_id": "TD",
+  "description": "",
   "image": "https://example.com/treadmill.png",
-  "description": "Máy chạy bộ cao cấp",
   "warranty_duration": 2,
-  "created_at": "2025-09-21T10:00:00.000Z",
-  "updated_at": "2025-09-21T10:00:00.000Z"
+  "attributes": [
+    {
+      "attribute": "color",
+      "value": "Đen"
+    }
+  ],
+  "id": "CAOTDJS"
 }
 ```
 
@@ -1604,16 +1611,21 @@ Lấy danh sách tất cả equipments.
 ```json
 [
   {
-    "id": "CAOTMMT",
-    "vendor_id": "MT",
-    "category_type_id": "TM",
-    "category_main_id": "CAO",
-    "name": "Treadmill Pro",
+    "updated_at": "2025-09-26T04:31:17.249Z",
+    "created_at": "2025-09-26T04:31:17.249Z",
     "image": "https://example.com/treadmill.png",
-    "description": "Máy chạy bộ cao cấp",
     "warranty_duration": 2,
-    "created_at": "2025-09-21T10:00:00.000Z",
-    "updated_at": "2025-09-21T10:00:00.000Z"
+    "description": "",
+    "id": "CAOTDJS",
+    "name": "Tạ đơn bubble",
+    "category_type_id": "TD",
+    "vendor_id": "JS",
+    "attributes": [
+      {
+        "attribute": "color",
+        "value": "Đen"
+      }
+    ]
   },
   ...
 ]
@@ -1629,16 +1641,21 @@ Lấy chi tiết equipment theo `id`.
 
 ```json
 {
-  "id": "CAOTMMT",
-  "vendor_id": "MT",
-  "category_type_id": "TM",
-  "category_main_id": "CAO",
-  "name": "Treadmill Pro",
+  "updated_at": "2025-09-26T04:31:17.249Z",
+  "created_at": "2025-09-26T04:31:17.249Z",
   "image": "https://example.com/treadmill.png",
-  "description": "Máy chạy bộ cao cấp",
   "warranty_duration": 2,
-  "created_at": "2025-09-21T10:00:00.000Z",
-  "updated_at": "2025-09-21T10:00:00.000Z"
+  "description": "",
+  "id": "CAOTDJS",
+  "name": "Tạ đơn bubble",
+  "category_type_id": "TD",
+  "vendor_id": "JS",
+  "attributes": [
+    {
+      "attribute": "color",
+      "value": "Đen"
+    }
+  ]
 }
 ```
 
@@ -1659,21 +1676,23 @@ Lấy tất cả equipments theo `category_type_id`.
 ```json
 [
   {
+    "updated_at": "2025-09-21T08:59:26.737Z",
+    "created_at": "2025-09-21T08:59:26.737Z",
+    "image": "https://example.com/treadmill.png",
+    "warranty_duration": 2,
+    "description": "Máy chạy bộ cao cấp",
     "id": "CAOTMMT",
-    "vendor_id": "MT",
     "category_type_id": "TM",
-    "category_main_id": "CAO",
     "name": "Treadmill Pro",
-    "description": "Máy chạy bộ cao cấp"
+    "vendor_id": "MT",
+    "attributes": [
+      {
+        "attribute": "color",
+        "value": "đỏ"
+      }
+    ]
   },
-  {
-    "id": "CAOTMJS",
-    "vendor_id": "JS",
-    "category_type_id": "TM",
-    "category_main_id": "CAO",
-    "name": "Treadmill Johnson",
-    "description": "Máy chạy bộ Johnson"
-  }
+  ...
 ]
 ```
 
@@ -1688,21 +1707,23 @@ Lấy tất cả equipments theo `vendor_id`.
 ```json
 [
   {
+    "updated_at": "2025-09-21T08:59:26.737Z",
+    "created_at": "2025-09-21T08:59:26.737Z",
+    "image": "https://example.com/treadmill.png",
+    "warranty_duration": 2,
+    "description": "Máy chạy bộ cao cấp",
     "id": "CAOTMMT",
-    "vendor_id": "MT",
     "category_type_id": "TM",
-    "category_main_id": "CAO",
     "name": "Treadmill Pro",
-    "description": "Máy chạy bộ cao cấp"
-  },
-  {
-    "id": "CAOOPMT",
     "vendor_id": "MT",
-    "category_type_id": "OP",
-    "category_main_id": "CAO",
-    "name": "Máy leo cầu thang",
-    "description": "Thiết bị cardio"
-  }
+    "attributes": [
+      {
+        "attribute": "color",
+        "value": "đỏ"
+      }
+    ]
+  },
+  ...
 ]
 ```
 
@@ -1790,12 +1811,13 @@ EQUIPMENT_ID-DAYMONTHYEAR-COUNT
 
 Trong đó:
 
-* `EQUIPMENT_ID` = Mã của thiết bị (ví dụ: `CAOTMJS`)
-* `DAY` = ngày nhập hàng (2 chữ số, `01`–`31`)
-* `MONTH` = tháng nhập hàng (2 chữ số, `01`–`12`)
-* `YEAR` = 2 số cuối của năm (`25` = 2025)
-* `COUNT` = số thứ tự của thiết bị trong lô nhập (bắt đầu từ `1` đến `quantity` trong invoice item)
-* Trường hợp nhập thiết bị trùng trong cùng 1 ngày, thì sẽ đếm EQUIPMENT_ID-DAYMONTHYEAR để tính tiếp `COUNT`
+- `EQUIPMENT_ID` = Mã của thiết bị (ví dụ: `CAOTMJS`)
+- `DAY` = ngày nhập hàng (2 chữ số, `01`–`31`)
+- `MONTH` = tháng nhập hàng (2 chữ số, `01`–`12`)
+- `YEAR` = 2 số cuối của năm (`25` = 2025)
+- `COUNT` = số thứ tự của thiết bị trong lô nhập (bắt đầu từ `1` đến `quantity` trong invoice item)
+- Trường hợp nhập thiết bị trùng trong cùng 1 ngày, thì sẽ đếm EQUIPMENT_ID-DAYMONTHYEAR để tính tiếp `COUNT`
+
 ---
 
 ### Ví dụ:
@@ -1809,8 +1831,7 @@ Trong đó:
       "equipment_id": "CAOTMJS",
       "branch_id": "BR-01",
       "quantity": 3,
-      "cost": 1500,
-      "warranty_duration": 2
+      "cost": 1500
     }
   ]
 }
@@ -1828,7 +1849,6 @@ CAOTMJS-290825-3
 
 ---
 
-
 ```json
 {
   "items": [
@@ -1836,15 +1856,13 @@ CAOTMJS-290825-3
       "equipment_id": "eq123",
       "branch_id": "b001",
       "quantity": 2,
-      "cost": 100,
-      "warranty_duration": 1
+      "cost": 100
     },
     {
       "equipment_id": "eq456",
       "branch_id": "b001",
       "quantity": 1,
-      "cost": 250,
-      "warranty_duration": 2
+      "cost": 250
     }
   ]
 }
@@ -2076,24 +2094,6 @@ Lấy chi tiết equipment unit theo `id`.
 { "error": "Equipment Unit not found" }
 ```
 
-Rồi 👍 mình sẽ bổ sung tài liệu `backend.md` để có mục riêng cho **EquipmentUnit APIs** và thêm endpoint mới `GET /equipmentUnit/equipment/:equipment_id`.
-
----
-
-## 📘 Bổ sung vào **backend.md**
-
-### Mục lục (bổ sung thêm Equipment Unit)
-
-```md
-12. [Equipment Unit APIs (`/equipmentUnit`)](#equipment-unit-apis-equipmentunit)
-
-    - `GET /equipmentUnit` — Lấy tất cả equipment unit
-    - `GET /equipmentUnit/:id` — Lấy chi tiết 1 equipment unit
-    - `GET /equipmentUnit/equipment/:equipment_id` — Lấy tất cả unit theo equipment_id
-    - `PUT /equipmentUnit/:id` — Cập nhật equipment unit (status, ...)
-    - `DELETE /equipmentUnit/:id` — Xóa equipment unit
-```
-
 ---
 
 ### 12. Equipment Unit APIs (`/equipmentUnit`)
@@ -2226,13 +2226,14 @@ Xóa equipment unit.
 
 Tạo một yêu cầu chuyển thiết bị giữa các chi nhánh.
 
+- Nếu Equipment unit đang ở trạng thái `Inactive, Temporary Urgent, In Progress, Ready, Failed, Deleted, Moving` thì không thể chuyển chi nhánh
+
 **Request body:**
 
 ```json
 {
   "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
-  "to_branch_id": "Q3",
-  "description": "Chuyển máy chạy bộ từ BR-01 sang BR-02"
+  "to_branch_id": "Q3"
 }
 ```
 

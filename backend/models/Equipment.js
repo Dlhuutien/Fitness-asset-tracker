@@ -87,12 +87,12 @@ const EquipmentModel = {
     return res.Items || [];
   },
 
-  // QUERY theo category_type_id (cần tạo GSI)
+  // QUERY theo category_type_id
   getByCategoryTypeId: async (category_type_id) => {
     const res = await dynamodb.send(
       new QueryCommand({
         TableName: tableName,
-        IndexName: "category_type_id-index", // tạo GSI trên DynamoDB
+        IndexName: "category_type_id-index",
         KeyConditionExpression: "category_type_id = :id",
         ExpressionAttributeValues: { ":id": category_type_id },
       })
@@ -100,12 +100,12 @@ const EquipmentModel = {
     return res.Items || [];
   },
 
-  // QUERY theo vendor_id (cần tạo GSI)
+  // QUERY theo vendor_id
   getByVendorId: async (vendor_id) => {
     const res = await dynamodb.send(
       new QueryCommand({
         TableName: tableName,
-        IndexName: "vendor_id-index", // tạo GSI trên DynamoDB
+        IndexName: "vendor_id-index",
         KeyConditionExpression: "vendor_id = :id",
         ExpressionAttributeValues: { ":id": vendor_id },
       })
