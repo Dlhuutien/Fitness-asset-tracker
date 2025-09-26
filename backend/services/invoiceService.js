@@ -1,8 +1,8 @@
+const equipmentRepository = require("../repositories/equipmentRepository");
 const invoiceRepository = require("../repositories/invoiceRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
 const invoiceDetailRepository = require("../repositories/invoiceDetailRepository");
 const branchRepository = require("../repositories/branchRepository");
-const { v4: uuidv4 } = require("uuid");
 
 const invoiceService = {
  createInvoice: async (data) => {
@@ -28,13 +28,22 @@ const invoiceService = {
 
     // 2. Loop qua items
     for (const item of data.items) {
-      const { equipment_id, branch_id, quantity, cost, warranty_duration } = item;
+      const { equipment_id, branch_id, quantity, cost } = item;
 
       // Check branch tồn tại
       const branch = await branchRepository.findById(branch_id);
       if (!branch) {
         throw new Error(`Branch ${branch_id} not found`);
       }
+
+      // Check equipment tồn tại
+      const equipment = await equipmentRepository.findById(equipment_id);
+      if (!equipment) {
+        throw new Error(`Equipment ${equipment_id} not found`);
+      }
+
+       // Lấy warranty_duration từ equipment
+      const warranty_duration = equipment.warranty_duration;
 
       // --- Lấy count hiện tại từ DB ---
       const existingUnits = await equipmentUnitRepository.findAll();
