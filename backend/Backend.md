@@ -2166,7 +2166,7 @@ Cập nhật equipment unit (ví dụ thay đổi `status`).
 
 ```json
 {
-  "status": "In Use"
+  "status": "Active"
 }
 ```
 
@@ -2506,7 +2506,6 @@ Hoàn tất maintenance (thành công hoặc thất bại).
 
 ```json
 {
-  "user_id": "TECH003",
   "maintenance_detail": "Đã thay ổ bi mới, hoạt động ổn định",
   "status": "Ready",
   "cost": 0

@@ -419,7 +419,7 @@ const UserModel = {
 
     return { users };
   },
-  
+
   adminSetUserRole: async ({ username, newRole, updatedByRole }) => {
     if (!["admin", "super-admin"].includes(updatedByRole)) {
       throw new Error(`${updatedByRole} is not allowed to set roles`);
@@ -461,6 +461,77 @@ const UserModel = {
     );
 
     return { message: `Role of ${username} set to ${newRole}` };
+  },
+  
+  // =====================================
+  // Lấy email của user
+  // =====================================
+  getUsersByRoles: async (roles) => {
+    if (!Array.isArray(roles)) roles = [roles];
+
+    // 1. Lấy toàn bộ users trong pool
+    const resp = await cip.send(
+      new ListUsersCommand({
+        UserPoolId: USER_POOL_ID,
+        Limit: 60,
+      })
+    );
+
+    const emails = [];
+
+    for (const user of resp.Users) {
+      // 2. Lấy danh sách group (role) của user
+      const groupResp = await cip.send(
+        new AdminListGroupsForUserCommand({
+          UserPoolId: USER_POOL_ID,
+          Username: user.Username,
+        })
+      );
+
+      const userRoles = groupResp.Groups?.map((g) => g.GroupName) || [];
+
+      // 3. Nếu user có role nằm trong roles yêu cầu → lấy email
+      if (userRoles.some((r) => roles.includes(r))) {
+        const emailAttr = user.Attributes.find((a) => a.Name === "email");
+        if (emailAttr) {
+          emails.push({
+            username: user.Username,
+            email: emailAttr.Value,
+            roles: userRoles,
+          });
+        }
+      }
+    }
+
+    return emails;
+  },
+
+  /***
+   * Lấy user từ sub(id)
+   */
+  getUserBySub: async (sub) => {
+    if (!sub) throw new Error("sub is required");
+
+    const resp = await cip.send(
+      new ListUsersCommand({
+        UserPoolId: USER_POOL_ID,
+        Filter: `sub = "${sub}"`,
+        Limit: 1,
+      })
+    );
+
+    const user = resp.Users?.[0];
+    if (!user) return null;
+
+    const attrs = user.Attributes.reduce((acc, attr) => {
+      acc[attr.Name] = attr.Value;
+      return acc;
+    }, {});
+
+    return {
+      username: user.Username,
+      attributes: attrs,
+    };
   },
 };
 

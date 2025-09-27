@@ -21,6 +21,12 @@ const userRepository = {
   updateUserStatus: async (data) => UserModel.updateUserStatus(data),
   adminUpdateUserAttributes: async (data) => UserModel.adminUpdateUserAttributes(data),
   listUsers: async (data) => UserModel.listUsers(data),
+
+  // ===========================
+  // Lấy email
+  // ===========================
+  getUsersByRoles: async (roles) => UserModel.getUsersByRoles(roles),
+  getUserBySub: async (sub) => UserModel.getUserBySub(sub),
 };
 
 module.exports = userRepository;
