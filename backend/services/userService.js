@@ -77,6 +77,16 @@ const userService = {
     }
     return await userRepository.setUserRole(data);
   },
+
+  // =================
+  // Lấy Email 
+  // =================
+  getUsersByRoles: async (roles) => {
+    if (!roles || (Array.isArray(roles) && roles.length === 0)) {
+      throw new Error("roles is required");
+    }
+    return await userRepository.getUsersByRoles(roles);
+  },
 };
 
 module.exports = userService;

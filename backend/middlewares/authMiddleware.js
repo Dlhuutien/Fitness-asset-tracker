@@ -7,7 +7,11 @@ exports.verifyAccessToken = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
 
     const payload = await accessTokenVerifier.verify(token);
-    req.user = payload;
+    // req.user = payload;
+    req.user = {
+      ...payload,
+      role: payload['cognito:groups']?.[0] || null,
+    };
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid token', message: err.message });

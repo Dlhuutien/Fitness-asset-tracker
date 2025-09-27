@@ -35,7 +35,6 @@ const maintenanceService = {
       "Deleted",
       "Moving",
     ];
-
     if (blockedStatuses.includes(unit.status)) {
       throw new Error(
         `Cannot create maintenance for equipment unit in status: ${unit.status}`
@@ -57,16 +56,10 @@ const maintenanceService = {
       warranty,
     });
 
-    // Update status Unit
-    if (role === "technician") {
-      await equipmentUnitRepository.update(data.equipment_unit_id, {
-        status: "In Progress",
-      });
-    } else {
-      await equipmentUnitRepository.update(data.equipment_unit_id, {
-        status: "Temporary Urgent",
-      });
-    }
+    // Luôn update status Unit = Temporary Urgent
+    await equipmentUnitRepository.update(data.equipment_unit_id, {
+      status: "Temporary Urgent",
+    });
 
     return m;
   },
