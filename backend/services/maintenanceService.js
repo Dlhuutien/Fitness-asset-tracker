@@ -100,7 +100,10 @@ const maintenanceService = {
       );
     }
 
-    return updated;
+    return {
+      ...updated,
+      status: data.status,
+    };
   },
 
   getAll: async () => {

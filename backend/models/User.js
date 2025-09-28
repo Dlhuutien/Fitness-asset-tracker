@@ -493,9 +493,12 @@ const UserModel = {
       // 3. Nếu user có role nằm trong roles yêu cầu → lấy email
       if (userRoles.some((r) => roles.includes(r))) {
         const emailAttr = user.Attributes.find((a) => a.Name === "email");
+        const subAttr = user.Attributes.find((a) => a.Name === "sub");
+        
         if (emailAttr) {
           emails.push({
             username: user.Username,
+            sub: subAttr?.Value,
             email: emailAttr.Value,
             roles: userRoles,
           });

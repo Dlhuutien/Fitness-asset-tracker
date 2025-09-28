@@ -1,17 +1,35 @@
 const invoiceService = require("../services/invoiceService");
+const userService = require("../services/userService");
+// const sendEmail = require("../services/emailService");
+const notificationService = require("../services/notificationService");
 
 const invoiceController = {
   createInvoice: async (req, res) => {
     try {
-      const userId = req.user.sub; // từ JWT middleware
-      const { items } = req.body; // nhận danh sách items từ body
+      const userId = req.user.sub;
+      const { items } = req.body;
 
-      const invoice = await invoiceService.createInvoice({
+      // 1. Tạo invoice
+      const { invoice } = await invoiceService.createInvoice({
         user_id: userId,
-        items, // truyền items sang service
+        items,
       });
 
-      res.status(201).json(invoice);
+      // 2. Lấy invoice kèm chi tiết đầy đủ (join với equipment_unit)
+      const { details } = await invoiceService.getInvoiceDetails(invoice.id);
+
+      // 3. Lấy email admin + super-admin
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      const recipients = admins.map((u) => u.email);
+
+      // 4. Gửi email thông báo
+      await notificationService.notifyInvoiceCreated(invoice, details, admins);
+
+      // 5. Trả về response
+      res.status(201).json({ invoice, details });
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -55,7 +73,7 @@ const invoiceController = {
     }
   },
 
-    getInvoiceDetails: async (req, res) => {
+  getInvoiceDetails: async (req, res) => {
     try {
       const result = await invoiceService.getInvoiceDetails(req.params.id);
       res.json(result);

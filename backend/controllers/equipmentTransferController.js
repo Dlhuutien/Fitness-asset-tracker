@@ -1,4 +1,6 @@
 const equipmentTransferService = require("../services/equipmentTransferService");
+const notificationService = require("../services/notificationService");
+const userService = require("../services/userService");
 
 const equipmentTransferController = {
   createTransfer: async (req, res) => {
@@ -10,6 +12,16 @@ const equipmentTransferController = {
           description: req.body.description,
           move_start_date: req.body.move_start_date,
         },
+        req.user.sub
+      );
+
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      await notificationService.notifyTransferCreated(
+        transfer,
+        admins,
         req.user.sub
       );
 
@@ -45,6 +57,17 @@ const equipmentTransferController = {
         req.params.id,
         req.body.move_receive_date
       );
+
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      await notificationService.notifyTransferCompleted(
+        transfer,
+        admins,
+        req.user.sub
+      );
+
       res.json(transfer);
     } catch (error) {
       res.status(400).json({ error: error.message });

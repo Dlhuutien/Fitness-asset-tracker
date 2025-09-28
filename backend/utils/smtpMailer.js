@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const { htmlToText } = require("html-to-text");
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -10,12 +11,19 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-async function sendNoReplyEmail(to, subject, text) {
+/**
+ * Gửi email No-Reply
+ * @param {string|string[]} to - Người nhận
+ * @param {string} subject - Tiêu đề
+ * @param {string} html - Nội dung HTML
+ */
+async function sendNoReplyEmail(to, subject, html) {
+  // auto convert html -> plain text fallback
   const info = await transporter.sendMail({
-    from: `"Fit X Gym" <${process.env.SMTP_USER}>`, // tên hiển thị
-    to: Array.isArray(to) ? to.join(", ") : to,    // 1 hoặc nhiều người nhận
+    from: `"FitX Gym" <${process.env.SMTP_USER}>`,
+    to: Array.isArray(to) ? to.join(", ") : to,
     subject,
-    text,
+    html,
   });
 
   console.log("Message sent: %s", info.messageId);

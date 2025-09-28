@@ -17,10 +17,9 @@ const NotificationModel = {
       type: data.type,
       title: data.title,
       message: data.message,
-      receiver_role: data.receiver_role,
-      receiver_id: data.receiver_id || null,
+      receiver_role: Array.isArray(data.receiver_role) ? data.receiver_role : [data.receiver_role],
+      receiver_id: Array.isArray(data.receiver_id) ? data.receiver_id : [data.receiver_id],
       created_by: data.created_by,
-      status: "unread",
       created_at: new Date().toISOString(),
     };
 
@@ -49,25 +48,6 @@ const NotificationModel = {
       })
     );
     return result.Item;
-  },
-
-  // UPDATE (mark as read)
-  markAsRead: async (id) => {
-    const result = await dynamodb.send(
-      new UpdateCommand({
-        TableName: tableName,
-        Key: { id },
-        UpdateExpression: "set #s = :status",
-        ExpressionAttributeNames: {
-          "#s": "status",
-        },
-        ExpressionAttributeValues: {
-          ":status": "read",
-        },
-        ReturnValues: "ALL_NEW",
-      })
-    );
-    return result.Attributes;
   },
 
   // DELETE
