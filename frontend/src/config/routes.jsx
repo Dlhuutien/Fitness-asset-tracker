@@ -1,38 +1,154 @@
 import { Navigate } from "react-router-dom";
-import DashboardLayout from "@/components/layouts/DashboardLayout";
+import DashboardLayout from "@/components/layouts/dashboard/DashboardLayout";
+import PageTransition from "@/components/common/PageTransition";
 
+// Pages
 import DashboardPage from "@/pages/DashboardPage";
 import LoginPage from "@/pages/LoginPage";
+
+// Equipment
+import EquipmentListPage from "@/pages/equipment/EquipmentListPage";
+import EquipmentGroupPage from "@/pages/equipment/EquipmentGroupPage";
+import EquipmentAddGroupPage from "@/pages/equipment/EquipmentAddGroupPage";
+import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
+import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
+
+// Staff
 import StaffPage from "@/pages/staff/StaffPage";
-import EquipmentPage from "@/pages/equipment/EquipmentPage";
+import StaffAddPage from "@/pages/staff/StaffAddPage";
+
+// Vendor
 import VendorPage from "@/pages/vendor/VendorPage";
-import InvolvePage from "@/pages/involve/InvolvePage";
+import VendorAddPage from "@/pages/vendor/VendorAddPage";
+
+// Invoice
+import InvoicePage from "@/pages/invoice/InvoicePage";
+import InvoiceAddPage from "@/pages/invoice/InvoiceAddPage";
 
 const routes = [
+  // Auth
   {
     path: "/login",
-    element: <LoginPage />,
+    element: (
+      <PageTransition>
+        <LoginPage />
+      </PageTransition>
+    ),
   },
   {
     path: "/",
     element: <Navigate to="/login" replace />,
   },
+
+  // Dashboard layout
   {
     element: <DashboardLayout />,
     children: [
-      { path: "/app", element: <DashboardPage /> },
-      { path: "/app/staff", element: <StaffPage /> },
+      // Dashboard
       {
-        path: "/app/equipment",
-        element: <EquipmentPage />, // trang tổng
-        children: [
-          { path: "page", element: <div>Danh mục thiết bị</div> },
-          { path: "list", element: <div>Danh sách thiết bị</div> },
-          { path: "add", element: <div>Thêm thiết bị</div> },
-        ],
+        path: "/app",
+        element: (
+          <PageTransition>
+            <DashboardPage />
+          </PageTransition>
+        ),
       },
-      { path: "/app/vendor", element: <VendorPage /> },
-      { path: "/app/involve", element: <InvolvePage /> },
+
+      // Equipment
+      {
+        path: "/app/equipment/list",
+        element: (
+          <PageTransition>
+            <EquipmentListPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/equipment/page",
+        element: (
+          <PageTransition>
+            <EquipmentGroupPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/equipment/add-group",
+        element: (
+          <PageTransition>
+            <EquipmentAddGroupPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/equipment/add-card",
+        element: (
+          <PageTransition>
+            <EquipmentAddCardPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/equipment/import",
+        element: (
+          <PageTransition>
+            <EquipmentImportPage />
+          </PageTransition>
+        ),
+      },
+
+      // Staff
+      {
+        path: "/app/staff",
+        element: (
+          <PageTransition>
+            <StaffPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/staff/add",
+        element: (
+          <PageTransition>
+            <StaffAddPage />
+          </PageTransition>
+        ),
+      },
+
+      // Vendor
+      {
+        path: "/app/vendor",
+        element: (
+          <PageTransition>
+            <VendorPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/vendor/add",
+        element: (
+          <PageTransition>
+            <VendorAddPage />
+          </PageTransition>
+        ),
+      },
+
+      // Invoice
+      {
+        path: "/app/invoice",
+        element: (
+          <PageTransition>
+            <InvoicePage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/invoice/add",
+        element: (
+          <PageTransition>
+            <InvoiceAddPage />
+          </PageTransition>
+        ),
+      },
     ],
   },
 ];

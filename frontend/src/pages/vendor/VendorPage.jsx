@@ -1,10 +1,12 @@
+import PageContainer from "@/components/common/PageContainer";
+
 export default function VendorPage() {
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Danh sách nhà cung cấp</h1>
-      <p className="text-gray-600 mt-2">
-        Đây là trang VendorPage (placeholder). Bạn có thể thêm bảng dữ liệu sau.
+    <PageContainer>
+      <h1 className="text-xl font-bold mb-2">Danh sách nhà cung cấp</h1>
+      <p className="text-gray-600">
+        Trang hiển thị toàn bộ danh sách nhà cung cấp.
       </p>
-    </div>
+    </PageContainer>
   );
 }

@@ -3,7 +3,7 @@ import { motion } from "framer-motion"
 import BubbleBackground from "@/components/layouts/login/BubbleBackground"
 import LoginLogo from "@/components/layouts/login/LoginLogo"
 import LoginForm from "@/components/layouts/login/LoginForm"
-import ThemeSwitch from "@/components/common/ThemeSwitch"
+// import AuthService from "@/services/AuthService"
 
 export default function LoginPage() {
   const [darkMode, setDarkMode] = useState(true)
