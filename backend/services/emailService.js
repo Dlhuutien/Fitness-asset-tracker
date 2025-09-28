@@ -3,6 +3,7 @@ const equipmentUnitRepository = require("../repositories/equipmentUnitRepository
 const equipmentRepository = require("../repositories/equipmentRepository");
 const branchRepository = require("../repositories/branchRepository");
 const userRepository = require("../repositories/userRepository");
+const { buildHeader, buildFooter } = require("../utils/emailTemplate");
 
 const sendEmail = {
   /**
@@ -11,28 +12,16 @@ const sendEmail = {
   async sendMaintenanceCompletedEmail(recipients, maintenance) {
     if (!recipients || recipients.length === 0) return;
 
-    // Unit
     const unit = await equipmentUnitRepository.findById(
       maintenance.equipment_unit_id
     );
-    if (!unit) {
-      console.warn(
-        `Equipment unit ${maintenance.equipment_unit_id} not found, skip email.`
-      );
-      return;
-    }
+    if (!unit) return;
 
-    // Equipment
-    let equipmentName = "";
-    if (unit.equipment_id) {
-      const equipment = await equipmentRepository.findById(unit.equipment_id);
-      equipmentName = equipment?.name || "";
-    }
-
-    // Branch
+    const equipment = unit.equipment_id
+      ? await equipmentRepository.findById(unit.equipment_id)
+      : null;
     const branch = await branchRepository.findById(unit.branch_id);
 
-    // User
     let technicianName = "";
     if (maintenance.user_id) {
       const user = await userRepository.getUserBySub(maintenance.user_id);
@@ -40,14 +29,72 @@ const sendEmail = {
     }
 
     const subject = "Hoàn tất bảo trì";
-    const unitName = equipmentName || "Không rõ tên";
+    const unitName = equipment?.name || "Không rõ tên";
     const unitCode = unit.id;
     const unitStatus = unit.status;
     const branchName = branch?.name || "Không rõ chi nhánh";
 
-    const text = `Yêu cầu bảo trì cho thiết bị ${unitName} (mã: ${unitCode}) ở chi nhánh ${branchName}, nhân viên ${technicianName} phụ trách bảo trì đã hoàn tất với trạng thái ${unitStatus}.`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto; 
+                  border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+        ${buildHeader("Hoàn tất bảo trì")}
+        <div style="padding:20px; color:#333;">
+          <p>Yêu cầu bảo trì cho thiết bị <b>${unitName}</b> (mã: ${unitCode})</p>
+          <p><b>Chi nhánh:</b> ${branchName}<br/>
+             <b>Nhân viên:</b> ${technicianName}</p>
+          <p><b>Trạng thái:</b> ${unitStatus}</p>
+        </div>
+        ${buildFooter()}
+      </div>
+    `;
 
-    return await sendNoReplyEmail(recipients, subject, text);
+    return await sendNoReplyEmail(recipients, subject, html);
+  },
+
+  /**
+   * Gửi mail khi tạo yêu cầu bảo trì mới
+   */
+  async sendMaintenanceCreatedEmail(recipients, maintenance) {
+    if (!recipients || recipients.length === 0) return;
+
+    const unit = await equipmentUnitRepository.findById(
+      maintenance.equipment_unit_id
+    );
+    if (!unit) return;
+
+    const equipment = unit.equipment_id
+      ? await equipmentRepository.findById(unit.equipment_id)
+      : null;
+    const branch = await branchRepository.findById(unit.branch_id);
+
+    const assigner = maintenance.assigned_by
+      ? await userRepository.getUserBySub(maintenance.assigned_by)
+      : null;
+
+    const subject = "Yêu cầu bảo trì mới";
+    const unitName = equipment?.name || "Không rõ tên";
+    const unitCode = unit.id;
+    const branchName = branch?.name || "Không rõ chi nhánh";
+    const assignerName =
+      assigner?.attributes?.name || assigner?.username || "Không rõ";
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto; 
+                  border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+        ${buildHeader("Yêu cầu bảo trì mới")}
+        <div style="padding:20px; color:#333;">
+          <p>Một yêu cầu bảo trì mới cho thiết bị <b>${unitName}</b> (mã: ${unitCode})</p>
+          <p><b>Chi nhánh:</b> ${branchName}<br/>
+             <b>Người tạo:</b> ${assignerName}</p>
+          <p><b>Lý do:</b><br/>${
+            maintenance.maintenance_reason || "Không rõ"
+          }</p>
+        </div>
+        ${buildFooter()}
+      </div>
+    `;
+
+    return await sendNoReplyEmail(recipients, subject, html);
   },
 };
 

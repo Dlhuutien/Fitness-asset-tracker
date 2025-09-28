@@ -19,6 +19,17 @@ const maintenanceController = {
         data,
         role
       );
+
+      // 2. Lấy email admin + super-admin
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      const recipients = admins.map((u) => u.email);
+
+      // 3. Gửi email thông báo tạo mới
+      await sendEmail.sendMaintenanceCreatedEmail(recipients, maintenance);
+
       res.status(201).json(maintenance);
     } catch (error) {
       res.status(400).json({ error: error.message });
