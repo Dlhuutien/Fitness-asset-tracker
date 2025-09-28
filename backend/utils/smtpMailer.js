@@ -19,13 +19,8 @@ const transporter = nodemailer.createTransport({
  */
 async function sendNoReplyEmail(to, subject, html) {
   // auto convert html -> plain text fallback
-  const text = htmlToText(html, {
-    wordwrap: 130, // wrap dòng
-    selectors: [{ selector: "a", options: { hideLinkHrefIfSameAsText: true } }],
-  });
-
   const info = await transporter.sendMail({
-    from: `"Fit X Gym" <${process.env.SMTP_USER}>`,
+    from: `"FitX Gym" <${process.env.SMTP_USER}>`,
     to: Array.isArray(to) ? to.join(", ") : to,
     subject,
     html,

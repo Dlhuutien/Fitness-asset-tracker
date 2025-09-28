@@ -1806,47 +1806,12 @@ Tạo invoice mới với danh sách thiết bị.
 Mỗi **Equipment Unit** được sinh ra từ `items` trong Invoice sẽ có `id` (và cũng là `sku`) theo công thức:
 
 ```
-EQUIPMENT_ID-DAYMONTHYEAR-COUNT
+EQUIPMENT_ID-COUNT
 ```
 
 Trong đó:
-
 - `EQUIPMENT_ID` = Mã của thiết bị (ví dụ: `CAOTMJS`)
-- `DAY` = ngày nhập hàng (2 chữ số, `01`–`31`)
-- `MONTH` = tháng nhập hàng (2 chữ số, `01`–`12`)
-- `YEAR` = 2 số cuối của năm (`25` = 2025)
 - `COUNT` = số thứ tự của thiết bị trong lô nhập (bắt đầu từ `1` đến `quantity` trong invoice item)
-- Trường hợp nhập thiết bị trùng trong cùng 1 ngày, thì sẽ đếm EQUIPMENT_ID-DAYMONTHYEAR để tính tiếp `COUNT`
-
----
-
-### Ví dụ:
-
-**Request:**
-
-```json
-{
-  "items": [
-    {
-      "equipment_id": "CAOTMJS",
-      "branch_id": "BR-01",
-      "quantity": 3,
-      "cost": 1500
-    }
-  ]
-}
-```
-
-**Ngày nhập hàng:** `29/08/2025`
-
-**Kết quả ID cho 3 unit được tạo:**
-
-```
-CAOTMJS-290825-1
-CAOTMJS-290825-2
-CAOTMJS-290825-3
-```
-
 ---
 
 ```json

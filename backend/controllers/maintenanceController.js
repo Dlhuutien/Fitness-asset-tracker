@@ -1,7 +1,6 @@
 const maintenanceService = require("../services/maintenanceService");
 const notificationService = require("../services/notificationService");
 const userService = require("../services/userService");
-const sendEmail = require("../services/emailService");
 
 const maintenanceController = {
   create: async (req, res) => {
@@ -15,6 +14,7 @@ const maintenanceController = {
         assigned_by: sub,
       };
 
+      // 1. Tạo yêu cầu bảo trì
       const maintenance = await maintenanceService.createMaintenance(
         data,
         role
@@ -27,9 +27,10 @@ const maintenanceController = {
       ]);
       const recipients = admins.map((u) => u.email);
 
-      // 3. Gửi email thông báo tạo mới
-      await sendEmail.sendMaintenanceCreatedEmail(recipients, maintenance);
+      // 3. Gửi thông báo tạo mới
+      await notificationService.notifyMaintenanceCreated(maintenance, admins, sub);
 
+      // 4. Trả response
       res.status(201).json(maintenance);
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -39,10 +40,24 @@ const maintenanceController = {
   progress: async (req, res) => {
     try {
       const { sub } = req.user; // user_id lấy từ token
+
+      // 1. Update trạng thái bảo trì
       const maintenance = await maintenanceService.progressMaintenance(
         req.params.id,
         { user_id: sub }
       );
+
+      // 2. Lấy email admin + super-admin
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      const recipients = admins.map((u) => u.email);
+
+      // 3. Gửi thông báo
+      await notificationService.notifyMaintenanceInProgress(maintenance, admins, sub);
+
+      // 5. Trả response
       res.json(maintenance);
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -59,26 +74,15 @@ const maintenanceController = {
         req.body
       );
 
-      // 2. Lấy email admin + super-admin
+      // 2. Lấy user admin + super-admin
       const admins = await userService.getUsersByRoles([
         "admin",
         "super-admin",
       ]);
       const recipients = admins.map((u) => u.email);
 
-      console.log("Admin/Super-admin emails:", recipients);
-
-      // 3. Gửi email thông báo
-      await sendEmail.sendMaintenanceCompletedEmail(recipients, maintenance);
-
-      // 4. Tạo notification trong DB
-      await notificationService.createNotification({
-        type: "maintenance",
-        title: "Hoàn tất bảo trì",
-        message: `Thiết bị ${maintenance.equipment_unit_id} đã bảo trì xong (${maintenance.status})`,
-        receiver_role: "admin", // tất cả admin sẽ nhìn thấy
-        created_by: sub,
-      });
+      // 3. Gửi thông báo
+      await notificationService.notifyMaintenanceCompleted(maintenance, admins, sub);
 
       // 5. Trả response về client
       res.json(maintenance);
