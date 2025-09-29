@@ -24,7 +24,7 @@ export default function App() {
     <Router>
       <div className="min-h-screen bg-bg-light dark:bg-bg-dark transition-colors duration-300">
         <AppRoutes />
-<Toaster />
+        <Toaster />
       </div>
     </Router>
   )
