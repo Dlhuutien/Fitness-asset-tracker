@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -356,9 +356,7 @@ export default function EquipmentAddCardPage() {
                 className="text-xs flex items-center gap-1"
               >
                 <RotateCcw
-                  className={`w-4 h-4 ${
-                    spinClearInputs ? "animate-spin" : ""
-                  }`}
+                  className={`w-4 h-4 ${spinClearInputs ? "animate-spin" : ""}`}
                 />{" "}
                 Clear Inputs
               </Button>

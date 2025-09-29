@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
 // Fake data vendors + equipments
@@ -70,7 +70,7 @@ const equipmentData = {
 export default function EquipmentImportPage() {
   const [selectedVendor, setSelectedVendor] = useState("");
   const [selectedItems, setSelectedItems] = useState({});
-  
+
   const toggleSelectItem = (item) => {
     setSelectedItems((prev) => {
       const newItems = { ...prev };
@@ -107,7 +107,9 @@ export default function EquipmentImportPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {/* Vendor select */}
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow col-span-1">
-          <h3 className="font-semibold text-emerald-600 mb-2">Chọn nhà cung cấp</h3>
+          <h3 className="font-semibold text-emerald-600 mb-2">
+            Chọn nhà cung cấp
+          </h3>
           <select
             className="w-full border rounded p-2 text-sm dark:bg-gray-700 dark:text-gray-100"
             value={selectedVendor}
@@ -127,7 +129,9 @@ export default function EquipmentImportPage() {
 
         {/* Equipment list */}
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow col-span-3">
-          <h3 className="font-semibold text-emerald-600 mb-2">Danh sách loại thiết bị</h3>
+          <h3 className="font-semibold text-emerald-600 mb-2">
+            Danh sách loại thiết bị
+          </h3>
           <div className="overflow-y-auto max-h-48 border rounded">
             <table className="w-full text-sm">
               <thead className="bg-gray-100 dark:bg-gray-700">
@@ -167,10 +171,13 @@ export default function EquipmentImportPage() {
       {/* Layout 3 - Chi tiết nhập hàng */}
       {Object.keys(selectedItems).length > 0 && (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow space-y-4">
-          <h3 className="font-semibold text-emerald-600 mb-2">Chi tiết nhập hàng</h3>
+          <h3 className="font-semibold text-emerald-600 mb-2">
+            Chi tiết nhập hàng
+          </h3>
           <div className="space-y-4 max-h-[500px] overflow-y-auto">
             {Object.values(selectedItems).map((item) => {
-              const total = (parseFloat(item.price) || 0) * (parseInt(item.qty) || 0);
+              const total =
+                (parseFloat(item.price) || 0) * (parseInt(item.qty) || 0);
               return (
                 <div
                   key={item.code}
@@ -197,7 +204,10 @@ export default function EquipmentImportPage() {
                     {/* Scroll attributes */}
                     <div className="max-h-24 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2 text-xs p-2">
                       {Object.entries(item.attributes).map(([k, v]) => (
-                        <div key={k} className="text-gray-700 dark:text-gray-200">
+                        <div
+                          key={k}
+                          className="text-gray-700 dark:text-gray-200"
+                        >
                           <span className="font-medium">{k}:</span> {v}
                         </div>
                       ))}
@@ -210,7 +220,9 @@ export default function EquipmentImportPage() {
                         <Input
                           type="number"
                           value={item.price}
-                          onChange={(e) => updateField(item.code, "price", e.target.value)}
+                          onChange={(e) =>
+                            updateField(item.code, "price", e.target.value)
+                          }
                           className="h-8 text-sm dark:bg-gray-600"
                         />
                       </div>
@@ -219,7 +231,9 @@ export default function EquipmentImportPage() {
                         <Input
                           type="number"
                           value={item.qty}
-                          onChange={(e) => updateField(item.code, "qty", e.target.value)}
+                          onChange={(e) =>
+                            updateField(item.code, "qty", e.target.value)
+                          }
                           className="h-8 text-sm dark:bg-gray-600"
                         />
                       </div>
@@ -242,7 +256,9 @@ export default function EquipmentImportPage() {
           <h3 className="font-bold text-lg text-emerald-600">
             Tổng cộng: {calcTotal().toLocaleString()} VNĐ
           </h3>
-          <Button className="bg-emerald-500 hover:bg-emerald-600">Xác nhận nhập hàng</Button>
+          <Button className="bg-emerald-500 hover:bg-emerald-600">
+            Xác nhận nhập hàng
+          </Button>
         </div>
       )}
     </div>

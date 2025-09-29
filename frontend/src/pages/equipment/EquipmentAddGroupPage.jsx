@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -247,7 +247,9 @@ export default function EquipmentAddGroupPage() {
                   >
                     <TableCell className="text-center">{g.id}</TableCell>
                     <TableCell>
-                      {g.icon && <g.icon className="text-emerald-500" size={18} />}
+                      {g.icon && (
+                        <g.icon className="text-emerald-500" size={18} />
+                      )}
                     </TableCell>
                     <TableCell>{g.code}</TableCell>
                     <TableCell>{g.name}</TableCell>
