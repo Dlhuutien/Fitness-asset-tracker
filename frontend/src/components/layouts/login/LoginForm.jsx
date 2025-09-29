@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
+import AuthService from "@/services/AuthService";
+
 import {
   Card,
   CardHeader,
@@ -43,15 +45,37 @@ export default function LoginForm() {
     resolver: zodResolver(schema),
   });
 
-  const onSubmit = () => {
-    if (errors.username || errors.password) {
-      setShakeKey((prev) => prev + 1);
-    } else {
-      setOpen(true);
-      setTimeout(() => {
+  // const onSubmit = () => {
+  //   if (errors.username || errors.password) {
+  //     setShakeKey((prev) => prev + 1);
+  //   } else {
+  //     setOpen(true);
+  //     setTimeout(() => {
+  //       setOpen(false);
+  //       navigate("/app");
+  //     }, 2000);
+  //   }
+  // };
+
+  const onSubmit = async (values) => {
+    try {
+      const data = await AuthService.signin(values.username, values.password);
+
+      if (data.mode === "new_password_required") {
+        console.log("Cần đổi mật khẩu lần đầu:", data);
+      } else {
+        setOpen(true);
+        console.log("Đăng nhập thành công");
+        //username, accessToken, refreshToken đã được lưu trong localStorage
+        navigate("/app");
+        setTimeout(() => {
         setOpen(false);
         navigate("/app");
       }, 2000);
+      }
+    } catch (error) {
+      console.error("Đăng nhập thất bại:", error);
+      setShakeKey((prev) => prev + 1);
     }
   };
 
