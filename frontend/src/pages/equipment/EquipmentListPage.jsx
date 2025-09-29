@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/buttonn";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -377,7 +377,9 @@ export default function EquipmentGroupPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
                 className="dark:border-gray-600"
               >
                 »
