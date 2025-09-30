@@ -849,12 +849,10 @@ Tạo category mới (chỉ `admin`, `super-admin`).
 
 ```json
 {
-  "name": "Treadmill Pro",
-  "vendor_id": "MT",
-  "category_type_id": "TM",
-  "description": "Máy chạy bộ cao cấp",
-  "image": "https://example.com/treadmill.png",
-  "warranty_duration": 2
+  "id": "CAO",
+  "name": "Cardio",
+  "image": "https://d1j4a12qc2fk50.cloudfront.net/image 15.png",
+  "description": "Bài tập tim mạch"
 }
 ```
 
@@ -862,28 +860,13 @@ Tạo category mới (chỉ `admin`, `super-admin`).
 
 ```json
 {
-  "updated_at": "2025-09-21T08:59:26.737Z",
-  "created_at": "2025-09-21T08:59:26.737Z",
-  "image": "https://example.com/treadmill.png",
-  "warranty_duration": 2,
-  "description": "Máy chạy bộ cao cấp",
-  "id": "CAOTMMT",
-  "name": "Treadmill Pro",
-  "category_type_id": "TM",
-  "vendor_id": "MT"
+  "updated_at": "2025-09-12T15:17:43.240Z",
+  "created_at": "2025-09-12T15:17:43.240Z",
+  "description": "Bài tập tim mạch",
+  "id": "CAO",
+  "image": "https://d1j4a12qc2fk50.cloudfront.net/image 15.png",
+  "name": "Cardio"
 }
-```
-
-**Lỗi (400 - thiếu id/name):**
-
-```json
-{ "error": "Category id and name are required" }
-```
-
-**Lỗi (400 - id đã tồn tại):**
-
-```json
-{ "error": "CategoryMain with id CARDIO already exists" }
 ```
 
 ---
@@ -897,17 +880,14 @@ Lấy danh sách tất cả categories (mọi user đăng nhập).
 ```json
 [
   {
-    "updated_at": "2025-09-21T08:59:26.737Z",
-    "created_at": "2025-09-21T08:59:26.737Z",
-    "image": "https://example.com/treadmill.png",
-    "warranty_duration": 2,
-    "description": "Máy chạy bộ cao cấp",
-    "id": "CAOTMMT",
-    "name": "Treadmill Pro",
-    "category_type_id": "TM",
-    "vendor_id": "MT"
-    },
-    ...
+    "updated_at": "2025-09-12T15:17:43.240Z",
+    "created_at": "2025-09-12T15:17:43.240Z",
+    "description": "Bài tập tim mạch",
+    "id": "CAO",
+    "image": "https://d1j4a12qc2fk50.cloudfront.net/image 15.png",
+    "name": "Cardio"
+  },
+  ...
 ]
 ```
 
@@ -921,15 +901,12 @@ Lấy chi tiết category theo `id`.
 
 ```json
 {
-  "updated_at": "2025-09-21T08:59:26.737Z",
-  "created_at": "2025-09-21T08:59:26.737Z",
-  "image": "https://example.com/treadmill.png",
-  "warranty_duration": 2,
-  "description": "Máy chạy bộ cao cấp",
-  "id": "CAOTMMT",
-  "name": "Treadmill Pro",
-  "category_type_id": "TM",
-  "vendor_id": "MT"
+  "updated_at": "2025-09-12T15:17:43.240Z",
+  "created_at": "2025-09-12T15:17:43.240Z",
+  "description": "Bài tập tim mạch",
+  "id": "CAO",
+  "image": "https://d1j4a12qc2fk50.cloudfront.net/image 15.png",
+  "name": "Cardio"
 }
 ```
 
@@ -949,12 +926,9 @@ Cập nhật category (chỉ `admin`, `super-admin`).
 
 ```json
 {
-  "name": "Treadmill Pro",
-  "vendor_id": "MT",
-  "category_type_id": "TM",
-  "description": "Máy chạy bộ cao cấp",
-  "image": "https://example.com/treadmill.png",
-  "warranty_duration": 2
+  "description": "Bài tập tim mạch",
+  "image": "https://d1j4a12qc2fk50.cloudfront.net/image 15.png",
+  "name": "Cardio"
 }
 ```
 
@@ -962,15 +936,12 @@ Cập nhật category (chỉ `admin`, `super-admin`).
 
 ```json
 {
-  "updated_at": "2025-09-21T08:59:26.737Z",
-  "created_at": "2025-09-21T08:59:26.737Z",
-  "image": "https://example.com/treadmill.png",
-  "warranty_duration": 2,
-  "description": "Máy chạy bộ cao cấp",
-  "id": "CAOTMMT",
-  "name": "Treadmill Pro",
-  "category_type_id": "TM",
-  "vendor_id": "MT"
+  "updated_at": "2025-09-12T15:17:43.240Z",
+  "created_at": "2025-09-12T15:17:43.240Z",
+  "description": "Bài tập tim mạch",
+  "id": "CAO",
+  "image": "https://d1j4a12qc2fk50.cloudfront.net/image 15.png",
+  "name": "Cardio"
 }
 ```
 
@@ -1810,8 +1781,10 @@ EQUIPMENT_ID-COUNT
 ```
 
 Trong đó:
+
 - `EQUIPMENT_ID` = Mã của thiết bị (ví dụ: `CAOTMJS`)
 - `COUNT` = số thứ tự của thiết bị trong lô nhập (bắt đầu từ `1` đến `quantity` trong invoice item)
+
 ---
 
 ```json

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/buttonn"; // Button B hoa
+import { Button } from "@/components/ui/buttonn"; // <-- sửa lại import đúng
 import {
   Table,
   TableBody,
@@ -19,95 +19,74 @@ import {
   Package,
   Grid,
 } from "lucide-react";
+
 import EquipmentService from "@/services/equipmentService";
-
-// Các nhóm
-const groups = [
-  { key: "all", name: "Xem tất cả", label: "Tất cả", icon: Grid },
-  { key: "cardio", name: "Cardio Machines", label: "Cardio", icon: Activity },
-  {
-    key: "strength",
-    name: "Strength Machines",
-    label: "Kháng lực",
-    icon: Dumbbell,
-  },
-  {
-    key: "multi",
-    name: "Multi-Functional Stations",
-    label: "Đa năng",
-    icon: Layers,
-  },
-  { key: "benches", name: "Benches", label: "Ghế tập", icon: Armchair },
-  { key: "barbells", name: "Barbells", label: "Thanh đòn", icon: BarChart2 },
-  { key: "weights", name: "Weights", label: "Tạ đơn", icon: Weight },
-  { key: "accessories", name: "Accessories", label: "Phụ kiện", icon: Package },
-];
-
-// Fake dữ liệu 20 thiết bị
-const data = Array.from({ length: 20 }).map((_, i) => ({
-  id: i + 1,
-  maTheKho: i % 2 === 0 ? "CAOTMJS" : "WEIHRDJS",
-  img: "https://via.placeholder.com/60x40.png?text=Equip",
-  ten: i % 2 === 0 ? "Designer treadmill" : "Xult Dumbbell Rack",
-  nhom: i % 2 === 0 ? "Cardio Machines" : "Weights",
-  loai: i % 2 === 0 ? "Treadmill" : "Rubber Dumbbells",
-  nhaCC: "Johnson Fitness",
-  ngayNhap: "Thứ 5, 27/08/2025 14:46",
-}));
+import CategoryMainService from "@/services/categoryMainService";
 
 const ITEMS_PER_PAGE = 7;
 
+function getIconForGroup(idOrName) {
+  if (!idOrName) return Grid;
+  const key = String(idOrName).toLowerCase();
+  if (key.includes("cardio") || key === "cao") return Activity;
+  if (key.includes("weight") || key.includes("tạ") || key.includes("weights")) return Weight;
+  if (key.includes("bench") || key.includes("benches")) return Armchair;
+  if (key.includes("bar") || key.includes("barbell")) return BarChart2;
+  if (key.includes("strength") || key.includes("kháng")) return Dumbbell;
+  if (key.includes("multi") || key.includes("đa")) return Layers;
+  if (key.includes("access") || key.includes("phụ")) return Package;
+  return Grid;
+}
+
 export default function EquipmentGroupPage() {
+  const [groups, setGroups] = useState([]);
   const [activeGroup, setActiveGroup] = useState("all");
+  const [equipments, setEquipments] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
-
-  const [equipments, setEquipments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchAll = async () => {
+      setLoading(true);
       try {
-        const res = await EquipmentService.getAll();
-        setEquipments(res);
-      } catch (err) {
-        console.error("Không thể tải danh sách thiết bị:", err);
+        const [cats, eqs] = await Promise.all([
+          CategoryMainService.getAll().catch((e) => {
+            console.error("Lỗi load categoryMain:", e);
+            return [];
+          }),
+          EquipmentService.getAll().catch((e) => {
+            console.error("Lỗi load equipments:", e);
+            return [];
+          }),
+        ]);
+
+        // chỉ thêm "Xem tất cả" + giữ nguyên dữ liệu API trả về
+        setGroups([{ id: "all", name: "Xem tất cả" }, ...cats]);
+        setEquipments(eqs);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+
+    fetchAll();
   }, []);
 
-  // Lọc theo nhóm
-  // const filteredData = data.filter((d) => {
-  //   const groupName = groups.find((g) => g.key === activeGroup)?.name;
-  //   if (activeGroup === "all")
-  //     return d.ten.toLowerCase().includes(search.toLowerCase());
-  //   return (
-  //     d.nhom === groupName && d.ten.toLowerCase().includes(search.toLowerCase())
-  //   );
-  // });
-    const filteredData = equipments.filter((d) => {
-    const groupName = groups.find((g) => g.key === activeGroup)?.name;
-    if (activeGroup === "all") {
-      return d.name.toLowerCase().includes(search.toLowerCase());
-    }
-    return (
-      d.category_type_id === activeGroup ||
-      (d.name.toLowerCase().includes(search.toLowerCase()) && d.category_type_id === activeGroup)
-    );
+  const filteredData = equipments.filter((d) => {
+    const q = search.trim().toLowerCase();
+    const matchSearch = !q || (d.name || "").toLowerCase().includes(q);
+    if (activeGroup === "all") return matchSearch;
+    return d.main_name === activeGroup && matchSearch;
   });
 
-
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
   const currentData = filteredData.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  if (loading) { return <div className="p-4">Đang tải dữ liệu thiết bị...</div>; }
+  if (loading) return <div className="p-4">Đang tải dữ liệu thiết bị...</div>;
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -119,20 +98,24 @@ export default function EquipmentGroupPage() {
 
         {/* Tìm kiếm */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow space-y-2">
-          <h3 className="font-semibold text-sm dark:text-gray-200">
-            Tìm kiếm loại
-          </h3>
+          <h3 className="font-semibold text-sm dark:text-gray-200">Tìm kiếm loại</h3>
           <Input
             placeholder="Nhập tên loại"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             className="dark:bg-gray-700 dark:text-gray-100"
           />
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setSearch("")}
+              onClick={() => {
+                setSearch("");
+                setCurrentPage(1);
+              }}
               className="dark:border-gray-600 dark:text-gray-200"
             >
               Reset
@@ -140,6 +123,7 @@ export default function EquipmentGroupPage() {
             <Button
               size="sm"
               className="bg-emerald-500 text-white hover:bg-emerald-600"
+              onClick={() => setCurrentPage(1)}
             >
               Tìm
             </Button>
@@ -148,31 +132,29 @@ export default function EquipmentGroupPage() {
 
         {/* Nhóm thiết bị */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow h-[340px] overflow-y-auto">
-          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
-            Hiển thị theo nhóm
-          </h3>
+          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">Hiển thị theo nhóm</h3>
           <div className="flex flex-col gap-2">
-            {groups.map((g) => (
-              <button
-                key={g.key}
-                onClick={() => {
-                  setActiveGroup(g.key);
-                  setCurrentPage(1);
-                }}
-                className={`flex items-center gap-2 px-2 py-2 rounded-md border text-sm transition
-                  ${
-                    activeGroup === g.key
-                      ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
-                      : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                  }`}
-              >
-                <g.icon size={16} />
-                <span className="flex-1">{g.name}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {g.label}
-                </span>
-              </button>
-            ))}
+            {groups.map((g, idx) => {
+              const Icon = getIconForGroup(g.id ?? g.name);
+              return (
+                <button
+                  key={g.id ?? idx}
+                  onClick={() => {
+                    setActiveGroup(g.id === "all" ? "all" : g.name);
+                    setCurrentPage(1);
+                  }}
+                  className={`flex items-center gap-2 px-2 py-2 rounded-md border text-sm transition
+                    ${
+                      activeGroup === (g.id === "all" ? "all" : g.name)
+                        ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
+                        : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                    }`}
+                >
+                  <Icon size={16} />
+                  <span className="flex-1">{g.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -184,44 +166,26 @@ export default function EquipmentGroupPage() {
             <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">
-                    #
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mã thẻ kho
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Hình ảnh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên thiết bị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhóm
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên loại
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhà cung cấp
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Ngày tạo
-                  </TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
+                  <TableHead className="border dark:border-gray-600">Mã thẻ kho</TableHead>
+                  <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
+                  <TableHead className="border dark:border-gray-600">Tên thiết bị</TableHead>
+                  <TableHead className="border dark:border-gray-600">Nhóm</TableHead>
+                  <TableHead className="border dark:border-gray-600">Tên loại</TableHead>
+                  <TableHead className="border dark:border-gray-600">Nhà cung cấp</TableHead>
+                  <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {currentData.map((row, idx) => (
                   <TableRow
-                    key={row.id}
+                    key={row.id ?? idx}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
                   >
                     <TableCell className="text-center border dark:border-gray-600">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                     </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      {row.id}
-                    </TableCell>
+                    <TableCell className="border dark:border-gray-600">{row.id}</TableCell>
                     <TableCell className="border dark:border-gray-600">
                       <img
                         src={row.image}
@@ -229,20 +193,16 @@ export default function EquipmentGroupPage() {
                         className="w-12 h-10 object-contain rounded"
                       />
                     </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      {row.name}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      {row.category_type_id}
-                    </TableCell>
+                    <TableCell className="border dark:border-gray-600">{row.name}</TableCell>
+                    <TableCell className="border dark:border-gray-600">{row.main_name}</TableCell>
                     <TableCell className="border italic text-gray-600 dark:text-gray-300">
-                      {row.category_type_id}
+                      {row.type_name}
                     </TableCell>
+                    <TableCell className="border dark:border-gray-600">{row.vendor_name}</TableCell>
                     <TableCell className="border dark:border-gray-600">
-                      {row.vendor_id}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      {new Date(row.created_at).toLocaleString("vi-VN")}
+                      {row.created_at
+                        ? new Date(row.created_at).toLocaleString("vi-VN")
+                        : "-"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -304,9 +264,7 @@ export default function EquipmentGroupPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(p + 1, totalPages))
-                }
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
                 className="dark:border-gray-600 dark:text-gray-200"
               >
                 »

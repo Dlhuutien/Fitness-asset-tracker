@@ -93,14 +93,17 @@ const equipmentService = {
   getEquipments: async () => {
     const equipments = await equipmentRepository.findAll();
 
-    // lấy thêm attribute values cho từng equipment
     const result = [];
     for (const eq of equipments) {
+      const vendor = await vendorRepository.findById(eq.vendor_id);
+      const type = await categoryTypeRepository.findById(eq.category_type_id);
+      const main = type
+        ? await categoryMainRepository.findById(type.category_main_id)
+        : null;
+
       const attrValues = await attributeValueRepository.findByEquipmentId(
         eq.id
       );
-
-      // map sang {attributeName: value}
       const attrs = [];
       for (const av of attrValues) {
         const attr = await attributeRepository.findById(av.attribute_id);
@@ -112,6 +115,9 @@ const equipmentService = {
 
       result.push({
         ...eq,
+        vendor_name: vendor ? vendor.name : null,
+        type_name: type ? type.name : null,
+        main_name: main ? main.name : null,
         attributes: attrs,
       });
     }
@@ -123,8 +129,15 @@ const equipmentService = {
     const equipment = await equipmentRepository.findById(id);
     if (!equipment) throw new Error("Equipment not found");
 
-    const attrValues = await attributeValueRepository.findByEquipmentId(id);
+    const vendor = await vendorRepository.findById(equipment.vendor_id);
+    const type = await categoryTypeRepository.findById(
+      equipment.category_type_id
+    );
+    const main = type
+      ? await categoryMainRepository.findById(type.category_main_id)
+      : null;
 
+    const attrValues = await attributeValueRepository.findByEquipmentId(id);
     const attrs = [];
     for (const av of attrValues) {
       const attr = await attributeRepository.findById(av.attribute_id);
@@ -136,22 +149,45 @@ const equipmentService = {
 
     return {
       ...equipment,
+      vendor_name: vendor ? vendor.name : null,
+      type_name: type ? type.name : null,
+      main_name: main ? main.name : null,
       attributes: attrs,
     };
   },
 
   getEquipmentsByCategoryTypeId: async (category_type_id) => {
-    const equipments = await equipmentRepository.findByCategoryTypeId(category_type_id);
+    const equipments = await equipmentRepository.findByCategoryTypeId(
+      category_type_id
+    );
     return Promise.all(
       equipments.map(async (eq) => {
-        const attrValues = await attributeValueRepository.findByEquipmentId(eq.id);
+        const vendor = await vendorRepository.findById(eq.vendor_id);
+        const type = await categoryTypeRepository.findById(eq.category_type_id);
+        const main = type
+          ? await categoryMainRepository.findById(type.category_main_id)
+          : null;
+
+        const attrValues = await attributeValueRepository.findByEquipmentId(
+          eq.id
+        );
         const attrs = await Promise.all(
           attrValues.map(async (av) => {
             const attr = await attributeRepository.findById(av.attribute_id);
-            return { attribute: attr ? attr.name : av.attribute_id, value: av.value };
+            return {
+              attribute: attr ? attr.name : av.attribute_id,
+              value: av.value,
+            };
           })
         );
-        return { ...eq, attributes: attrs };
+
+        return {
+          ...eq,
+          vendor_name: vendor ? vendor.name : null,
+          type_name: type ? type.name : null,
+          main_name: main ? main.name : null,
+          attributes: attrs,
+        };
       })
     );
   },
@@ -160,14 +196,32 @@ const equipmentService = {
     const equipments = await equipmentRepository.findByVendorId(vendor_id);
     return Promise.all(
       equipments.map(async (eq) => {
-        const attrValues = await attributeValueRepository.findByEquipmentId(eq.id);
+        const vendor = await vendorRepository.findById(eq.vendor_id);
+        const type = await categoryTypeRepository.findById(eq.category_type_id);
+        const main = type
+          ? await categoryMainRepository.findById(type.category_main_id)
+          : null;
+
+        const attrValues = await attributeValueRepository.findByEquipmentId(
+          eq.id
+        );
         const attrs = await Promise.all(
           attrValues.map(async (av) => {
             const attr = await attributeRepository.findById(av.attribute_id);
-            return { attribute: attr ? attr.name : av.attribute_id, value: av.value };
+            return {
+              attribute: attr ? attr.name : av.attribute_id,
+              value: av.value,
+            };
           })
         );
-        return { ...eq, attributes: attrs };
+
+        return {
+          ...eq,
+          vendor_name: vendor ? vendor.name : null,
+          type_name: type ? type.name : null,
+          main_name: main ? main.name : null,
+          attributes: attrs,
+        };
       })
     );
   },
