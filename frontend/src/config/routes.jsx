@@ -25,6 +25,10 @@ import VendorAddPage from "@/pages/vendor/VendorAddPage";
 import InvoicePage from "@/pages/invoice/InvoicePage";
 import InvoiceAddPage from "@/pages/invoice/InvoiceAddPage";
 
+// Maintenance
+import MaintenanceUrgentPage from "@/pages/maintenance/MaintenanceUrgentPage";
+import MaintenanceReadyPage from "@/pages/maintenance/MaintenanceReadyPage";
+
 const routes = [
   // Auth
   {
@@ -146,6 +150,28 @@ const routes = [
         element: (
           <PageTransition>
             <InvoiceAddPage />
+          </PageTransition>
+        ),
+      },
+
+      // Maintenance
+      {
+        path: "/app/maintenance",
+        element: <Navigate to="/app/maintenance/urgent" replace />,
+      },
+      {
+        path: "/app/maintenance/urgent",
+        element: (
+          <PageTransition>
+            <MaintenanceUrgentPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/maintenance/ready",
+        element: (
+          <PageTransition>
+            <MaintenanceReadyPage />
           </PageTransition>
         ),
       },
