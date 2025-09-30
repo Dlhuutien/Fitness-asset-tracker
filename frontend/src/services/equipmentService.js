@@ -1,0 +1,92 @@
+import axios from "axios";
+import { API } from "@/config/url";
+import AuthService from "./AuthService";
+
+const EquipmentService = {
+  /**
+   * Lấy danh sách tất cả equipment
+   * GET /equipment
+   */
+  async getAll() {
+    try {
+      const res = await axios.get(`${API}equipment`);
+      return res.data;
+    } catch (err) {
+      console.error("Lỗi khi lấy danh sách equipment:", err.response?.data || err.message);
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * Lấy chi tiết equipment theo id
+   * GET /equipment/:id
+   */
+  async getById(id) {
+    try {
+      const res = await axios.get(`${API}equipment/${id}`);
+      return res.data;
+    } catch (err) {
+      console.error("Lỗi khi lấy chi tiết equipment:", err.response?.data || err.message);
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * Tạo equipment mới (chỉ admin, super-admin)
+   * POST /equipment
+   */
+  async create(data) {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
+
+    try {
+      const res = await axios.post(`${API}equipment`, data, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      return res.data;
+    } catch (err) {
+      console.error("Lỗi khi tạo equipment:", err.response?.data || err.message);
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * Cập nhật equipment (chỉ admin, super-admin)
+   * PUT /equipment/:id
+   */
+  async update(id, data) {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
+
+    try {
+      const res = await axios.put(`${API}equipment/${id}`, data, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      return res.data;
+    } catch (err) {
+      console.error("Lỗi khi cập nhật equipment:", err.response?.data || err.message);
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * Xóa equipment (chỉ admin, super-admin)
+   * DELETE /equipment/:id
+   */
+  async delete(id) {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
+
+    try {
+      const res = await axios.delete(`${API}equipment/${id}`, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      return res.data;
+    } catch (err) {
+      console.error("Lỗi khi xóa equipment:", err.response?.data || err.message);
+      throw err.response?.data || err;
+    }
+  },
+};
+
+export default EquipmentService;
