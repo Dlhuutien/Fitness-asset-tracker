@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn"; // Button B hoa
 import {
@@ -19,6 +19,7 @@ import {
   Package,
   Grid,
 } from "lucide-react";
+import EquipmentService from "@/services/equipmentService";
 
 // Các nhóm
 const groups = [
@@ -62,21 +63,51 @@ export default function EquipmentGroupPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
 
+  const [equipments, setEquipments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await EquipmentService.getAll();
+        setEquipments(res);
+      } catch (err) {
+        console.error("Không thể tải danh sách thiết bị:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
   // Lọc theo nhóm
-  const filteredData = data.filter((d) => {
+  // const filteredData = data.filter((d) => {
+  //   const groupName = groups.find((g) => g.key === activeGroup)?.name;
+  //   if (activeGroup === "all")
+  //     return d.ten.toLowerCase().includes(search.toLowerCase());
+  //   return (
+  //     d.nhom === groupName && d.ten.toLowerCase().includes(search.toLowerCase())
+  //   );
+  // });
+    const filteredData = equipments.filter((d) => {
     const groupName = groups.find((g) => g.key === activeGroup)?.name;
-    if (activeGroup === "all")
-      return d.ten.toLowerCase().includes(search.toLowerCase());
+    if (activeGroup === "all") {
+      return d.name.toLowerCase().includes(search.toLowerCase());
+    }
     return (
-      d.nhom === groupName && d.ten.toLowerCase().includes(search.toLowerCase())
+      d.category_type_id === activeGroup ||
+      (d.name.toLowerCase().includes(search.toLowerCase()) && d.category_type_id === activeGroup)
     );
   });
+
 
   const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
   const currentData = filteredData.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  if (loading) { return <div className="p-4">Đang tải dữ liệu thiết bị...</div>; }
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -189,29 +220,29 @@ export default function EquipmentGroupPage() {
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                     </TableCell>
                     <TableCell className="border dark:border-gray-600">
-                      {row.maTheKho}
+                      {row.id}
                     </TableCell>
                     <TableCell className="border dark:border-gray-600">
                       <img
-                        src={row.img}
-                        alt={row.ten}
+                        src={row.image}
+                        alt={row.name}
                         className="w-12 h-10 object-contain rounded"
                       />
                     </TableCell>
                     <TableCell className="border dark:border-gray-600">
-                      {row.ten}
+                      {row.name}
                     </TableCell>
                     <TableCell className="border dark:border-gray-600">
-                      {row.nhom}
+                      {row.category_type_id}
                     </TableCell>
                     <TableCell className="border italic text-gray-600 dark:text-gray-300">
-                      {row.loai}
+                      {row.category_type_id}
                     </TableCell>
                     <TableCell className="border dark:border-gray-600">
-                      {row.nhaCC}
+                      {row.vendor_id}
                     </TableCell>
                     <TableCell className="border dark:border-gray-600">
-                      {row.ngayNhap}
+                      {new Date(row.created_at).toLocaleString("vi-VN")}
                     </TableCell>
                   </TableRow>
                 ))}
