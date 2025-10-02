@@ -28,17 +28,39 @@ const categoryTypeService = {
   },
 
   getCategoryTypes: async () => {
-    return await categoryTypeRepository.findAll();
+    const types = await categoryTypeRepository.findAll();
+
+    // Gắn thêm main_name cho từng type
+    return Promise.all(
+      types.map(async (t) => {
+        const main = await categoryMainRepository.findById(t.category_main_id);
+        return {
+          ...t,
+          main_name: main ? main.name : null,
+        };
+      })
+    );
   },
 
   getCategoryTypeById: async (id) => {
     const type = await categoryTypeRepository.findById(id);
     if (!type) throw new Error("CategoryType not found");
-    return type;
+
+    const main = await categoryMainRepository.findById(type.category_main_id);
+    return {
+      ...type,
+      main_name: main ? main.name : null,
+    };
   },
 
   getCategoryTypesByMainId: async (category_main_id) => {
-    return await categoryTypeRepository.findByMainId(category_main_id);
+    const types = await categoryTypeRepository.findByMainId(category_main_id);
+    const main = await categoryMainRepository.findById(category_main_id);
+
+    return types.map((t) => ({
+      ...t,
+      main_name: main ? main.name : null,
+    }));
   },
 
   updateCategoryType: async (id, data) => {

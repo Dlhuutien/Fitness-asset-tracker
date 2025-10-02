@@ -12,6 +12,10 @@ import {
 } from "@/components/ui/select";
 import { Upload, RotateCcw, PlusCircle } from "lucide-react";
 
+import CategoryTypeService from "@/services/categoryTypeService";
+import VendorService from "@/services/vendorService";
+import AttributeService from "@/services/attributeService";
+
 // Loại + Nhóm
 const types = [
   { group: "Cardio", code: "CAO", type: "Treadmill", short: "TM" },
@@ -84,35 +88,84 @@ export default function EquipmentAddCardPage() {
   });
 
   const [selectedAttrs, setSelectedAttrs] = useState({});
-  const [attributes, setAttributes] = useState([]);
+  // const [attributes, setAttributes] = useState([]);
   const [newAttr, setNewAttr] = useState("");
   const [showAddAttr, setShowAddAttr] = useState(false);
 
   const [spinClearChecked, setSpinClearChecked] = useState(false);
   const [spinClearInputs, setSpinClearInputs] = useState(false);
 
+  // Call API
+  const [types, setTypes] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [attributes, setAttributes] = useState([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [typeList, vendorList, attrList] = await Promise.all([
+          CategoryTypeService.getAllWithDisplayName(),
+          VendorService.getAll(),
+          AttributeService.getAll(),
+        ]);
+        setTypes(typeList);
+        setVendors(vendorList);
+        setAttributes(attrList);
+      } catch (err) {
+        console.error("Lỗi khi load dữ liệu:", err);
+      }
+    };
+    fetchData();
+  }, []);
+
   // Generate mã thiết bị
+  // useEffect(() => {
+  //   if (formData.type && formData.vendor) {
+  //     const selectedType = types.find((t) => t.type === formData.type);
+  //     const vendorCode =
+  //       vendors.find((v) => v.name === formData.vendor)?.code || "";
+  //     if (selectedType) {
+  //       setFormData((prev) => ({
+  //         ...prev,
+  //         code: `${selectedType.code}${selectedType.short}${vendorCode}`.toUpperCase(),
+  //       }));
+  //     }
+  //   }
+  // }, [formData.type, formData.vendor]);
+  // Generate mã thiết bị: category_main_id + category_type_id + vendor_id
   useEffect(() => {
     if (formData.type && formData.vendor) {
-      const selectedType = types.find((t) => t.type === formData.type);
+      const selectedType = types.find((t) => t.id === formData.type);
       const vendorCode =
-        vendors.find((v) => v.name === formData.vendor)?.code || "";
-      if (selectedType) {
+        vendors.find((v) => v.id === formData.vendor)?.id || "";
+      if (selectedType && vendorCode) {
         setFormData((prev) => ({
           ...prev,
-          code: `${selectedType.code}${selectedType.short}${vendorCode}`.toUpperCase(),
+          code: `${selectedType.category_main_id}${selectedType.id}${vendorCode}`.toUpperCase(),
         }));
       }
     }
-  }, [formData.type, formData.vendor]);
+  }, [formData.type, formData.vendor, types, vendors]);
 
   // Khi chọn loại thì load attribute tương ứng
-  useEffect(() => {
-    if (formData.type) {
-      setAttributes(attributesByType[formData.type] || []);
-      setSelectedAttrs({});
-    }
-  }, [formData.type]);
+  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
+    {attributes.map((attr) => (
+      <label
+        key={attr.id} // dùng id từ API
+        className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
+          selectedAttrs[attr.name] !== undefined
+            ? "bg-emerald-50 dark:bg-gray-700"
+            : ""
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={selectedAttrs[attr.name] !== undefined}
+          onChange={() => toggleAttr(attr.name)}
+        />
+        {attr.name}
+      </label>
+    ))}
+  </div>;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -190,12 +243,8 @@ export default function EquipmentAddCardPage() {
                 className="z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md"
               >
                 {types.map((t) => (
-                  <SelectItem
-                    key={t.type}
-                    value={t.type}
-                    className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-gray-700"
-                  >
-                    {t.type} ({t.group})
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.displayName}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -219,8 +268,8 @@ export default function EquipmentAddCardPage() {
               >
                 {vendors.map((v) => (
                   <SelectItem
-                    key={v.code}
-                    value={v.name}
+                    key={v.id}
+                    value={v.id}
                     className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-gray-700"
                   >
                     {v.name}
@@ -326,19 +375,19 @@ export default function EquipmentAddCardPage() {
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
               {attributes.map((attr) => (
                 <label
-                  key={attr}
+                  key={attr.id} // dùng id unique từ API
                   className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
-                    selectedAttrs[attr] !== undefined
+                    selectedAttrs[attr.name] !== undefined
                       ? "bg-emerald-50 dark:bg-gray-700"
                       : ""
                   }`}
                 >
                   <input
                     type="checkbox"
-                    checked={selectedAttrs[attr] !== undefined}
-                    onChange={() => toggleAttr(attr)}
+                    checked={selectedAttrs[attr.name] !== undefined}
+                    onChange={() => toggleAttr(attr.name)}
                   />
-                  {attr}
+                  {attr.name}
                 </label>
               ))}
             </div>

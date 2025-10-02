@@ -35,6 +35,7 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [shakeKey, setShakeKey] = useState(0);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false); 
   const navigate = useNavigate();
 
   const {
@@ -59,23 +60,26 @@ export default function LoginForm() {
 
   const onSubmit = async (values) => {
     try {
+      setLoading(true);
       const data = await AuthService.signin(values.username, values.password);
 
       if (data.mode === "new_password_required") {
         console.log("Cần đổi mật khẩu lần đầu:", data);
       } else {
-        setOpen(true);
         console.log("Đăng nhập thành công");
+        setOpen(true);
         //username, accessToken, refreshToken đã được lưu trong localStorage
         navigate("/app");
         setTimeout(() => {
-        setOpen(false);
-        navigate("/app");
-      }, 2000);
+          setOpen(false);
+          navigate("/app");
+        }, 2000);
       }
     } catch (error) {
       console.error("Đăng nhập thất bại:", error);
       setShakeKey((prev) => prev + 1);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -169,6 +173,9 @@ export default function LoginForm() {
         </form>
       </Card>
 
+      {/* ============================ */}
+      {/* Đăng nhập thành công */}
+      {/* ============================ */}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="sm:max-w-md text-center p-0 bg-transparent border-0 shadow-none">
           <motion.div
@@ -229,6 +236,42 @@ export default function LoginForm() {
                     </span>
                   </AlertDialogDescription>
                 </motion.div>
+              </AlertDialogHeader>
+            </div>
+          </motion.div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ============================ */}
+      {/* Loading Đăng nhập */}
+      {/* ============================ */}
+      <AlertDialog open={loading} onOpenChange={setLoading}>
+        <AlertDialogContent className="sm:max-w-md text-center p-0 bg-transparent border-0 shadow-none">
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="relative rounded-3xl overflow-hidden"
+          >
+            <div
+              className="relative z-10 p-8 rounded-3xl 
+          bg-gradient-to-br from-gray-900 via-gray-800 to-black 
+          border border-white/10 shadow-[0_0_40px_rgba(6,182,212,0.5)] 
+          backdrop-blur-xl text-center"
+            >
+              {/* Vòng tròn loading */}
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                className="w-14 h-14 mx-auto mb-4 border-4 border-cyan-400 border-t-transparent rounded-full"
+              />
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-xl text-white">
+                  Đang đăng nhập...
+                </AlertDialogTitle>
+                <AlertDialogDescription className="mt-2 text-gray-300">
+                  Vui lòng chờ trong giây lát.
+                </AlertDialogDescription>
               </AlertDialogHeader>
             </div>
           </motion.div>
