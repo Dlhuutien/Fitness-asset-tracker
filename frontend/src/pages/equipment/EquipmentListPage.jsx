@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -21,6 +20,7 @@ import {
   Package,
   Grid,
 } from "lucide-react";
+import Status from "@/components/common/Status"; // ✅ dùng status chung
 
 // Nhóm thiết bị
 const groups = [
@@ -45,34 +45,43 @@ const groups = [
 ];
 
 // Fake data
-const data = Array.from({ length: 50 }).map((_, i) => ({
-  id: i + 1,
-  maTheKho: "CAOTMJS",
-  sku: `CAOTMJS-${String(i + 1).padStart(3, "0")}`,
-  img: "https://via.placeholder.com/60x40.png?text=Equip",
-  ten: `Thiết bị số ${i + 1}`,
-  nhom:
-    i % 7 === 0
-      ? "Cardio Machines"
-      : i % 7 === 1
-      ? "Strength Machines"
-      : i % 7 === 2
-      ? "Multi-Functional Stations"
-      : i % 7 === 3
-      ? "Benches"
-      : i % 7 === 4
-      ? "Barbells"
-      : i % 7 === 5
-      ? "Weights"
-      : "Accessories",
-  ngayNhap: `27/08/2025 14:${(i % 60).toString().padStart(2, "0")}`,
-  trangThai: i % 3 === 0 ? "active" : i % 3 === 1 ? "maintenance" : "inactive",
-  baoHanh: `${12 + (i % 3) * 6} tháng`,
-  nhaCC: i % 2 === 0 ? "Technogym" : "Life Fitness",
-  congSuat: `${2.0 + (i % 3) * 0.5} HP`,
-}));
+const data = Array.from({ length: 50 }).map((_, i) => {
+  const status =
+    i % 3 === 0
+      ? "Hoạt động"
+      : i % 3 === 1
+      ? "Đang bảo trì"
+      : "Ngưng hoạt động";
 
-const ITEMS_PER_PAGE = 7;
+  return {
+    id: i + 1,
+    maTheKho: "CAOTMJS",
+    sku: `CAOTMJS-${String(i + 1).padStart(3, "0")}`,
+    img: "https://via.placeholder.com/60x40.png?text=Equip",
+    ten: `Thiết bị số ${i + 1}`,
+    nhom:
+      i % 7 === 0
+        ? "Cardio Machines"
+        : i % 7 === 1
+        ? "Strength Machines"
+        : i % 7 === 2
+        ? "Multi-Functional Stations"
+        : i % 7 === 3
+        ? "Benches"
+        : i % 7 === 4
+        ? "Barbells"
+        : i % 7 === 5
+        ? "Weights"
+        : "Accessories",
+    ngayNhap: `27/08/2025 14:${(i % 60).toString().padStart(2, "0")}`,
+    trangThai: status,
+    baoHanh: `${12 + (i % 3) * 6} tháng`,
+    nhaCC: i % 2 === 0 ? "Technogym" : "Life Fitness",
+    congSuat: `${2.0 + (i % 3) * 0.5} HP`,
+  };
+});
+
+const ITEMS_PER_PAGE = 8;
 
 export default function EquipmentGroupPage() {
   const [activeGroup, setActiveGroup] = useState("all");
@@ -81,7 +90,7 @@ export default function EquipmentGroupPage() {
   const [goToPage, setGoToPage] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
-  // Filter theo nhóm
+  // Filter theo nhóm + search
   const filteredData = data.filter((d) => {
     const groupName = groups.find((g) => g.key === activeGroup)?.name;
     if (activeGroup === "all") {
@@ -188,130 +197,46 @@ export default function EquipmentGroupPage() {
       </div>
 
       {/* Cột phải */}
-      <div className="col-span-9 space-y-3">
-        {/* Bảng */}
-        <div className="rounded-lg shadow overflow-hidden bg-white dark:bg-gray-800">
+      <div className="col-span-9 space-y-4">
+        <div className="rounded-xl shadow border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <div className="overflow-x-auto">
-            <Table className="min-w-full border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200">
-              <TableHeader>
-                <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead
-                    onClick={() => requestSort("id")}
-                    className="text-center min-w-[60px] border border-gray-200 dark:border-gray-600 cursor-pointer"
-                  >
-                    # <SortIcon column="id" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => requestSort("maTheKho")}
-                    className="min-w-[120px] border border-gray-200 dark:border-gray-600 cursor-pointer"
-                  >
-                    Mã thẻ kho <SortIcon column="maTheKho" />
-                  </TableHead>
-                  <TableHead
-                    onClick={() => requestSort("sku")}
-                    className="min-w-[120px] border border-gray-200 dark:border-gray-600 cursor-pointer"
-                  >
-                    Mã SKU <SortIcon column="sku" />
-                  </TableHead>
-                  <TableHead className="min-w-[100px] border border-gray-200 dark:border-gray-600">
-                    Hình
-                  </TableHead>
-                  <TableHead
-                    onClick={() => requestSort("ten")}
-                    className="min-w-[200px] border border-gray-200 dark:border-gray-600 cursor-pointer"
-                  >
+            <Table className="min-w-[1300px] text-xs md:text-sm whitespace-nowrap">
+              <TableHeader className="sticky top-0 z-10 bg-gray-100 dark:bg-gray-700">
+                <TableRow className="text-gray-700 dark:text-gray-200 font-semibold">
+                  <TableHead className="px-3 py-2 text-center w-12">#</TableHead>
+                  <TableHead onClick={() => requestSort("ten")} className="px-3 py-2 cursor-pointer min-w-[160px]">
                     Tên thiết bị <SortIcon column="ten" />
                   </TableHead>
-                  <TableHead className="min-w-[160px] border border-gray-200 dark:border-gray-600">
-                    Nhóm
-                  </TableHead>
-                  <TableHead
-                    onClick={() => requestSort("ngayNhap")}
-                    className="min-w-[160px] border border-gray-200 dark:border-gray-600 cursor-pointer"
-                  >
+                  <TableHead className="px-3 py-2 text-center w-32">Trạng thái</TableHead>
+                  <TableHead className="px-3 py-2 min-w-[140px]">Nhóm</TableHead>
+                  <TableHead onClick={() => requestSort("ngayNhap")} className="px-3 py-2 cursor-pointer min-w-[160px]">
                     Ngày nhập <SortIcon column="ngayNhap" />
                   </TableHead>
-                  <TableHead className="min-w-[140px] border border-gray-200 dark:border-gray-600">
-                    Trạng thái
-                  </TableHead>
-                  <TableHead className="min-w-[120px] border border-gray-200 dark:border-gray-600">
-                    Bảo hành
-                  </TableHead>
-                  <TableHead className="min-w-[150px] border border-gray-200 dark:border-gray-600">
-                    Nhà cung cấp
-                  </TableHead>
-                  <TableHead className="min-w-[120px] border border-gray-200 dark:border-gray-600">
-                    Công suất
-                  </TableHead>
-                  <TableHead className="min-w-[120px] text-right border border-gray-200 dark:border-gray-600">
-                    Hành động
-                  </TableHead>
+                  <TableHead className="px-3 py-2">Bảo hành</TableHead>
+                  <TableHead className="px-3 py-2 min-w-[150px]">Nhà cung cấp</TableHead>
+                  <TableHead className="px-3 py-2">Công suất</TableHead>
+                  <TableHead className="px-3 py-2 text-center w-24">Hành động</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
                 {sortedData.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
-                  >
-                    <TableCell className="text-center border border-gray-200 dark:border-gray-600">
-                      {row.id}
+                  <TableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <TableCell className="px-3 py-5 text-center">{row.id}</TableCell>
+                    <TableCell className="px-3 py-5 font-medium">{row.ten}</TableCell>
+                    <TableCell className="px-3 py-2 text-center">
+                      <Status status={row.trangThai} />
                     </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.maTheKho}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.sku}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      <img
-                        src={row.img}
-                        alt={row.ten}
-                        className="w-12 h-10 object-contain rounded"
-                      />
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.ten}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.nhom}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.ngayNhap}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.trangThai === "active" && (
-                        <Badge className="bg-emerald-500 text-white">
-                          Hoạt động
-                        </Badge>
-                      )}
-                      {row.trangThai === "maintenance" && (
-                        <Badge className="bg-yellow-500 text-white">
-                          Bảo trì
-                        </Badge>
-                      )}
-                      {row.trangThai === "inactive" && (
-                        <Badge className="bg-red-500 text-white">Ngưng</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.baoHanh}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.nhaCC}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600">
-                      {row.congSuat}
-                    </TableCell>
-                    <TableCell className="border border-gray-200 dark:border-gray-600 text-right space-x-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7">
+                    <TableCell className="px-3 py-2">{row.nhom}</TableCell>
+                    <TableCell className="px-3 py-2">{row.ngayNhap}</TableCell>
+                    <TableCell className="px-3 py-2">{row.baoHanh}</TableCell>
+                    <TableCell className="px-3 py-2">{row.nhaCC}</TableCell>
+                    <TableCell className="px-3 py-2">{row.congSuat}</TableCell>
+                    <TableCell className="px-3 py-2 text-center space-x-1">
+                      <Button size="icon" variant="outline" className="h-7 w-7 rounded-full">
                         <Pencil size={14} />
                       </Button>
-                      <Button
-                        size="icon"
-                        variant="destructive"
-                        className="h-7 w-7"
-                      >
+                      <Button size="icon" variant="destructive" className="h-7 w-7 rounded-full">
                         <Trash2 size={14} />
                       </Button>
                     </TableCell>
@@ -322,41 +247,13 @@ export default function EquipmentGroupPage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex justify-between items-center border-t px-4 py-2 bg-gray-50 dark:bg-gray-700">
-            {/* Go to page */}
-            <div className="flex items-center gap-2 text-sm">
-              <span>Go to:</span>
-              <input
-                type="number"
-                min={1}
-                max={totalPages}
-                className="w-16 px-2 py-1 border rounded text-sm dark:bg-gray-600 dark:text-gray-200"
-                value={goToPage}
-                onChange={(e) => setGoToPage(e.target.value)}
-              />
-              <Button
-                size="sm"
-                onClick={() => {
-                  let page = parseInt(goToPage);
-                  if (isNaN(page)) return;
-                  if (page < 1) page = 1;
-                  if (page > totalPages) page = totalPages;
-                  setCurrentPage(page);
-                }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
-              >
-                Go
-              </Button>
-            </div>
+          <div className="flex justify-between items-center border-t px-4 py-2 bg-gray-50 dark:bg-gray-700 text-xs md:text-sm">
+            <span>
+              Trang {currentPage}/{totalPages}
+            </span>
 
-            {/* Nút phân trang */}
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                className="dark:border-gray-600"
-              >
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}>
                 «
               </Button>
               {Array.from({ length: totalPages }).map((_, i) => (
@@ -374,15 +271,34 @@ export default function EquipmentGroupPage() {
                   {i + 1}
                 </Button>
               ))}
+              <Button size="sm" variant="outline" onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}>
+                »
+              </Button>
+            </div>
+
+            {/* Go to page */}
+            <div className="flex items-center gap-2">
+              <span>Go to:</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                className="w-16 px-2 py-1 border rounded text-xs dark:bg-gray-600 dark:text-gray-200"
+                value={goToPage}
+                onChange={(e) => setGoToPage(e.target.value)}
+              />
               <Button
                 size="sm"
-                variant="outline"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(p + 1, totalPages))
-                }
-                className="dark:border-gray-600"
+                onClick={() => {
+                  let page = parseInt(goToPage);
+                  if (isNaN(page)) return;
+                  if (page < 1) page = 1;
+                  if (page > totalPages) page = totalPages;
+                  setCurrentPage(page);
+                }}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
               >
-                »
+                Go
               </Button>
             </div>
           </div>

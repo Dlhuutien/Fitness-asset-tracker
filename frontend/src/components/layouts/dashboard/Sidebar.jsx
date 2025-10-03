@@ -83,7 +83,7 @@ export default function Sidebar() {
       label: "Bảo trì thiết bị",
       icon: FileX,
       children: [
-        { label: "Ngừng khẩn cấp", path: "/app/maintenance/urgent" },
+        { label: "Các thiết bị cần bảo trì", path: "/app/maintenance/urgent" },
         { label: "Chờ phê duyệt", path: "/app/maintenance/ready" },
       ],
     },
