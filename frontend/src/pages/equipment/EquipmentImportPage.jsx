@@ -11,6 +11,9 @@ import InvoiceService from "@/services/invoiceService";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
+import { useSWRConfig } from "swr";
+import { API } from "@/config/url";
+
 // Fake data vendors + equipments
 const vendors = ["Technogym", "Matrix Fitness"];
 
@@ -76,6 +79,7 @@ const equipmentData = {
 };
 
 export default function EquipmentImportPage() {
+  const { mutate } = useSWRConfig();
   const [selectedVendor, setSelectedVendor] = useState("");
   const [selectedItems, setSelectedItems] = useState({});
 
@@ -84,7 +88,7 @@ export default function EquipmentImportPage() {
   const [equipmentUnits, setEquipmentUnits] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [loadingSubmit, setLoadingSubmit] = useState(false); // ✅ loading khi submit
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -120,7 +124,7 @@ export default function EquipmentImportPage() {
       // Normalize attributes
       let attrs = [];
       if (Array.isArray(item.attributes)) {
-        attrs = item.attributes; // từ API
+        attrs = item.attributes;
       } else if (item.attributes && typeof item.attributes === "object") {
         attrs = Object.entries(item.attributes).map(([k, v]) => ({
           attribute: k,
@@ -158,8 +162,8 @@ export default function EquipmentImportPage() {
   const handleConfirmImport = async () => {
     try {
       const items = Object.values(selectedItems).map((item) => ({
-        equipment_id: item.id, // từ DB
-        branch_id: "GV", // ✅ set cứng chi nhánh GV
+        equipment_id: item.id,
+        branch_id: "GV", // set cứng chi nhánh GV
         quantity: parseInt(item.qty) || 0,
         cost: parseFloat(item.price) || 0,
       }));
@@ -173,6 +177,9 @@ export default function EquipmentImportPage() {
       const res = await InvoiceService.create({ items });
       toast.success("Tạo invoice thành công!");
       console.log("✅ Invoice created:", res);
+
+      // 🔄 Cập nhật cache ngay lập tức cho tất cả các trang liên quan
+      mutate(`${API}equipmentUnit`),
 
       // Reset sau khi nhập hàng
       setSelectedItems({});
