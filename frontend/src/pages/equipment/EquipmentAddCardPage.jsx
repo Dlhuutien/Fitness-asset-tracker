@@ -17,8 +17,12 @@ import VendorService from "@/services/vendorService";
 import AttributeService from "@/services/attributeService";
 import EquipmentService from "@/services/equipmentService";
 import { toast } from "sonner";
+import { useSWRConfig } from "swr";
+import { API } from "@/config/url";
+
 
 export default function EquipmentAddCardPage() {
+  const { mutate } = useSWRConfig(); // Lấy mutate toàn cục
   const [formData, setFormData] = useState({
     type: "",
     vendor: "",
@@ -201,6 +205,9 @@ export default function EquipmentAddCardPage() {
         description: `Thiết bị "${res.name}" đã được thêm.`,
         variant: "success",
       });
+      
+      // 🔄 Cập nhật cache ngay lập tức cho tất cả các trang liên quan
+      mutate(`${API}equipment`);
 
       setFormData({
         type: "",
