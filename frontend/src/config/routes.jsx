@@ -9,13 +9,13 @@ import LoginPage from "@/pages/LoginPage";
 // Equipment
 import EquipmentListPage from "@/pages/equipment/EquipmentListPage";
 import EquipmentGroupPage from "@/pages/equipment/EquipmentGroupPage";
-import EquipmentAddGroupPage from "@/pages/equipment/EquipmentAddGroupPage";
+import EquipmentAddGroupPage from "@/pages/equipment/EquipmentGroupTypePage";
 import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
 
 // Staff
 import StaffPage from "@/pages/staff/StaffPage";
-import StaffAddPage from "@/pages/staff/StaffAddPage";
+import StaffProfile from "@/pages/staff/StaffProfile";
 
 // Vendor
 import VendorPage from "@/pages/vendor/VendorPage";
@@ -110,10 +110,10 @@ const routes = [
         ),
       },
       {
-        path: "/app/staff/add",
+        path: "/app/staff/:id",
         element: (
           <PageTransition>
-            <StaffAddPage />
+            <StaffProfile />
           </PageTransition>
         ),
       },

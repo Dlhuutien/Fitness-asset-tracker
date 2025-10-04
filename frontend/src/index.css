@@ -33,7 +33,6 @@ html.dark {
   @apply bg-bg-dark text-gray-100;
 }
 
-
 @keyframes gradient-move {
   0%,
   100% {
@@ -60,7 +59,8 @@ body {
 
 /* ================= LOGO GLOW ================= */
 @keyframes glow {
-  0%, 100% {
+  0%,
+  100% {
     filter: drop-shadow(0 0 15px theme("colors.brand.DEFAULT"));
   }
   50% {
@@ -105,7 +105,8 @@ body {
 
 /* ================= ANIMATIONS ================= */
 @keyframes gradient-x {
-  0%, 100% {
+  0%,
+  100% {
     background-position: 0% 50%;
   }
   50% {
@@ -125,4 +126,27 @@ body {
   .font-body {
     font-family: "Inter", "Be Vietnam Pro", sans-serif !important;
   }
+}
+
+@keyframes fade-in-up {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 2s ease-in-out forwards;
 }
