@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/buttonn"; // <-- sửa lại import đúng
+import { Button } from "@/components/ui/buttonn";
 import {
   Table,
   TableBody,
@@ -9,34 +9,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Activity,
-  Dumbbell,
-  Layers,
-  Armchair,
-  BarChart2,
-  Weight,
-  Package,
-  Grid,
-} from "lucide-react";
-
+import { Grid } from "lucide-react";
 import EquipmentService from "@/services/equipmentService";
 import CategoryMainService from "@/services/categoryMainService";
 
 const ITEMS_PER_PAGE = 7;
-
-function getIconForGroup(idOrName) {
-  if (!idOrName) return Grid;
-  const key = String(idOrName).toLowerCase();
-  if (key.includes("cardio") || key === "cao") return Activity;
-  if (key.includes("weight") || key.includes("tạ") || key.includes("weights")) return Weight;
-  if (key.includes("bench") || key.includes("benches")) return Armchair;
-  if (key.includes("bar") || key.includes("barbell")) return BarChart2;
-  if (key.includes("strength") || key.includes("kháng")) return Dumbbell;
-  if (key.includes("multi") || key.includes("đa")) return Layers;
-  if (key.includes("access") || key.includes("phụ")) return Package;
-  return Grid;
-}
 
 export default function EquipmentGroupPage() {
   const [groups, setGroups] = useState([]);
@@ -61,15 +38,13 @@ export default function EquipmentGroupPage() {
             return [];
           }),
         ]);
-
-        // chỉ thêm "Xem tất cả" + giữ nguyên dữ liệu API trả về
+        // Thêm "Xem tất cả" lên đầu
         setGroups([{ id: "all", name: "Xem tất cả" }, ...cats]);
         setEquipments(eqs);
       } finally {
         setLoading(false);
       }
     };
-
     fetchAll();
   }, []);
 
@@ -130,31 +105,39 @@ export default function EquipmentGroupPage() {
           </div>
         </div>
 
-        {/* Nhóm thiết bị */}
+        {/* Nhóm thiết bị (có ảnh thật từ API) */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow h-[340px] overflow-y-auto">
-          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">Hiển thị theo nhóm</h3>
+          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
+            Hiển thị theo nhóm
+          </h3>
           <div className="flex flex-col gap-2">
-            {groups.map((g, idx) => {
-              const Icon = getIconForGroup(g.id ?? g.name);
-              return (
-                <button
-                  key={g.id ?? idx}
-                  onClick={() => {
-                    setActiveGroup(g.id === "all" ? "all" : g.name);
-                    setCurrentPage(1);
-                  }}
-                  className={`flex items-center gap-2 px-2 py-2 rounded-md border text-sm transition
-                    ${
-                      activeGroup === (g.id === "all" ? "all" : g.name)
-                        ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
-                        : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                    }`}
-                >
-                  <Icon size={16} />
-                  <span className="flex-1">{g.name}</span>
-                </button>
-              );
-            })}
+            {groups.map((g, idx) => (
+              <button
+                key={g.id ?? idx}
+                onClick={() => {
+                  setActiveGroup(g.id === "all" ? "all" : g.name);
+                  setCurrentPage(1);
+                }}
+                className={`flex items-center gap-3 px-2 py-2 rounded-md border text-sm transition ${
+                  activeGroup === (g.id === "all" ? "all" : g.name)
+                    ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
+                    : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                }`}
+              >
+                {g.id === "all" ? (
+                  <Grid size={18} className="text-emerald-500" />
+                ) : g.image ? (
+                  <img
+                    src={g.image}
+                    alt={g.name}
+                    className="w-6 h-6 object-cover rounded-full border border-gray-300 dark:border-gray-500"
+                  />
+                ) : (
+                  <Grid size={18} className="text-gray-400" />
+                )}
+                <span className="flex-1 truncate">{g.name}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>

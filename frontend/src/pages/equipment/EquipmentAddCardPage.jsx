@@ -15,66 +15,7 @@ import { Upload, RotateCcw, PlusCircle } from "lucide-react";
 import CategoryTypeService from "@/services/categoryTypeService";
 import VendorService from "@/services/vendorService";
 import AttributeService from "@/services/attributeService";
-
-// Loại + Nhóm
-const types = [
-  { group: "Cardio", code: "CAO", type: "Treadmill", short: "TM" },
-  { group: "Cardio", code: "CAO", type: "Stationary Bike", short: "SB" },
-  { group: "Cardio", code: "CAO", type: "Elliptical Trainer", short: "ET" },
-  { group: "Strength", code: "STH", type: "Chest Press", short: "CP" },
-  { group: "Weights", code: "WEI", type: "Kettlebell", short: "KB" },
-  { group: "Accessories", code: "ACE", type: "Yoga Ball", short: "YB" },
-];
-
-// Vendor mapping với mã
-const vendors = [
-  { name: "Technogym", code: "TG" },
-  { name: "Life Fitness", code: "LF" },
-  { name: "Matrix Fitness", code: "MT" },
-  { name: "Johnson", code: "JS" },
-];
-
-// Mapping thông số theo loại
-const attributesByType = {
-  Treadmill: [
-    "Độ dốc",
-    "Kích thước",
-    "Băng tải",
-    "Kích thước băng tải",
-    "Công suất",
-    "Điện áp",
-    "Trọng lượng",
-    "Tải trọng tối đa",
-    "Chất liệu",
-    "Độ ồn",
-  ],
-  "Stationary Bike": [
-    "Kháng lực",
-    "Loại bàn đạp",
-    "Độ ồn",
-    "Màn hình",
-    "Chất liệu",
-    "Kích thước",
-    "Trọng lượng",
-    "Xuất xứ",
-  ],
-  "Elliptical Trainer": [
-    "Kháng lực",
-    "Loại bàn đạp",
-    "Chiều dài sải chân",
-    "Màn hình",
-    "Chương trình tập",
-  ],
-  "Chest Press": [
-    "Trọng lượng",
-    "Khung máy",
-    "Kích thước",
-    "Số chương trình tập",
-    "Xuất xứ",
-  ],
-  Kettlebell: ["Trọng lượng", "Chất liệu", "Màu sắc", "Xuất xứ"],
-  "Yoga Ball": ["Kích thước", "Màu sắc", "Chất liệu", "Tải trọng tối đa"],
-};
+import EquipmentService from "@/services/equipmentService";
 
 export default function EquipmentAddCardPage() {
   const [formData, setFormData] = useState({
@@ -85,20 +26,24 @@ export default function EquipmentAddCardPage() {
     description: "",
     warranty: "2",
     image: null,
+    preview: "",
   });
 
   const [selectedAttrs, setSelectedAttrs] = useState({});
-  // const [attributes, setAttributes] = useState([]);
   const [newAttr, setNewAttr] = useState("");
   const [showAddAttr, setShowAddAttr] = useState(false);
-
   const [spinClearChecked, setSpinClearChecked] = useState(false);
   const [spinClearInputs, setSpinClearInputs] = useState(false);
 
-  // Call API
   const [types, setTypes] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [attributes, setAttributes] = useState([]);
+
+  const [loadingAdd, setLoadingAdd] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // ===== Fetch dữ liệu từ API =====
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -117,21 +62,7 @@ export default function EquipmentAddCardPage() {
     fetchData();
   }, []);
 
-  // Generate mã thiết bị
-  // useEffect(() => {
-  //   if (formData.type && formData.vendor) {
-  //     const selectedType = types.find((t) => t.type === formData.type);
-  //     const vendorCode =
-  //       vendors.find((v) => v.name === formData.vendor)?.code || "";
-  //     if (selectedType) {
-  //       setFormData((prev) => ({
-  //         ...prev,
-  //         code: `${selectedType.code}${selectedType.short}${vendorCode}`.toUpperCase(),
-  //       }));
-  //     }
-  //   }
-  // }, [formData.type, formData.vendor]);
-  // Generate mã thiết bị: category_main_id + category_type_id + vendor_id
+  // ===== Sinh mã thiết bị =====
   useEffect(() => {
     if (formData.type && formData.vendor) {
       const selectedType = types.find((t) => t.id === formData.type);
@@ -146,27 +77,7 @@ export default function EquipmentAddCardPage() {
     }
   }, [formData.type, formData.vendor, types, vendors]);
 
-  // Khi chọn loại thì load attribute tương ứng
-  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
-    {attributes.map((attr) => (
-      <label
-        key={attr.id} // dùng id từ API
-        className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
-          selectedAttrs[attr.name] !== undefined
-            ? "bg-emerald-50 dark:bg-gray-700"
-            : ""
-        }`}
-      >
-        <input
-          type="checkbox"
-          checked={selectedAttrs[attr.name] !== undefined}
-          onChange={() => toggleAttr(attr.name)}
-        />
-        {attr.name}
-      </label>
-    ))}
-  </div>;
-
+  // ===== Handlers =====
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -174,18 +85,21 @@ export default function EquipmentAddCardPage() {
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) setFormData((prev) => ({ ...prev, image: file }));
+    if (file) {
+      const previewURL = URL.createObjectURL(file);
+      setFormData((prev) => ({ ...prev, image: file, preview: previewURL }));
+    }
   };
 
-  const toggleAttr = (attr) => {
+  const toggleAttr = (attrName) => {
     setSelectedAttrs((prev) => {
-      const newAttrs = { ...prev };
-      if (newAttrs[attr] !== undefined) {
-        delete newAttrs[attr];
+      const updated = { ...prev };
+      if (updated[attrName] !== undefined) {
+        delete updated[attrName];
       } else {
-        newAttrs[attr] = "";
+        updated[attrName] = "";
       }
-      return newAttrs;
+      return updated;
     });
   };
 
@@ -203,25 +117,115 @@ export default function EquipmentAddCardPage() {
     setTimeout(() => setSpinClearInputs(false), 600);
   };
 
-  const addNewAttribute = () => {
-    if (!formData.type || !newAttr.trim()) return;
-    setAttributes((prev) => [...prev, newAttr.trim()]);
-    setNewAttr("");
-    setShowAddAttr(false);
+  // ===== Thêm attribute mới (với check trùng + gọi API) =====
+  const addNewAttribute = async () => {
+    const trimmed = newAttr.trim().toLowerCase();
+    if (!trimmed) {
+      setErrorMsg("Vui lòng nhập tên thông số.");
+      return;
+    }
+
+    // check trùng
+    const exists = attributes.some((a) => a.name.toLowerCase() === trimmed);
+    if (exists) {
+      setErrorMsg(`Thông số "${newAttr}" đã tồn tại.`);
+      return;
+    }
+
+    setLoadingAdd(true);
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    try {
+      const created = await AttributeService.create({ name: newAttr });
+      setAttributes((prev) => [...prev, created]);
+      setSuccessMsg(`Đã thêm thông số "${newAttr}" thành công.`);
+      setNewAttr("");
+      setShowAddAttr(false);
+    } catch (err) {
+      console.error("Lỗi khi thêm attribute:", err);
+      setErrorMsg(
+        typeof err === "string" ? err : "Không thể thêm thông số mới."
+      );
+    } finally {
+      setLoadingAdd(false);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Submit:", { ...formData, specs: selectedAttrs });
+
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoadingAdd(true);
+
+    try {
+      // Convert thông số selectedAttrs -> [{ attribute_id, value }]
+      const attrArray = Object.entries(selectedAttrs)
+        .map(([attrName, value]) => {
+          const attrObj = attributes.find((a) => a.name === attrName);
+          return attrObj ? { attribute_id: attrObj.id, value } : null;
+        })
+        .filter(Boolean);
+
+      const payload = {
+        name: formData.name,
+        vendor_id: formData.vendor,
+        category_type_id: formData.type,
+        description: formData.description,
+        warranty_duration: Number(formData.warranty),
+        image: formData.image, // Có thể là File hoặc null
+        attributes: attrArray,
+      };
+
+      // 🔎 In ra payload để debug
+      console.log("🚀 Payload gửi API:", payload);
+      if (payload.image instanceof File) {
+        console.log(
+          "📷 Ảnh chọn:",
+          payload.image.name,
+          payload.image.type,
+          payload.image.size
+        );
+      }
+      console.log("🧩 Attributes:", attrArray);
+
+      // Gọi API
+      const res = await EquipmentService.create(payload);
+      console.log("✅ Response từ server:", res);
+
+      setSuccessMsg(`✅ Đã tạo thiết bị "${res.name}" thành công!`);
+      setFormData({
+        type: "",
+        vendor: "",
+        code: "",
+        name: "",
+        description: "",
+        warranty: "2",
+        image: null,
+      });
+      setSelectedAttrs({});
+    } catch (err) {
+      console.error("❌ Lỗi khi tạo thiết bị:", err);
+      console.log("📩 Response error data:", err.response?.data);
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.error || "❌ Có lỗi xảy ra khi tạo thiết bị.";
+      setErrorMsg(msg);
+    } finally {
+      setLoadingAdd(false);
+    }
   };
 
+  // ===== Giao diện =====
   return (
     <div className="p-6 h-[calc(100vh-80px)] overflow-y-auto">
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start"
       >
-        {/* Cột trái */}
+        {/* ================== CỘT TRÁI ================== */}
         <div className="space-y-4 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <h3 className="font-semibold text-emerald-500 text-base mb-2">
             Thêm loại thiết bị cụ thể
@@ -238,10 +242,7 @@ export default function EquipmentAddCardPage() {
               <SelectTrigger className="h-9 text-sm bg-white dark:bg-gray-700 dark:text-gray-100">
                 <SelectValue placeholder="Chọn loại thiết bị" />
               </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md"
-              >
+              <SelectContent className="z-[9999] bg-white dark:bg-gray-800 border rounded-md">
                 {types.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.displayName}
@@ -262,16 +263,9 @@ export default function EquipmentAddCardPage() {
               <SelectTrigger className="h-9 text-sm bg-white dark:bg-gray-700 dark:text-gray-100">
                 <SelectValue placeholder="Chọn nhà cung cấp" />
               </SelectTrigger>
-              <SelectContent
-                position="popper"
-                className="z-[9999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-lg rounded-md"
-              >
+              <SelectContent className="z-[9999] bg-white dark:bg-gray-800 border rounded-md">
                 {vendors.map((v) => (
-                  <SelectItem
-                    key={v.id}
-                    value={v.id}
-                    className="cursor-pointer hover:bg-emerald-50 dark:hover:bg-gray-700"
-                  >
+                  <SelectItem key={v.id} value={v.id}>
                     {v.name}
                   </SelectItem>
                 ))}
@@ -285,7 +279,7 @@ export default function EquipmentAddCardPage() {
             <Input name="code" value={formData.code} readOnly className="h-9" />
           </div>
 
-          {/* Tên */}
+          {/* Tên thiết bị */}
           <div>
             <Label className="text-sm">Tên thiết bị</Label>
             <Input
@@ -347,13 +341,13 @@ export default function EquipmentAddCardPage() {
           </div>
         </div>
 
-        {/* Cột phải */}
+        {/* ================== CỘT PHẢI ================== */}
         <div className="space-y-4 bg-white dark:bg-gray-800 rounded-lg shadow p-4 h-full">
           <h3 className="font-semibold text-emerald-500 text-base mb-2">
             Thông số kỹ thuật
           </h3>
 
-          {/* Checkbox list */}
+          {/* Checkbox attributes */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <h4 className="text-sm font-medium">Chọn thông số</h4>
@@ -368,14 +362,15 @@ export default function EquipmentAddCardPage() {
                   className={`w-4 h-4 ${
                     spinClearChecked ? "animate-spin" : ""
                   }`}
-                />{" "}
+                />
                 Clear Checked
               </Button>
             </div>
+
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
               {attributes.map((attr) => (
                 <label
-                  key={attr.id} // dùng id unique từ API
+                  key={attr.id}
                   className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
                     selectedAttrs[attr.name] !== undefined
                       ? "bg-emerald-50 dark:bg-gray-700"
@@ -393,7 +388,7 @@ export default function EquipmentAddCardPage() {
             </div>
           </div>
 
-          {/* Input values */}
+          {/* Input giá trị thông số */}
           <div>
             <div className="flex justify-between items-center mb-2">
               <h4 className="text-sm font-medium">Giá trị thông số</h4>
@@ -406,10 +401,11 @@ export default function EquipmentAddCardPage() {
               >
                 <RotateCcw
                   className={`w-4 h-4 ${spinClearInputs ? "animate-spin" : ""}`}
-                />{" "}
+                />
                 Clear Inputs
               </Button>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-2 border rounded-md">
               {Object.entries(selectedAttrs).map(([attr, val]) => (
                 <div key={attr}>
@@ -430,45 +426,52 @@ export default function EquipmentAddCardPage() {
             </div>
           </div>
 
-          {/* Thêm thông số mới */}
+          {/* Thêm attribute mới */}
           <div className="pt-2 border-t">
             {!showAddAttr ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={!formData.type}
                 onClick={() => setShowAddAttr(true)}
                 className="flex items-center gap-2 text-sm"
               >
                 <PlusCircle className="w-4 h-4" /> Thêm thông số mới
               </Button>
             ) : (
-              <div className="flex gap-2 items-center">
-                <Input
-                  placeholder="Nhập tên thông số"
-                  value={newAttr}
-                  onChange={(e) => setNewAttr(e.target.value)}
-                  className="h-9 text-sm"
-                />
-                <Button
-                  type="button"
-                  onClick={addNewAttribute}
-                  className="h-9 text-sm bg-emerald-500 hover:bg-emerald-600"
-                >
-                  Thêm
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowAddAttr(false);
-                    setNewAttr("");
-                  }}
-                >
-                  Hủy
-                </Button>
+              <div className="flex flex-col gap-2">
+                <div className="flex gap-2 items-center">
+                  <Input
+                    placeholder="Nhập tên thông số"
+                    value={newAttr}
+                    onChange={(e) => setNewAttr(e.target.value)}
+                    className="h-9 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addNewAttribute}
+                    disabled={loadingAdd}
+                    className="h-9 text-sm bg-emerald-500 hover:bg-emerald-600"
+                  >
+                    {loadingAdd ? "Đang thêm..." : "Thêm"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddAttr(false);
+                      setNewAttr("");
+                    }}
+                  >
+                    Hủy
+                  </Button>
+                </div>
+
+                {errorMsg && <p className="text-red-500 text-xs">{errorMsg}</p>}
+                {successMsg && (
+                  <p className="text-emerald-500 text-xs">{successMsg}</p>
+                )}
               </div>
             )}
           </div>

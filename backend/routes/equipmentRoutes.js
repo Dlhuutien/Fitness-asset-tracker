@@ -1,6 +1,7 @@
 const express = require("express");
 const equipmentController = require("../controllers/equipmentController");
 const { verifyAccessToken, requireRole } = require("../middlewares/authMiddleware");
+const upload = require("../middlewares/upload");
 
 const router = express.Router();
 
@@ -9,6 +10,7 @@ router.post(
   "/",
   verifyAccessToken,
   requireRole("admin", "super-admin"),
+  upload,
   equipmentController.createEquipment
 );
 

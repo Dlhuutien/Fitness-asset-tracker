@@ -1,7 +1,5 @@
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
-const equipmentRepository = require("../repositories/equipmentRepository");
-const attributeValueRepository = require("../repositories/attributeValueRepository");
-const attributeRepository = require("../repositories/attributeRepository");
+const equipmentService = require("./equipmentService");
 
 const equipmentUnitService = {
   getAllUnits: async () => {
@@ -9,80 +7,51 @@ const equipmentUnitService = {
 
     return Promise.all(
       units.map(async (u) => {
-        const equipment = await equipmentRepository.findById(u.equipment_id);
-
-        // lấy attributes
-        const attrValues = await attributeValueRepository.findByEquipmentId(u.equipment_id);
-        const attrs = await Promise.all(
-          attrValues.map(async (av) => {
-            const attr = await attributeRepository.findById(av.attribute_id);
-            return { attribute: attr ? attr.name : av.attribute_id, value: av.value };
-          })
-        );
+        const equipment = await equipmentService.getEquipmentById(u.equipment_id);
 
         return {
           ...u,
-          equipment: {
-            ...equipment,
-            attributes: attrs,
-          },
+          equipment,
         };
       })
     );
   },
 
+  // Lấy chi tiết 1 thiết bị theo ID
   getUnitById: async (id) => {
     const unit = await equipmentUnitRepository.findById(id);
     if (!unit) throw new Error("Equipment Unit not found");
 
-    const equipment = await equipmentRepository.findById(unit.equipment_id);
-    const attrValues = await attributeValueRepository.findByEquipmentId(unit.equipment_id);
-    const attrs = await Promise.all(
-      attrValues.map(async (av) => {
-        const attr = await attributeRepository.findById(av.attribute_id);
-        return { attribute: attr ? attr.name : av.attribute_id, value: av.value };
-      })
-    );
+    const equipment = await equipmentService.getEquipmentById(unit.equipment_id);
 
     return {
       ...unit,
-      equipment: {
-        ...equipment,
-        attributes: attrs,
-      },
+      equipment,
     };
   },
 
+  // Cập nhật thiết bị
   updateUnit: async (id, data) => {
     const existing = await equipmentUnitRepository.findById(id);
     if (!existing) throw new Error("Equipment Unit not found");
     return await equipmentUnitRepository.update(id, data);
   },
 
+  // Xóa thiết bị
   deleteUnit: async (id) => {
     const existing = await equipmentUnitRepository.findById(id);
     if (!existing) throw new Error("Equipment Unit not found");
     return await equipmentUnitRepository.delete(id);
   },
 
+  // Lấy tất cả theo thiết bị
   getUnitsByEquipmentId: async (equipment_id) => {
     const units = await equipmentUnitRepository.findByEquipmentId(equipment_id);
-
-    const equipment = await equipmentRepository.findById(equipment_id);
-    const attrValues = await attributeValueRepository.findByEquipmentId(equipment_id);
-    const attrs = await Promise.all(
-      attrValues.map(async (av) => {
-        const attr = await attributeRepository.findById(av.attribute_id);
-        return { attribute: attr ? attr.name : av.attribute_id, value: av.value };
-      })
-    );
+    const equipment = await equipmentService.getEquipmentById(equipment_id);
 
     return units.map((u) => ({
       ...u,
-      equipment: {
-        ...equipment,
-        attributes: attrs,
-      },
+      equipment,
     }));
   },
 };

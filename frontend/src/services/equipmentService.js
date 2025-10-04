@@ -12,7 +12,10 @@ const EquipmentService = {
       const res = await axios.get(`${API}equipment`);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy danh sách equipment:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi lấy danh sách equipment:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -26,7 +29,10 @@ const EquipmentService = {
       const res = await axios.get(`${API}equipment/${id}`);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy chi tiết equipment:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi lấy chi tiết equipment:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -39,15 +45,33 @@ const EquipmentService = {
     const auth = AuthService.getAuth();
     if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
 
-    try {
-      const res = await axios.post(`${API}equipment`, data, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
+    // Nếu có ảnh file => gửi bằng FormData
+    const isFile = data.image instanceof File;
+    let payload = data;
+    let headers = {
+      Authorization: `Bearer ${auth.accessToken}`,
+    };
+
+    if (isFile) {
+      const formData = new FormData();
+      formData.append("name", data.name);
+      formData.append("vendor_id", data.vendor_id);
+      formData.append("category_type_id", data.category_type_id);
+      formData.append("description", data.description || "");
+      formData.append("warranty_duration", data.warranty_duration || 2);
+      if (data.image instanceof File) {
+        formData.append("image", data.image);
+      }
+      data.attributes.forEach((attr, idx) => {
+        formData.append(`attributes[${idx}][attribute_id]`, attr.attribute_id);
+        formData.append(`attributes[${idx}][value]`, attr.value);
       });
-      return res.data;
-    } catch (err) {
-      console.error("Lỗi khi tạo equipment:", err.response?.data || err.message);
-      throw err.response?.data || err;
+      payload = formData;
+      headers["Content-Type"] = "multipart/form-data";
     }
+
+    const res = await axios.post(`${API}equipment`, payload, { headers });
+    return res.data;
   },
 
   /**
@@ -64,7 +88,10 @@ const EquipmentService = {
       });
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi cập nhật equipment:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi cập nhật equipment:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -83,7 +110,10 @@ const EquipmentService = {
       });
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi xóa equipment:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi xóa equipment:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },

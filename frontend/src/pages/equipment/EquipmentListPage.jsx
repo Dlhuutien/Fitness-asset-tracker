@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -9,281 +9,250 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2 } from "lucide-react";
-import {
-  Activity,
-  Dumbbell,
-  Layers,
-  Armchair,
-  BarChart2,
-  Weight,
-  Package,
-  Grid,
-} from "lucide-react";
-import Status from "@/components/common/Status"; // ✅ dùng status chung
-
-// Nhóm thiết bị
-const groups = [
-  { key: "all", name: "Xem tất cả", label: "Tất cả", icon: Grid },
-  { key: "cardio", name: "Cardio Machines", label: "Cardio", icon: Activity },
-  {
-    key: "strength",
-    name: "Strength Machines",
-    label: "Kháng lực",
-    icon: Dumbbell,
-  },
-  {
-    key: "multi",
-    name: "Multi-Functional Stations",
-    label: "Đa năng",
-    icon: Layers,
-  },
-  { key: "benches", name: "Benches", label: "Ghế tập", icon: Armchair },
-  { key: "barbells", name: "Barbells", label: "Thanh đòn", icon: BarChart2 },
-  { key: "weights", name: "Weights", label: "Tạ đơn", icon: Weight },
-  { key: "accessories", name: "Accessories", label: "Phụ kiện", icon: Package },
-];
-
-// Fake data
-const data = Array.from({ length: 50 }).map((_, i) => {
-  const status =
-    i % 3 === 0
-      ? "Hoạt động"
-      : i % 3 === 1
-      ? "Đang bảo trì"
-      : "Ngưng hoạt động";
-
-  return {
-    id: i + 1,
-    maTheKho: "CAOTMJS",
-    sku: `CAOTMJS-${String(i + 1).padStart(3, "0")}`,
-    img: "https://via.placeholder.com/60x40.png?text=Equip",
-    ten: `Thiết bị số ${i + 1}`,
-    nhom:
-      i % 7 === 0
-        ? "Cardio Machines"
-        : i % 7 === 1
-        ? "Strength Machines"
-        : i % 7 === 2
-        ? "Multi-Functional Stations"
-        : i % 7 === 3
-        ? "Benches"
-        : i % 7 === 4
-        ? "Barbells"
-        : i % 7 === 5
-        ? "Weights"
-        : "Accessories",
-    ngayNhap: `27/08/2025 14:${(i % 60).toString().padStart(2, "0")}`,
-    trangThai: status,
-    baoHanh: `${12 + (i % 3) * 6} tháng`,
-    nhaCC: i % 2 === 0 ? "Technogym" : "Life Fitness",
-    congSuat: `${2.0 + (i % 3) * 0.5} HP`,
-  };
-});
+import { Grid } from "lucide-react";
+import EquipmentUnitService from "@/services/equipmentUnitService";
+import CategoryMainService from "@/services/categoryMainService";
+import Status from "@/components/common/Status";
 
 const ITEMS_PER_PAGE = 8;
 
-export default function EquipmentGroupPage() {
+// 🟢 Bảng chuyển đổi trạng thái sang tiếng Việt
+const STATUS_MAP = {
+  active: "Hoạt động",
+  inactive: "Ngưng hoạt động",
+  "temporary urgent": "Ngừng khẩn cấp",
+  "in progress": "Đang bảo trì",
+  ready: "Bảo trì thành công",
+  failed: "Bảo trì thất bại",
+  moving: "Đang di chuyển",
+  "in stock": "Thiết bị trong kho",
+  deleted: "Đã xóa",
+};
+
+export default function EquipmentListPage() {
+  const [groups, setGroups] = useState([]);
+  const [units, setUnits] = useState([]);
   const [activeGroup, setActiveGroup] = useState("all");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [loading, setLoading] = useState(true);
 
-  // Filter theo nhóm + search
-  const filteredData = data.filter((d) => {
-    const groupName = groups.find((g) => g.key === activeGroup)?.name;
-    if (activeGroup === "all") {
-      return d.ten.toLowerCase().includes(search.toLowerCase());
-    }
-    return (
-      d.nhom === groupName && d.ten.toLowerCase().includes(search.toLowerCase())
-    );
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [cats, eqUnits] = await Promise.all([
+          CategoryMainService.getAll().catch(() => []),
+          EquipmentUnitService.getAll().catch(() => []),
+        ]);
+        setGroups([{ id: "all", name: "Xem tất cả" }, ...cats]);
+        setUnits(eqUnits);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // 🧭 Lọc dữ liệu
+  const filtered = units.filter((u) => {
+    const q = search.trim().toLowerCase();
+    const matchSearch =
+      !q ||
+      u.equipment?.name?.toLowerCase().includes(q) ||
+      u.equipment?.vendor_name?.toLowerCase().includes(q) ||
+      u.equipment?.type_name?.toLowerCase().includes(q);
+    if (activeGroup === "all") return matchSearch;
+    return u.equipment?.main_name === activeGroup && matchSearch;
   });
 
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
-  const currentData = filteredData.slice(
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const currentData = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Sort logic
-  const sortedData = [...currentData].sort((a, b) => {
-    if (!sortConfig.key) return 0;
-    const valueA = a[sortConfig.key];
-    const valueB = b[sortConfig.key];
-    if (valueA < valueB) return sortConfig.direction === "asc" ? -1 : 1;
-    if (valueA > valueB) return sortConfig.direction === "asc" ? 1 : -1;
-    return 0;
-  });
-
-  const requestSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-  };
-
-  const SortIcon = ({ column }) => {
-    if (sortConfig.key !== column) return <span className="opacity-30">⇅</span>;
-    return sortConfig.direction === "asc" ? (
-      <span className="text-emerald-600">▲</span>
-    ) : (
-      <span className="text-emerald-600">▼</span>
-    );
-  };
+  if (loading) return <div className="p-4">Đang tải dữ liệu...</div>;
 
   return (
     <div className="grid grid-cols-12 gap-4">
-      {/* Cột trái */}
+      {/* Sidebar bộ lọc */}
       <div className="col-span-3 space-y-4">
-        <h2 className="text-xl font-bold text-emerald-600">
+        <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
           Danh sách nhóm thiết bị
         </h2>
 
-        {/* Tìm kiếm */}
-        <div className="p-3 rounded-lg shadow space-y-2 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-          <h3 className="font-semibold text-sm">Tìm kiếm thông tin</h3>
+        {/* Ô tìm kiếm */}
+        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow space-y-2">
+          <h3 className="font-semibold text-sm dark:text-gray-200">Tìm kiếm</h3>
           <Input
-            placeholder="Tìm kiếm"
+            placeholder="Tìm tên, loại, nhà cung cấp..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="dark:bg-gray-700 dark:text-gray-200"
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="dark:bg-gray-700 dark:text-gray-100"
           />
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setSearch("")}
-              className="dark:border-gray-600"
+              onClick={() => {
+                setSearch("");
+                setCurrentPage(1);
+              }}
+              className="dark:border-gray-600 dark:text-gray-200"
             >
               Reset
             </Button>
             <Button
               size="sm"
               className="bg-emerald-500 text-white hover:bg-emerald-600"
+              onClick={() => setCurrentPage(1)}
             >
               Tìm
             </Button>
           </div>
         </div>
 
-        {/* Nhóm thiết bị */}
-        <div className="p-3 rounded-lg shadow h-[340px] overflow-y-auto bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-          <h3 className="font-semibold text-sm mb-2">Hiển thị theo nhóm</h3>
+        {/* Nhóm thiết bị (với ảnh từ API) */}
+        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow h-[340px] overflow-y-auto">
+          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
+            Hiển thị theo nhóm
+          </h3>
           <div className="flex flex-col gap-2">
-            {groups.map((g) => (
+            {groups.map((g, idx) => (
               <button
-                key={g.key}
+                key={g.id ?? idx}
                 onClick={() => {
-                  setActiveGroup(g.key);
+                  setActiveGroup(g.id === "all" ? "all" : g.name);
                   setCurrentPage(1);
                 }}
-                className={`flex items-center gap-2 px-2 py-2 rounded-md border text-sm transition
-                    ${
-                      activeGroup === g.key
-                        ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
-                        : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:hover:bg-gray-600"
-                    }`}
+                className={`flex items-center gap-3 px-2 py-2 rounded-md border text-sm transition ${
+                  activeGroup === (g.id === "all" ? "all" : g.name)
+                    ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
+                    : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                }`}
               >
-                <g.icon size={16} />
-                <span className="flex-1">{g.name}</span>
-                <span className="text-xs text-gray-500">{g.label}</span>
+                {g.id === "all" ? (
+                  <Grid size={18} className="text-emerald-500" />
+                ) : g.image ? (
+                  <img
+                    src={g.image}
+                    alt={g.name}
+                    className="w-6 h-6 object-cover rounded-full border border-gray-300 dark:border-gray-500"
+                  />
+                ) : (
+                  <Grid size={18} className="text-gray-400" />
+                )}
+                <span className="flex-1 truncate">{g.name}</span>
               </button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Cột phải */}
-      <div className="col-span-9 space-y-4">
-        <div className="rounded-xl shadow border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      {/* Main content */}
+      <div className="col-span-9 space-y-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <Table className="min-w-[1300px] text-xs md:text-sm whitespace-nowrap">
-              <TableHeader className="sticky top-0 z-10 bg-gray-100 dark:bg-gray-700">
-                <TableRow className="text-gray-700 dark:text-gray-200 font-semibold">
-                  <TableHead className="px-3 py-2 text-center w-12">#</TableHead>
-                  <TableHead onClick={() => requestSort("ten")} className="px-3 py-2 cursor-pointer min-w-[160px]">
-                    Tên thiết bị <SortIcon column="ten" />
+            <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
+              <TableHeader>
+                <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
+                  <TableHead className="text-center border dark:border-gray-600">
+                    #
                   </TableHead>
-                  <TableHead className="px-3 py-2 text-center w-32">Trạng thái</TableHead>
-                  <TableHead className="px-3 py-2 min-w-[140px]">Nhóm</TableHead>
-                  <TableHead onClick={() => requestSort("ngayNhap")} className="px-3 py-2 cursor-pointer min-w-[160px]">
-                    Ngày nhập <SortIcon column="ngayNhap" />
+                  <TableHead className="border dark:border-gray-600">
+                    Mã đơn vị
                   </TableHead>
-                  <TableHead className="px-3 py-2">Bảo hành</TableHead>
-                  <TableHead className="px-3 py-2 min-w-[150px]">Nhà cung cấp</TableHead>
-                  <TableHead className="px-3 py-2">Công suất</TableHead>
-                  <TableHead className="px-3 py-2 text-center w-24">Hành động</TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Hình ảnh
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Tên thiết bị
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Nhóm
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600 text-center">
+                    Trạng thái
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Nhà cung cấp
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Chi nhánh
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Ngày tạo
+                  </TableHead>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {sortedData.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <TableCell className="px-3 py-5 text-center">{row.id}</TableCell>
-                    <TableCell className="px-3 py-5 font-medium">{row.ten}</TableCell>
-                    <TableCell className="px-3 py-2 text-center">
-                      <Status status={row.trangThai} />
-                    </TableCell>
-                    <TableCell className="px-3 py-2">{row.nhom}</TableCell>
-                    <TableCell className="px-3 py-2">{row.ngayNhap}</TableCell>
-                    <TableCell className="px-3 py-2">{row.baoHanh}</TableCell>
-                    <TableCell className="px-3 py-2">{row.nhaCC}</TableCell>
-                    <TableCell className="px-3 py-2">{row.congSuat}</TableCell>
-                    <TableCell className="px-3 py-2 text-center space-x-1">
-                      <Button size="icon" variant="outline" className="h-7 w-7 rounded-full">
-                        <Pencil size={14} />
-                      </Button>
-                      <Button size="icon" variant="destructive" className="h-7 w-7 rounded-full">
-                        <Trash2 size={14} />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {currentData.map((row, idx) => {
+                  // 🟢 Dịch trạng thái sang tiếng Việt
+                  const normalized =
+                    typeof row.status === "string"
+                      ? row.status.trim().toLowerCase()
+                      : "unknown";
+                  const translated =
+                    STATUS_MAP[normalized] || "Không xác định";
+
+                  return (
+                    <TableRow
+                      key={row.id ?? idx}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition"
+                    >
+                      <TableCell className="text-center border dark:border-gray-600">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600 font-medium">
+                        {row.id}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        <img
+                          src={row.equipment?.image}
+                          alt={row.equipment?.name}
+                          className="w-12 h-10 object-contain rounded"
+                        />
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.equipment?.name}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.equipment?.main_name}
+                      </TableCell>
+                      <TableCell className="border text-center dark:border-gray-600">
+                        <Status status={translated} />
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.equipment?.vendor_name}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.branch_id}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {new Date(row.created_at).toLocaleString("vi-VN")}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
 
           {/* Pagination */}
-          <div className="flex justify-between items-center border-t px-4 py-2 bg-gray-50 dark:bg-gray-700 text-xs md:text-sm">
-            <span>
-              Trang {currentPage}/{totalPages}
-            </span>
-
-            <div className="flex items-center gap-1">
-              <Button size="sm" variant="outline" onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}>
-                «
-              </Button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <Button
-                  key={i}
-                  size="sm"
-                  variant={currentPage === i + 1 ? "default" : "outline"}
-                  className={`transition-all ${
-                    currentPage === i + 1
-                      ? "bg-emerald-500 text-white font-semibold shadow-md"
-                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:text-gray-200"
-                  }`}
-                  onClick={() => setCurrentPage(i + 1)}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-              <Button size="sm" variant="outline" onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}>
-                »
-              </Button>
-            </div>
-
-            {/* Go to page */}
-            <div className="flex items-center gap-2">
-              <span>Go to:</span>
+          <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="dark:text-gray-200">Go to:</span>
               <input
                 type="number"
                 min={1}
                 max={totalPages}
-                className="w-16 px-2 py-1 border rounded text-xs dark:bg-gray-600 dark:text-gray-200"
+                className="w-16 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
                 value={goToPage}
                 onChange={(e) => setGoToPage(e.target.value)}
               />
@@ -299,6 +268,42 @@ export default function EquipmentGroupPage() {
                 className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
               >
                 Go
+              </Button>
+            </div>
+
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                «
+              </Button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <Button
+                  key={i}
+                  size="sm"
+                  variant={currentPage === i + 1 ? "default" : "outline"}
+                  className={`transition-all ${
+                    currentPage === i + 1
+                      ? "bg-emerald-500 text-white font-semibold"
+                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
+                  }`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                »
               </Button>
             </div>
           </div>

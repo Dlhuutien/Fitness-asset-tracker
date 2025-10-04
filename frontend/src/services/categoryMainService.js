@@ -80,7 +80,7 @@ const CategoryMainService = {
       // Nếu người dùng không chọn ảnh mới, gửi lại URL ảnh cũ để backend giữ nguyên
       if (data.image instanceof File) {
         formData.append("image", data.image);
-      } 
+      }
 
       const res = await axios.put(`${API}categoryMain/${id}`, formData, {
         headers: {
