@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -37,6 +38,7 @@ export default function EquipmentListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -161,39 +163,20 @@ export default function EquipmentListPage() {
             <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">
-                    #
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mã đơn vị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Hình ảnh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên thiết bị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhóm
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600 text-center">
-                    Trạng thái
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhà cung cấp
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Chi nhánh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Ngày tạo
-                  </TableHead>
+                  <TableHead className="text-center">#</TableHead>
+                  <TableHead>Mã đơn vị</TableHead>
+                  <TableHead>Hình ảnh</TableHead>
+                  <TableHead>Tên thiết bị</TableHead>
+                  <TableHead>Nhóm</TableHead>
+                  <TableHead>Trạng thái</TableHead>
+                  <TableHead>Nhà cung cấp</TableHead>
+                  <TableHead>Chi nhánh</TableHead>
+                  <TableHead>Ngày tạo</TableHead>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
                 {currentData.map((row, idx) => {
-                  // 🟢 Dịch trạng thái sang tiếng Việt
                   const normalized =
                     typeof row.status === "string"
                       ? row.status.trim().toLowerCase()
@@ -204,37 +187,28 @@ export default function EquipmentListPage() {
                   return (
                     <TableRow
                       key={row.id ?? idx}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition"
+                      onClick={() => navigate(`/app/equipment/${row.id}`)}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition cursor-pointer"
                     >
-                      <TableCell className="text-center border dark:border-gray-600">
+                      <TableCell className="text-center">
                         {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                       </TableCell>
-                      <TableCell className="border dark:border-gray-600 font-medium">
-                        {row.id}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
+                      <TableCell>{row.id}</TableCell>
+                      <TableCell>
                         <img
                           src={row.equipment?.image}
                           alt={row.equipment?.name}
                           className="w-12 h-10 object-contain rounded"
                         />
                       </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.main_name}
-                      </TableCell>
-                      <TableCell className="border text-center dark:border-gray-600">
+                      <TableCell>{row.equipment?.name}</TableCell>
+                      <TableCell>{row.equipment?.main_name}</TableCell>
+                      <TableCell>
                         <Status status={translated} />
                       </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.vendor_name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.branch_id}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
+                      <TableCell>{row.equipment?.vendor_name}</TableCell>
+                      <TableCell>{row.branch_id}</TableCell>
+                      <TableCell>
                         {new Date(row.created_at).toLocaleString("vi-VN")}
                       </TableCell>
                     </TableRow>
@@ -242,70 +216,6 @@ export default function EquipmentListPage() {
                 })}
               </TableBody>
             </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="dark:text-gray-200">Go to:</span>
-              <input
-                type="number"
-                min={1}
-                max={totalPages}
-                className="w-16 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                value={goToPage}
-                onChange={(e) => setGoToPage(e.target.value)}
-              />
-              <Button
-                size="sm"
-                onClick={() => {
-                  let page = parseInt(goToPage);
-                  if (isNaN(page)) return;
-                  if (page < 1) page = 1;
-                  if (page > totalPages) page = totalPages;
-                  setCurrentPage(page);
-                }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
-              >
-                Go
-              </Button>
-            </div>
-
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                className="dark:border-gray-600 dark:text-gray-200"
-              >
-                «
-              </Button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <Button
-                  key={i}
-                  size="sm"
-                  variant={currentPage === i + 1 ? "default" : "outline"}
-                  className={`transition-all ${
-                    currentPage === i + 1
-                      ? "bg-emerald-500 text-white font-semibold"
-                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
-                  }`}
-                  onClick={() => setCurrentPage(i + 1)}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(p + 1, totalPages))
-                }
-                className="dark:border-gray-600 dark:text-gray-200"
-              >
-                »
-              </Button>
-            </div>
           </div>
         </div>
       </div>
