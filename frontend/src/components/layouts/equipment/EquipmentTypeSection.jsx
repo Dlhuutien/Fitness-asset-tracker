@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from "react"; 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn"; 
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import CategoryTypeService from "@/services/categoryTypeService";
 
 const ITEMS_PER_PAGE = 4;
 
@@ -25,54 +26,47 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [successMsg, setSuccessMsg] = useState("");
 
-  // 🔎 check duplicate trực tiếp
+  // Kiểm tra duplicate id
   const isDuplicate = types.some(
-    (t) => t.code === typeForm.code && t.id !== editTypeId
+    (t) => t.id === typeForm.code && t.id !== editTypeId
   );
 
   const isFormValid =
-    typeForm.code &&
-    typeForm.name &&
-    typeForm.group &&
-    typeForm.desc &&
-    !isDuplicate;
+    typeForm.code && typeForm.name && typeForm.group && typeForm.desc && !isDuplicate;
 
-  const handleSaveType = () => {
-    if (!isFormValid) return; // 🚫 chặn luôn nếu không hợp lệ
+  const handleSaveType = async () => {
+    if (!isFormValid) return;
 
-    const group = groups.find((g) => g.code === typeForm.group);
+    try {
+      if (editTypeId) {
+        // UPDATE
+        await CategoryTypeService.update(editTypeId, {
+          name: typeForm.name,
+          description: typeForm.desc,
+          category_main_id: typeForm.group,
+        });
+        setSuccessMsg("✅ Cập nhật loại thành công!");
+      } else {
+        // CREATE
+        await CategoryTypeService.create({
+          id: typeForm.code,
+          name: typeForm.name,
+          description: typeForm.desc,
+          category_main_id: typeForm.group,
+        });
+        setSuccessMsg("✅ Tạo loại thành công!");
+      }
 
-    if (editTypeId) {
-      setTypes((prev) =>
-        prev.map((t) =>
-          t.id === editTypeId
-            ? {
-                ...t,
-                ...typeForm,
-                groupName: group?.name || "",
-                groupCode: group?.code || "",
-                updatedAt: new Date().toLocaleString(),
-              }
-            : t
-        )
-      );
+      // Reload từ API
+      const updated = await CategoryTypeService.getAllWithDisplayName();
+      setTypes(updated);
+
+      setTypeForm({ code: "", name: "", desc: "", group: "" });
       setEditTypeId(null);
-      setSuccessMsg("✅ Cập nhật loại thành công!");
-    } else {
-      const newType = {
-        id: types.length + 1,
-        ...typeForm,
-        groupName: group?.name || "",
-        groupCode: group?.code || "",
-        createdAt: new Date().toLocaleString(),
-        updatedAt: new Date().toLocaleString(),
-      };
-      setTypes([...types, newType]);
-      setSuccessMsg("✅ Tạo loại thành công!");
+      setTimeout(() => setSuccessMsg(""), 2000);
+    } catch (err) {
+      console.error("❌ Lỗi khi lưu categoryType:", err);
     }
-
-    setTypeForm({ code: "", name: "", desc: "", group: "" });
-    setTimeout(() => setSuccessMsg(""), 2000);
   };
 
   const totalPages = Math.ceil(types.length / ITEMS_PER_PAGE);
@@ -94,7 +88,7 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
         >
           <option value="">-- Chọn nhóm --</option>
           {groups.map((g) => (
-            <option key={g.code} value={g.code}>
+            <option key={g.id} value={g.id}>
               {g.name}
             </option>
           ))}
@@ -108,10 +102,11 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
             onChange={(e) =>
               setTypeForm({ ...typeForm, code: e.target.value })
             }
+            readOnly={!!editTypeId}
           />
           {isDuplicate && (
             <p className="text-red-500 text-sm mt-1">
-              ❌ Mã loại này đã tồn tại, vui lòng nhập mã khác
+              ❌ Mã loại này đã tồn tại
             </p>
           )}
         </div>
@@ -173,7 +168,7 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentData.map((t) => (
+            {currentData.map((t, idx) => (
               <motion.tr
                 key={t.id}
                 initial={{ opacity: 0 }}
@@ -181,23 +176,23 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                 transition={{ duration: 0.3 }}
                 className="hover:bg-indigo-50 dark:hover:bg-gray-800 transition"
               >
+                <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
                 <TableCell>{t.id}</TableCell>
-                <TableCell>{t.code}</TableCell>
-                <TableCell>{t.groupName}</TableCell>
+                <TableCell>{t.main_name}</TableCell>
                 <TableCell>{t.name}</TableCell>
-                <TableCell>{t.desc}</TableCell>
-                <TableCell>{t.createdAt}</TableCell>
-                <TableCell>{t.updatedAt}</TableCell>
-                <TableCell>
+                <TableCell>{t.description}</TableCell>
+                <TableCell>{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>{new Date(t.updated_at).toLocaleDateString()}</TableCell>
+                <TableCell className="flex gap-2">
                   <Button
                     size="icon"
                     variant="outline"
                     onClick={() => {
                       setTypeForm({
-                        code: t.code,
+                        code: t.id,
                         name: t.name,
-                        desc: t.desc,
-                        group: t.groupCode,
+                        desc: t.description,
+                        group: t.category_main_id,
                       });
                       setEditTypeId(t.id);
                     }}
