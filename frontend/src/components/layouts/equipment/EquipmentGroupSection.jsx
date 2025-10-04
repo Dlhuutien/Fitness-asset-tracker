@@ -1,6 +1,6 @@
-import { useState } from "react"; 
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/buttonn"; 
+import { Button } from "@/components/ui/buttonn";
 import {
   Table,
   TableBody,
@@ -9,151 +9,190 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Trash2, CheckCircle2 } from "lucide-react";
+import { Pencil, ImagePlus, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import CategoryTypeService from "@/services/categoryTypeService";
+import CategoryMainService from "@/services/categoryMainService";
 
-const ITEMS_PER_PAGE = 4;
-
-export default function EquipmentTypeSection({ types, setTypes, groups }) {
-  const [typeForm, setTypeForm] = useState({
+export default function EquipmentGroupSection({ groups, setGroups }) {
+  const [groupForm, setGroupForm] = useState({
     code: "",
     name: "",
     desc: "",
-    group: "",
+    img: null,
+    preview: "",
   });
-  const [editTypeId, setEditTypeId] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [editGroupId, setEditGroupId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // Kiểm tra duplicate id
-  const isDuplicate = types.some(
-    (t) => t.id === typeForm.code && t.id !== editTypeId
-  );
+  // ===== Load Category Main từ API =====
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await CategoryMainService.getAll();
+        setGroups(data);
+      } catch (err) {
+        console.error("Không lấy được CategoryMain:", err);
+      }
+    })();
+  }, [setGroups]);
 
-  const isFormValid =
-    typeForm.code && typeForm.name && typeForm.group && typeForm.desc && !isDuplicate;
+  // ===== Upload ảnh (preview + file) =====
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const handleSaveType = async () => {
-    if (!isFormValid) return;
+    const previewURL = URL.createObjectURL(file);
+    setGroupForm((prev) => ({ ...prev, img: file, preview: previewURL }));
+  };
+
+  // ===== Tạo / Cập nhật nhóm =====
+  const handleSaveGroup = async () => {
+    if (!groupForm.code || !groupForm.name || !groupForm.desc) return;
+
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
 
     try {
-      if (editTypeId) {
-        // UPDATE
-        await CategoryTypeService.update(editTypeId, {
-          name: typeForm.name,
-          description: typeForm.desc,
-          category_main_id: typeForm.group,
+      if (editGroupId) {
+        // Update
+        await CategoryMainService.update(editGroupId, {
+          name: groupForm.name,
+          description: groupForm.desc,
+          image: groupForm.img || null,
         });
-        setSuccessMsg("✅ Cập nhật loại thành công!");
       } else {
-        // CREATE
-        await CategoryTypeService.create({
-          id: typeForm.code,
-          name: typeForm.name,
-          description: typeForm.desc,
-          category_main_id: typeForm.group,
+        // Create
+        await CategoryMainService.create({
+          id: groupForm.code,
+          name: groupForm.name,
+          description: groupForm.desc,
+          image: groupForm.img || null,
         });
-        setSuccessMsg("✅ Tạo loại thành công!");
       }
 
-      // Reload từ API
-      const updated = await CategoryTypeService.getAllWithDisplayName();
-      setTypes(updated);
+      // Reload danh sách
+      const updated = await CategoryMainService.getAll();
+      setGroups(updated);
 
-      setTypeForm({ code: "", name: "", desc: "", group: "" });
-      setEditTypeId(null);
+      // Reset form
+      setGroupForm({ code: "", name: "", desc: "", img: null, preview: "" });
+      setEditGroupId(null);
+      setSuccessMsg("✅ Lưu nhóm thành công!");
       setTimeout(() => setSuccessMsg(""), 2000);
     } catch (err) {
-      console.error("❌ Lỗi khi lưu categoryType:", err);
+      console.error(err);
+      setErrorMsg("❌ Có lỗi khi lưu nhóm!");
+    } finally {
+      setLoading(false); 
     }
   };
 
-  const handleDeleteType = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa loại này?")) return;
-    try {
-      await CategoryTypeService.delete(id);
-      const updated = await CategoryTypeService.getAllWithDisplayName();
-      setTypes(updated);
-      setSuccessMsg("🗑️ Xóa loại thành công!");
-      setTimeout(() => setSuccessMsg(""), 2000);
-    } catch (err) {
-      console.error("❌ Lỗi khi xóa categoryType:", err);
-    }
-  };
-
-  const totalPages = Math.ceil(types.length / ITEMS_PER_PAGE);
-  const currentData = types.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const isFormValid = groupForm.code && groupForm.name && groupForm.desc;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 space-y-6">
-      {/* Form loại */}
-      <div className="grid grid-cols-2 gap-6">
-        <select
-          className="h-12 w-full border rounded-lg px-3 text-sm 
-                     bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200
-                     border-gray-300 dark:border-gray-700"
-          value={typeForm.group}
-          onChange={(e) => setTypeForm({ ...typeForm, group: e.target.value })}
+      {/* Form nhóm */}
+      <div className="grid grid-cols-2 gap-10 items-start">
+        {/* Cột trái */}
+        <div className="space-y-6 w-full">
+          <div className="grid grid-cols-2 gap-6">
+            <Input
+              placeholder="Mã nhóm VD: CAO"
+              value={groupForm.code}
+              onChange={(e) =>
+                setGroupForm({ ...groupForm, code: e.target.value })
+              }
+              className="h-12"
+              readOnly={!!editGroupId}
+            />
+            <Input
+              placeholder="Tên nhóm VD: Cardio"
+              value={groupForm.name}
+              onChange={(e) =>
+                setGroupForm({ ...groupForm, name: e.target.value })
+              }
+              className="h-12"
+            />
+          </div>
+
+          {/* Mô tả */}
+          <div className="col-span-2">
+            <Input
+              placeholder="Mô tả nhóm"
+              value={groupForm.desc}
+              onChange={(e) =>
+                setGroupForm({ ...groupForm, desc: e.target.value })
+              }
+              className="h-12"
+            />
+          </div>
+
+          {/* Nút lưu */}
+          <div className="flex justify-center">
+            <Button
+              onClick={handleSaveGroup}
+              disabled={!isFormValid || loading}
+              className={`h-12 w-1/2 text-base font-semibold rounded-lg flex items-center justify-center gap-2 transition-all duration-300 ${
+                isFormValid && !loading
+                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90 shadow-lg"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : editGroupId ? (
+                "💾 Lưu"
+              ) : (
+                "+ Tạo nhóm"
+              )}
+            </Button>
+          </div>
+        </div>
+
+        {/* Cột phải: Upload ảnh */}
+        <label
+          htmlFor="group-upload"
+          className="ml-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl w-72 h-72 cursor-pointer overflow-hidden hover:border-emerald-500 hover:shadow-xl transition group"
         >
-          <option value="">-- Chọn nhóm --</option>
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-
-        <div>
-          <Input
-            className={`h-12 ${isDuplicate ? "border-red-500" : ""}`}
-            placeholder="Mã loại VD: TM"
-            value={typeForm.code}
-            onChange={(e) =>
-              setTypeForm({ ...typeForm, code: e.target.value })
-            }
-            readOnly={!!editTypeId}
-          />
-          {isDuplicate && (
-            <p className="text-red-500 text-sm mt-1">
-              ❌ Mã loại này đã tồn tại
-            </p>
+          {groupForm.preview ? (
+            <motion.img
+              key={groupForm.preview}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              src={groupForm.preview}
+              alt="preview"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex flex-col items-center text-gray-500">
+              <ImagePlus
+                size={48}
+                className="text-emerald-500 mb-1 group-hover:scale-110 transition"
+              />
+              <p className="text-sm font-medium group-hover:text-emerald-500">
+                Ảnh nhóm
+              </p>
+            </div>
           )}
-        </div>
-
-        <Input
-          className="h-12"
-          placeholder="Tên loại VD: Treadmill"
-          value={typeForm.name}
-          onChange={(e) => setTypeForm({ ...typeForm, name: e.target.value })}
-        />
-
-        <Input
-          className="h-12"
-          placeholder="Mô tả loại"
-          value={typeForm.desc}
-          onChange={(e) => setTypeForm({ ...typeForm, desc: e.target.value })}
-        />
-
-        <div className="col-span-2 flex justify-end">
-          <Button
-            onClick={handleSaveType}
-            disabled={!isFormValid}
-            className={`h-12 px-8 font-semibold rounded-lg transition-all duration-300 ${
-              isFormValid
-                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:opacity-90 shadow-md"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            {editTypeId ? "💾 Lưu" : "+ Tạo loại"}
-          </Button>
-        </div>
+          <input
+            id="group-upload"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+        </label>
       </div>
 
-      {/* Success message */}
+      {/* Error + Success */}
+      {errorMsg && <p className="text-red-500 font-medium">{errorMsg}</p>}
       {successMsg && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -165,15 +204,15 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
         </motion.div>
       )}
 
-      {/* Table loại */}
-      <div className="overflow-x-auto rounded-lg border dark:border-gray-700">
-        <Table className="min-w-full">
-          <TableHeader className="bg-gray-50 dark:bg-gray-800">
+      {/* Bảng nhóm */}
+      <div className="overflow-y-auto max-h-64 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
+        <Table>
+          <TableHeader className="bg-emerald-50 dark:bg-gray-800">
             <TableRow>
               <TableHead>#</TableHead>
-              <TableHead>Mã loại</TableHead>
-              <TableHead>Nhóm</TableHead>
-              <TableHead>Tên loại</TableHead>
+              <TableHead>Ảnh</TableHead>
+              <TableHead>Mã nhóm</TableHead>
+              <TableHead>Tên nhóm</TableHead>
               <TableHead>Mô tả</TableHead>
               <TableHead>Ngày nhập</TableHead>
               <TableHead>Ngày sửa</TableHead>
@@ -181,70 +220,54 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentData.map((t, idx) => (
-              <motion.tr
-                key={t.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="hover:bg-indigo-50 dark:hover:bg-gray-800 transition"
+            {groups.map((g, idx) => (
+              <TableRow
+                key={g.id}
+                className="hover:bg-emerald-50 dark:hover:bg-gray-800 transition"
               >
-                <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
-                <TableCell>{t.id}</TableCell>
-                <TableCell>{t.main_name}</TableCell>
-                <TableCell>{t.name}</TableCell>
-                <TableCell>{t.description}</TableCell>
-                <TableCell>{new Date(t.created_at).toLocaleDateString()}</TableCell>
-                <TableCell>{new Date(t.updated_at).toLocaleDateString()}</TableCell>
-                <TableCell className="flex gap-2">
+                <TableCell>{idx + 1}</TableCell>
+                <TableCell>
+                  {g.image ? (
+                    <img
+                      src={g.image}
+                      alt={g.name}
+                      className="w-10 h-10 object-cover rounded"
+                    />
+                  ) : (
+                    <span className="text-xs text-gray-400">No img</span>
+                  )}
+                </TableCell>
+                <TableCell>{g.id}</TableCell>
+                <TableCell>{g.name}</TableCell>
+                <TableCell>{g.description}</TableCell>
+                <TableCell>
+                  {new Date(g.created_at).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
+                  {new Date(g.updated_at).toLocaleDateString()}
+                </TableCell>
+                <TableCell>
                   <Button
                     size="icon"
                     variant="outline"
                     onClick={() => {
-                      setTypeForm({
-                        code: t.id,
-                        name: t.name,
-                        desc: t.description,
-                        group: t.category_main_id,
+                      setGroupForm({
+                        code: g.id,
+                        name: g.name,
+                        desc: g.description,
+                        img: g.image,
+                        preview: g.image || "",
                       });
-                      setEditTypeId(t.id);
+                      setEditGroupId(g.id);
                     }}
                   >
                     <Pencil size={16} />
                   </Button>
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    onClick={() => handleDeleteType(t.id)}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
                 </TableCell>
-              </motion.tr>
+              </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex justify-between items-center px-4 py-2 border-t dark:border-gray-700">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-        >
-          «
-        </Button>
-        <span className="text-sm">
-          Trang {currentPage}/{totalPages}
-        </span>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-        >
-          »
-        </Button>
       </div>
     </div>
   );

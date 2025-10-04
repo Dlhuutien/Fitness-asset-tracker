@@ -1,11 +1,27 @@
 const equipmentService = require("../services/equipmentService");
+const { uploadFile } = require("../services/file.service");
 
 const equipmentController = {
   createEquipment: async (req, res) => {
     try {
-      const equipment = await equipmentService.createEquipment(req.body);
+      let imageUrl = null;
+
+      // Nếu có file upload => đẩy lên S3
+      if (req.file) {
+        imageUrl = await uploadFile(req.file);
+      }
+
+      const equipment = await equipmentService.createEquipment({
+        ...req.body,
+        image: imageUrl || req.body.image,
+        attributes: req.body.attributes
+          ? JSON.parse(req.body.attributes)
+          : req.body.attributes,
+      });
+
       res.status(201).json(equipment);
     } catch (error) {
+      console.error("[CREATE EQUIPMENT ERROR]:", error);
       res.status(400).json({ error: error.message });
     }
   },
