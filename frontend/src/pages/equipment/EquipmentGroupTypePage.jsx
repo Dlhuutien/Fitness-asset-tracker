@@ -1,20 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import EquipmentGroupSection from "../../components/layouts/equipment/EquipmentGroupSection";
 import EquipmentTypeSection from "../../components/layouts/equipment/EquipmentTypeSection";
-
-const initialGroups = [
-  { id: 1, code: "CAO", name: "Cardio", desc: "Cardio Machines", createdAt: "27/08/2025", updatedAt: "27/08/2025", img: "" },
-  { id: 2, code: "STH", name: "Kháng lực", desc: "Strength Machines", createdAt: "27/08/2025", updatedAt: "27/08/2025", img: "" },
-];
-const initialTypes = [
-  { id: 1, code: "TM", name: "Treadmill", groupCode: "CAO", groupName: "Cardio", desc: "Máy chạy bộ", createdAt: "27/08/2025", updatedAt: "27/08/2025" },
-];
+import CategoryMainService from "@/services/categoryMainService";
+import CategoryTypeService from "@/services/categoryTypeService";
 
 export default function EquipmentGroupTypePage() {
   const [tab, setTab] = useState("group");
-  const [groups, setGroups] = useState(initialGroups);
-  const [types, setTypes] = useState(initialTypes);
+  const [groups, setGroups] = useState([]);
+  const [types, setTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load dữ liệu từ API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [groupData, typeData] = await Promise.all([
+          CategoryMainService.getAll(),
+          CategoryTypeService.getAllWithDisplayName(),
+        ]);
+        setGroups(groupData);
+        setTypes(typeData);
+      } catch (err) {
+        console.error("❌ Lỗi khi load nhóm/loại:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-40 text-gray-500">
+        Đang tải dữ liệu...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -59,7 +81,11 @@ export default function EquipmentGroupTypePage() {
             exit={{ opacity: 0, x: -40 }}
             transition={{ duration: 0.3 }}
           >
-            <EquipmentTypeSection types={types} setTypes={setTypes} groups={groups} />
+            <EquipmentTypeSection
+              types={types}
+              setTypes={setTypes}
+              groups={groups}
+            />
           </motion.div>
         )}
       </AnimatePresence>
