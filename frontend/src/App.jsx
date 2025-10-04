@@ -3,7 +3,6 @@ import { BrowserRouter as Router, useRoutes } from "react-router-dom"
 import routes from "@/config/routes"
 import { Toaster } from "./components/ui/toaster"
 import useAuthRefresh from "@/hooks/useAuthRefresh";
-import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 
 function AppRoutes() {
   useAuthRefresh();
@@ -12,8 +11,6 @@ function AppRoutes() {
 
 export default function App() {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light")
-
-  useEquipmentData();
 
   useEffect(() => {
     const root = document.documentElement

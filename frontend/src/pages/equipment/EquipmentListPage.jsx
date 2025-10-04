@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -12,7 +12,6 @@ import {
 import { Grid } from "lucide-react";
 import Status from "@/components/common/Status";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
-import { useEquipmentStore } from "@/store/equipmentUnitStore";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -36,22 +35,14 @@ export default function EquipmentListPage() {
   const [goToPage, setGoToPage] = useState("");
 
   // SWR fetch — chỉ gọi API 1 lần, tự cache 5 phút
-  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
-    useEquipmentData();
-  // 🧩 Lấy data toàn cục từ Zustand
-  const { units } = useEquipmentStore();
+  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } = useEquipmentData();
 
-  // ⚡ Nếu store chưa có dữ liệu (vd: reload lần đầu), dùng eqUnits của SWR
-  const displayUnits = units?.length > 0 ? units : eqUnits || [];
-
-  // Nhóm thiết bị
-  const groups = useMemo(
-    () => [{ id: "all", name: "Xem tất cả" }, ...(cats || [])],
-    [cats]
-  );
+  // Kết hợp dữ liệu
+  const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
+  const units = eqUnits || [];
 
   // Lọc dữ liệu
-  const filtered = displayUnits.filter((u) => {
+  const filtered = units.filter((u) => {
     const q = search.trim().toLowerCase();
     const matchSearch =
       !q ||
@@ -70,13 +61,9 @@ export default function EquipmentListPage() {
 
   // Loading state
   if (unitLoading || catLoading)
-    return (
-      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
-    );
+    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
   if (eqErr || catErr)
-    return (
-      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
-    );
+    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
 
   // ===== UI =====
   return (
@@ -165,33 +152,15 @@ export default function EquipmentListPage() {
             <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">
-                    #
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mã đơn vị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Hình ảnh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên thiết bị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhóm
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Loại
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600 text-center">
-                    Trạng thái
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhà cung cấp
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Ngày tạo
-                  </TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
+                  <TableHead className="border dark:border-gray-600">Mã đơn vị</TableHead>
+                  <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
+                  <TableHead className="border dark:border-gray-600">Tên thiết bị</TableHead>
+                  <TableHead className="border dark:border-gray-600">Nhóm</TableHead>
+                  <TableHead className="border dark:border-gray-600">Loại</TableHead>
+                  <TableHead className="border dark:border-gray-600 text-center">Trạng thái</TableHead>
+                  <TableHead className="border dark:border-gray-600">Nhà cung cấp</TableHead>
+                  <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
                 </TableRow>
               </TableHeader>
 
