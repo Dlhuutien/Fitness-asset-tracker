@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 
-import { LoadingAlert, SuccessAlert, ErrorAlert } from "./LoginAlert";
+import { LoadingAlert, SuccessAlert, ErrorAlert, ServerErrorAlert } from "./LoginAlert";
 
 // ✅ Schema validate
 const schema = z.object({
@@ -56,9 +56,20 @@ export default function LoginForm() {
       }
     } catch (error) {
       console.error("Đăng nhập thất bại:", error);
-      setShakeKey((prev) => prev + 1);
-      setAlert("error");
-      setTimeout(() => setAlert(null), 2000);
+
+      // Kiểm tra lỗi kết nối mạng hoặc server tắt
+      if (
+        error.message?.includes("NetworkError") ||
+        error.message?.includes("ECONNREFUSED") ||
+        error.code === "ERR_NETWORK"
+      ) {
+        setAlert("server_error");
+      } else {
+        setShakeKey((prev) => prev + 1);
+        setAlert("error");
+      }
+
+      setTimeout(() => setAlert(null), 2500);
     } finally {
       setLoading(false);
     }
@@ -139,7 +150,9 @@ export default function LoginForm() {
             <label className="flex items-center gap-2">
               <input type="checkbox" className="accent-cyan-400" /> Remember me
             </label>
-            <a href="#" className="hover:text-cyan-400">Forget password?</a>
+            <a href="#" className="hover:text-cyan-400">
+              Forget password?
+            </a>
           </CardFooter>
         </form>
       </Card>
@@ -148,6 +161,10 @@ export default function LoginForm() {
       <LoadingAlert open={loading} setOpen={setLoading} />
       <SuccessAlert open={alert === "success"} setOpen={() => setAlert(null)} />
       <ErrorAlert open={alert === "error"} setOpen={() => setAlert(null)} />
+      <ServerErrorAlert
+        open={alert === "server_error"}
+        setOpen={() => setAlert(null)}
+      />
     </>
   );
 }

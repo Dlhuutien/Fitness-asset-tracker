@@ -2,22 +2,26 @@ const categoryService = require("../services/categoryMainService");
 const { uploadFile } = require("../services/file.service");
 
 const categoryController = {
-  createCategory: async (req, res) => {
+  createEquipment: async (req, res) => {
     try {
       let imageUrl = null;
+
+      // Nếu có file upload => đẩy lên S3
       if (req.file) {
         imageUrl = await uploadFile(req.file);
       }
 
-      const category = await categoryService.createCategory({
-        id: req.body.id,
-        name: req.body.name,
-        description: req.body.description,
-        image: imageUrl,
+      const equipment = await equipmentService.createEquipment({
+        ...req.body,
+        image: imageUrl || req.body.image, 
+        attributes: req.body.attributes
+          ? JSON.parse(req.body.attributes)
+          : req.body.attributes,
       });
 
-      res.status(201).json(category);
+      res.status(201).json(equipment);
     } catch (error) {
+      console.error("[CREATE EQUIPMENT ERROR]:", error);
       res.status(400).json({ error: error.message });
     }
   },
