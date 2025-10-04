@@ -233,16 +233,6 @@ export default function EquipmentAddCardPage() {
   // ===== Giao diện =====
   return (
     <div className="p-6 h-[calc(100vh-80px)] overflow-y-auto">
-      {successMsg && (
-        <div className="mb-3 p-3 rounded bg-emerald-50 text-emerald-600 text-sm border border-emerald-200">
-          {successMsg}
-        </div>
-      )}
-      {errorMsg && (
-        <div className="mb-3 p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200">
-          {errorMsg}
-        </div>
-      )}
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start"
@@ -500,7 +490,7 @@ export default function EquipmentAddCardPage() {
         </div>
 
         {/* Submit */}
-        {/* Submit */}
+        <div className="col-span-6 flex justify-end mt-3">
         <Button
           type="submit"
           disabled={loadingAdd}
@@ -511,7 +501,18 @@ export default function EquipmentAddCardPage() {
           )}
           {loadingAdd ? "Đang tạo..." : "TẠO LOẠI THIẾT BỊ CỤ THỂ"}
         </Button>
+        </div>
       </form>
+      {successMsg && (
+        <div className="mb-3 p-3 rounded bg-emerald-50 text-emerald-600 text-sm border border-emerald-200">
+          {successMsg}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="mb-3 p-3 rounded bg-red-50 text-red-600 text-sm border border-red-200">
+          {errorMsg}
+        </div>
+      )}
     </div>
   );
 }
