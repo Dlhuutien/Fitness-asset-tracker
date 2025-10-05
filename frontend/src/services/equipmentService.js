@@ -54,18 +54,24 @@ const EquipmentService = {
 
     if (isFile) {
       const formData = new FormData();
-      formData.append("name", data.name);
-      formData.append("vendor_id", data.vendor_id);
-      formData.append("category_type_id", data.category_type_id);
-      formData.append("description", data.description || "");
-      formData.append("warranty_duration", data.warranty_duration || 2);
+      formData.append("name", String(data.name || ""));
+      formData.append("vendor_id", String(data.vendor_id || ""));
+      formData.append("category_type_id", String(data.category_type_id || ""));
+      formData.append("description", String(data.description || ""));
+      formData.append(
+        "warranty_duration",
+        String(data.warranty_duration || "2")
+      );
+
       if (data.image instanceof File) {
         formData.append("image", data.image);
       }
-      data.attributes.forEach((attr, idx) => {
-        formData.append(`attributes[${idx}][attribute_id]`, attr.attribute_id);
-        formData.append(`attributes[${idx}][value]`, attr.value);
-      });
+
+      //  Gửi attributes dạng JSON string
+      if (Array.isArray(data.attributes) && data.attributes.length > 0) {
+        formData.append("attributes", JSON.stringify(data.attributes));
+      }
+
       payload = formData;
       headers["Content-Type"] = "multipart/form-data";
     }
