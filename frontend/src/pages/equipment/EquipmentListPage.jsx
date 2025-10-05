@@ -12,6 +12,7 @@ import {
 import { Grid } from "lucide-react";
 import Status from "@/components/common/Status";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
+import { useNavigate } from "react-router-dom";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -33,9 +34,10 @@ export default function EquipmentListPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
-
+  const navigate = useNavigate();
   // SWR fetch — chỉ gọi API 1 lần, tự cache 5 phút
-  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } = useEquipmentData();
+  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
+    useEquipmentData();
 
   // Kết hợp dữ liệu
   const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
@@ -61,9 +63,13 @@ export default function EquipmentListPage() {
 
   // Loading state
   if (unitLoading || catLoading)
-    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
+    );
   if (eqErr || catErr)
-    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
+    return (
+      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
+    );
 
   // ===== UI =====
   return (
@@ -152,15 +158,33 @@ export default function EquipmentListPage() {
             <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
-                  <TableHead className="border dark:border-gray-600">Mã đơn vị</TableHead>
-                  <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
-                  <TableHead className="border dark:border-gray-600">Tên thiết bị</TableHead>
-                  <TableHead className="border dark:border-gray-600">Nhóm</TableHead>
-                  <TableHead className="border dark:border-gray-600">Loại</TableHead>
-                  <TableHead className="border dark:border-gray-600 text-center">Trạng thái</TableHead>
-                  <TableHead className="border dark:border-gray-600">Nhà cung cấp</TableHead>
-                  <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">
+                    #
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Mã đơn vị
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Hình ảnh
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Tên thiết bị
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Nhóm
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Loại
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600 text-center">
+                    Trạng thái
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Nhà cung cấp
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Ngày tạo
+                  </TableHead>
                 </TableRow>
               </TableHeader>
 

@@ -43,7 +43,7 @@ const initialStaff = Array.from({ length: 12 }).map((_, i) => ({
   email: `staff${i + 1}@fitx.com`,
   phone_number: `090${Math.floor(100000 + Math.random() * 899999)}`,
   created_at: `2025-0${(i % 9) + 1}-12`,
-  avatar: `https://i.pravatar.cc/150?img=${i + 10}`,
+  avatar: `@asest/FitXGym.png,`
 }));
 
 export default function StaffPage() {
