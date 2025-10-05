@@ -237,6 +237,69 @@ export default function EquipmentListPage() {
               </TableBody>
             </Table>
           </div>
+          {/* Pagination */}
+          <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="dark:text-gray-200">Go to:</span>
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                className="w-16 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+                value={goToPage}
+                onChange={(e) => setGoToPage(e.target.value)}
+              />
+              <Button
+                size="sm"
+                onClick={() => {
+                  let page = parseInt(goToPage);
+                  if (isNaN(page)) return;
+                  if (page < 1) page = 1;
+                  if (page > totalPages) page = totalPages;
+                  setCurrentPage(page);
+                }}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
+              >
+                Go
+              </Button>
+            </div>
+
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                «
+              </Button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <Button
+                  key={i}
+                  size="sm"
+                  variant={currentPage === i + 1 ? "default" : "outline"}
+                  className={`transition-all ${
+                    currentPage === i + 1
+                      ? "bg-emerald-500 text-white font-semibold"
+                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
+                  }`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                »
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
