@@ -1,7 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import { Label } from "@/components/ui/label";
+
+import VendorService from "@/services/vendorService";
+import EquipmentService from "@/services/equipmentService";
+import EquipmentUnitService from "@/services/equipmentUnitService";
+
+import InvoiceService from "@/services/invoiceService";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+import { useSWRConfig } from "swr";
+import { API } from "@/config/url";
 
 // Fake data vendors + equipments
 const vendors = ["Technogym", "Matrix Fitness"];
@@ -68,16 +79,63 @@ const equipmentData = {
 };
 
 export default function EquipmentImportPage() {
+  const { mutate } = useSWRConfig();
   const [selectedVendor, setSelectedVendor] = useState("");
   const [selectedItems, setSelectedItems] = useState({});
+
+  const [vendors, setVendors] = useState([]);
+  const [equipments, setEquipments] = useState([]);
+  const [equipmentUnits, setEquipmentUnits] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [vendorRes, equipRes, unitRes] = await Promise.all([
+          VendorService.getAll(),
+          EquipmentService.getAll(),
+          EquipmentUnitService.getAll(),
+        ]);
+
+        console.log("✅ Vendor list:", vendorRes);
+        console.log("✅ Equipment list:", equipRes);
+        console.log("✅ EquipmentUnit list:", unitRes);
+
+        setVendors(vendorRes);
+        setEquipments(equipRes);
+        setEquipmentUnits(unitRes);
+      } catch (err) {
+        console.error("❌ Lỗi khi load dữ liệu:", err);
+        toast.error("Không thể tải dữ liệu từ server!");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const toggleSelectItem = (item) => {
     setSelectedItems((prev) => {
       const newItems = { ...prev };
-      if (newItems[item.code]) {
-        delete newItems[item.code];
+
+      // Normalize attributes
+      let attrs = [];
+      if (Array.isArray(item.attributes)) {
+        attrs = item.attributes;
+      } else if (item.attributes && typeof item.attributes === "object") {
+        attrs = Object.entries(item.attributes).map(([k, v]) => ({
+          attribute: k,
+          value: v,
+        }));
+      }
+
+      if (newItems[item.id]) {
+        delete newItems[item.id];
       } else {
-        newItems[item.code] = { ...item, price: "", qty: "" };
+        newItems[item.id] = { ...item, attributes: attrs, price: "", qty: "" };
       }
       return newItems;
     });
@@ -101,6 +159,38 @@ export default function EquipmentImportPage() {
     }, 0);
   };
 
+  const handleConfirmImport = async () => {
+    try {
+      const items = Object.values(selectedItems).map((item) => ({
+        equipment_id: item.id,
+        branch_id: "GV", // set cứng chi nhánh GV
+        quantity: parseInt(item.qty) || 0,
+        cost: parseFloat(item.price) || 0,
+      }));
+
+      if (items.length === 0) {
+        toast.error("Chưa chọn thiết bị nào!");
+        return;
+      }
+
+      setLoadingSubmit(true);
+      const res = await InvoiceService.create({ items });
+      toast.success("Tạo invoice thành công!");
+      console.log("✅ Invoice created:", res);
+
+      // 🔄 Cập nhật cache ngay lập tức cho tất cả các trang liên quan
+      mutate(`${API}equipmentUnit`),
+
+      // Reset sau khi nhập hàng
+      setSelectedItems({});
+    } catch (err) {
+      console.error("❌ Lỗi khi tạo invoice:", err);
+      toast.error(err.error || "Có lỗi khi tạo invoice");
+    } finally {
+      setLoadingSubmit(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Layout 1 + 2 */}
@@ -120,8 +210,8 @@ export default function EquipmentImportPage() {
           >
             <option value="">-- Chọn --</option>
             {vendors.map((v) => (
-              <option key={v} value={v}>
-                {v}
+              <option key={v.id} value={v.id}>
+                {v.name}
               </option>
             ))}
           </select>
@@ -145,21 +235,22 @@ export default function EquipmentImportPage() {
                 </tr>
               </thead>
               <tbody>
-                {selectedVendor &&
-                  equipmentData[selectedVendor]?.map((item) => (
-                    <tr key={item.code} className="border-t">
+                {equipments
+                  .filter((eq) => eq.vendor_id === selectedVendor)
+                  .map((item) => (
+                    <tr key={item.id} className="border-t">
                       <td className="p-2 text-center">
                         <input
                           type="checkbox"
-                          checked={!!selectedItems[item.code]}
+                          checked={!!selectedItems[item.id]}
                           onChange={() => toggleSelectItem(item)}
                         />
                       </td>
-                      <td className="p-2">{item.code}</td>
-                      <td className="p-2">{item.group}</td>
-                      <td className="p-2">{item.type}</td>
+                      <td className="p-2">{item.id}</td>
+                      <td className="p-2">{item.main_name}</td>
+                      <td className="p-2">{item.type_name}</td>
                       <td className="p-2">{item.name}</td>
-                      <td className="p-2">{item.warranty}</td>
+                      <td className="p-2">{item.warranty_duration} năm</td>
                     </tr>
                   ))}
               </tbody>
@@ -197,18 +288,19 @@ export default function EquipmentImportPage() {
                     <div>
                       <p className="font-semibold">{item.name}</p>
                       <p className="text-xs text-gray-500 dark:text-gray-300 mb-2">
-                        Mã: {item.code} | Bảo hành: {item.warranty}
+                        Mã: {item.id} | Bảo hành: {item.warranty_duration} năm
                       </p>
                     </div>
 
-                    {/* Scroll attributes */}
+                    {/* Attributes */}
                     <div className="max-h-24 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2 text-xs p-2">
-                      {Object.entries(item.attributes).map(([k, v]) => (
+                      {item.attributes.map((attr, idx) => (
                         <div
-                          key={k}
+                          key={idx}
                           className="text-gray-700 dark:text-gray-200"
                         >
-                          <span className="font-medium">{k}:</span> {v}
+                          <span className="font-medium">{attr.attribute}:</span>{" "}
+                          {attr.value}
                         </div>
                       ))}
                     </div>
@@ -221,7 +313,7 @@ export default function EquipmentImportPage() {
                           type="number"
                           value={item.price}
                           onChange={(e) =>
-                            updateField(item.code, "price", e.target.value)
+                            updateField(item.id, "price", e.target.value)
                           }
                           className="h-8 text-sm dark:bg-gray-600"
                         />
@@ -232,7 +324,7 @@ export default function EquipmentImportPage() {
                           type="number"
                           value={item.qty}
                           onChange={(e) =>
-                            updateField(item.code, "qty", e.target.value)
+                            updateField(item.id, "qty", e.target.value)
                           }
                           className="h-8 text-sm dark:bg-gray-600"
                         />
@@ -256,8 +348,13 @@ export default function EquipmentImportPage() {
           <h3 className="font-bold text-lg text-emerald-600">
             Tổng cộng: {calcTotal().toLocaleString()} VNĐ
           </h3>
-          <Button className="bg-emerald-500 hover:bg-emerald-600">
-            Xác nhận nhập hàng
+          <Button
+            className="bg-emerald-500 hover:bg-emerald-600 flex items-center gap-2"
+            onClick={handleConfirmImport}
+            disabled={loadingSubmit}
+          >
+            {loadingSubmit && <Loader2 className="w-4 h-4 animate-spin" />}
+            {loadingSubmit ? "Đang xử lý..." : "Xác nhận nhập hàng"}
           </Button>
         </div>
       )}

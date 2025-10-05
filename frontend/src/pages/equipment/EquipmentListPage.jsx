@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -11,13 +10,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Grid } from "lucide-react";
-import EquipmentUnitService from "@/services/equipmentUnitService";
-import CategoryMainService from "@/services/categoryMainService";
 import Status from "@/components/common/Status";
+import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 
 const ITEMS_PER_PAGE = 8;
 
-// 🟢 Bảng chuyển đổi trạng thái sang tiếng Việt
+// 🟢 Dịch trạng thái
 const STATUS_MAP = {
   active: "Hoạt động",
   inactive: "Ngưng hoạt động",
@@ -31,33 +29,19 @@ const STATUS_MAP = {
 };
 
 export default function EquipmentListPage() {
-  const [groups, setGroups] = useState([]);
-  const [units, setUnits] = useState([]);
   const [activeGroup, setActiveGroup] = useState("all");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [cats, eqUnits] = await Promise.all([
-          CategoryMainService.getAll().catch(() => []),
-          EquipmentUnitService.getAll().catch(() => []),
-        ]);
-        setGroups([{ id: "all", name: "Xem tất cả" }, ...cats]);
-        setUnits(eqUnits);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  // SWR fetch — chỉ gọi API 1 lần, tự cache 5 phút
+  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } = useEquipmentData();
 
-  // 🧭 Lọc dữ liệu
+  // Kết hợp dữ liệu
+  const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
+  const units = eqUnits || [];
+
+  // Lọc dữ liệu
   const filtered = units.filter((u) => {
     const q = search.trim().toLowerCase();
     const matchSearch =
@@ -75,8 +59,13 @@ export default function EquipmentListPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  if (loading) return <div className="p-4">Đang tải dữ liệu...</div>;
+  // Loading state
+  if (unitLoading || catLoading)
+    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
+  if (eqErr || catErr)
+    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
 
+  // ===== UI =====
   return (
     <div className="grid grid-cols-12 gap-4">
       {/* Sidebar bộ lọc */}
@@ -119,7 +108,7 @@ export default function EquipmentListPage() {
           </div>
         </div>
 
-        {/* Nhóm thiết bị (với ảnh từ API) */}
+        {/* Nhóm thiết bị */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow h-[340px] overflow-y-auto">
           <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
             Hiển thị theo nhóm
@@ -163,15 +152,15 @@ export default function EquipmentListPage() {
             <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center">#</TableHead>
-                  <TableHead>Mã đơn vị</TableHead>
-                  <TableHead>Hình ảnh</TableHead>
-                  <TableHead>Tên thiết bị</TableHead>
-                  <TableHead>Nhóm</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead>Nhà cung cấp</TableHead>
-                  <TableHead>Chi nhánh</TableHead>
-                  <TableHead>Ngày tạo</TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
+                  <TableHead className="border dark:border-gray-600">Mã đơn vị</TableHead>
+                  <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
+                  <TableHead className="border dark:border-gray-600">Tên thiết bị</TableHead>
+                  <TableHead className="border dark:border-gray-600">Nhóm</TableHead>
+                  <TableHead className="border dark:border-gray-600">Loại</TableHead>
+                  <TableHead className="border dark:border-gray-600 text-center">Trạng thái</TableHead>
+                  <TableHead className="border dark:border-gray-600">Nhà cung cấp</TableHead>
+                  <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -181,8 +170,7 @@ export default function EquipmentListPage() {
                     typeof row.status === "string"
                       ? row.status.trim().toLowerCase()
                       : "unknown";
-                  const translated =
-                    STATUS_MAP[normalized] || "Không xác định";
+                  const translated = STATUS_MAP[normalized] || "Không xác định";
 
                   return (
                     <TableRow
@@ -201,14 +189,22 @@ export default function EquipmentListPage() {
                           className="w-12 h-10 object-contain rounded"
                         />
                       </TableCell>
-                      <TableCell>{row.equipment?.name}</TableCell>
-                      <TableCell>{row.equipment?.main_name}</TableCell>
-                      <TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.equipment?.name}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.equipment?.main_name}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.equipment?.type_name}
+                      </TableCell>
+                      <TableCell className="border text-center dark:border-gray-600">
                         <Status status={translated} />
                       </TableCell>
-                      <TableCell>{row.equipment?.vendor_name}</TableCell>
-                      <TableCell>{row.branch_id}</TableCell>
-                      <TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.equipment?.vendor_name}
+                      </TableCell>
+                      <TableCell className="border dark:border-gray-600">
                         {new Date(row.created_at).toLocaleString("vi-VN")}
                       </TableCell>
                     </TableRow>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -10,58 +10,47 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Grid } from "lucide-react";
-import EquipmentService from "@/services/equipmentService";
-import CategoryMainService from "@/services/categoryMainService";
+import { useEquipmentGroupData } from "@/hooks/useEquipmentGroupData";
 
 const ITEMS_PER_PAGE = 7;
 
 export default function EquipmentGroupPage() {
-  const [groups, setGroups] = useState([]);
+  // const [groups, setGroups] = useState([]);
   const [activeGroup, setActiveGroup] = useState("all");
-  const [equipments, setEquipments] = useState([]);
+  // const [equipments, setEquipments] = useState([]);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true);
-      try {
-        const [cats, eqs] = await Promise.all([
-          CategoryMainService.getAll().catch((e) => {
-            console.error("Lỗi load categoryMain:", e);
-            return [];
-          }),
-          EquipmentService.getAll().catch((e) => {
-            console.error("Lỗi load equipments:", e);
-            return [];
-          }),
-        ]);
-        // Thêm "Xem tất cả" lên đầu
-        setGroups([{ id: "all", name: "Xem tất cả" }, ...cats]);
-        setEquipments(eqs);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
-  }, []);
+  const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
+    useEquipmentGroupData();
 
-  const filteredData = equipments.filter((d) => {
+  const groupList = [{ id: "all", name: "Xem tất cả" }, ...(groups || [])];
+
+  const filteredData = (equipments || []).filter((d) => {
     const q = search.trim().toLowerCase();
     const matchSearch = !q || (d.name || "").toLowerCase().includes(q);
     if (activeGroup === "all") return matchSearch;
     return d.main_name === activeGroup && matchSearch;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredData.length / ITEMS_PER_PAGE)
+  );
   const currentData = filteredData.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  if (loading) return <div className="p-4">Đang tải dữ liệu thiết bị...</div>;
+  if (groupLoading || eqLoading)
+    return (
+      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
+    );
+  if (groupErr || eqErr)
+    return (
+      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
+    );
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -73,7 +62,9 @@ export default function EquipmentGroupPage() {
 
         {/* Tìm kiếm */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow space-y-2">
-          <h3 className="font-semibold text-sm dark:text-gray-200">Tìm kiếm loại</h3>
+          <h3 className="font-semibold text-sm dark:text-gray-200">
+            Tìm kiếm loại
+          </h3>
           <Input
             placeholder="Nhập tên loại"
             value={search}
@@ -111,7 +102,7 @@ export default function EquipmentGroupPage() {
             Hiển thị theo nhóm
           </h3>
           <div className="flex flex-col gap-2">
-            {groups.map((g, idx) => (
+            {groupList.map((g, idx) => (
               <button
                 key={g.id ?? idx}
                 onClick={() => {
@@ -149,14 +140,30 @@ export default function EquipmentGroupPage() {
             <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
-                  <TableHead className="border dark:border-gray-600">Mã thẻ kho</TableHead>
-                  <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
-                  <TableHead className="border dark:border-gray-600">Tên thiết bị</TableHead>
-                  <TableHead className="border dark:border-gray-600">Nhóm</TableHead>
-                  <TableHead className="border dark:border-gray-600">Tên loại</TableHead>
-                  <TableHead className="border dark:border-gray-600">Nhà cung cấp</TableHead>
-                  <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">
+                    #
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Mã thẻ kho
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Hình ảnh
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Tên thiết bị
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Nhóm
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Tên loại
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Nhà cung cấp
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Ngày tạo
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -168,7 +175,9 @@ export default function EquipmentGroupPage() {
                     <TableCell className="text-center border dark:border-gray-600">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                     </TableCell>
-                    <TableCell className="border dark:border-gray-600">{row.id}</TableCell>
+                    <TableCell className="border dark:border-gray-600">
+                      {row.id}
+                    </TableCell>
                     <TableCell className="border dark:border-gray-600">
                       <img
                         src={row.image}
@@ -176,12 +185,18 @@ export default function EquipmentGroupPage() {
                         className="w-12 h-10 object-contain rounded"
                       />
                     </TableCell>
-                    <TableCell className="border dark:border-gray-600">{row.name}</TableCell>
-                    <TableCell className="border dark:border-gray-600">{row.main_name}</TableCell>
+                    <TableCell className="border dark:border-gray-600">
+                      {row.name}
+                    </TableCell>
+                    <TableCell className="border dark:border-gray-600">
+                      {row.main_name}
+                    </TableCell>
                     <TableCell className="border italic text-gray-600 dark:text-gray-300">
                       {row.type_name}
                     </TableCell>
-                    <TableCell className="border dark:border-gray-600">{row.vendor_name}</TableCell>
+                    <TableCell className="border dark:border-gray-600">
+                      {row.vendor_name}
+                    </TableCell>
                     <TableCell className="border dark:border-gray-600">
                       {row.created_at
                         ? new Date(row.created_at).toLocaleString("vi-VN")
@@ -247,7 +262,9 @@ export default function EquipmentGroupPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
                 className="dark:border-gray-600 dark:text-gray-200"
               >
                 »
