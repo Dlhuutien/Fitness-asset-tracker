@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import EquipmentGroupSection from "../../components/layouts/equipment/EquipmentGroupSection";
 import EquipmentTypeSection from "../../components/layouts/equipment/EquipmentTypeSection";
+import EquipmentAddCardPage from "@/components/layouts/equipment/EquipmentAddCardPage"; // 🧩 import thêm trang chi tiết
 import CategoryMainService from "@/services/categoryMainService";
 import CategoryTypeService from "@/services/categoryTypeService";
 
@@ -11,7 +12,7 @@ export default function EquipmentGroupTypePage() {
   const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Load dữ liệu từ API
+  // ===== Load dữ liệu từ API =====
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -40,11 +41,12 @@ export default function EquipmentGroupTypePage() {
 
   return (
     <div className="space-y-6">
-      {/* Tabs */}
+      {/* 🧭 Tabs */}
       <div className="flex gap-4 border-b pb-2 dark:border-gray-700">
         {[
-          { key: "group", label: "📂 Tạo Nhóm" },
-          { key: "type", label: "🏷️ Tạo Loại" },
+          { key: "group", label: "📂 Nhóm" },
+          { key: "type", label: "🏷️ Loại" },
+          { key: "item", label: "⚙️ Chi tiết thiết bị" },
         ].map((t) => (
           <button
             key={t.key}
@@ -60,7 +62,7 @@ export default function EquipmentGroupTypePage() {
         ))}
       </div>
 
-      {/* Animate Presence */}
+      {/* 🪄 Animate Presence */}
       <AnimatePresence mode="wait">
         {tab === "group" && (
           <motion.div
@@ -73,6 +75,7 @@ export default function EquipmentGroupTypePage() {
             <EquipmentGroupSection groups={groups} setGroups={setGroups} />
           </motion.div>
         )}
+
         {tab === "type" && (
           <motion.div
             key="type-section"
@@ -86,6 +89,18 @@ export default function EquipmentGroupTypePage() {
               setTypes={setTypes}
               groups={groups}
             />
+          </motion.div>
+        )}
+
+        {tab === "item" && (
+          <motion.div
+            key="item-section"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -40 }}
+            transition={{ duration: 0.3 }}
+          >
+            <EquipmentAddCardPage />
           </motion.div>
         )}
       </AnimatePresence>

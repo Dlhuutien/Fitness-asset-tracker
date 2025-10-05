@@ -135,7 +135,7 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            {editTypeId ? "💾 Lưu" : "+ Tạo loại"}
+            {editTypeId ? "💾 Cập nhật" : "+ Lưu"}
           </Button>
         </div>
       </div>

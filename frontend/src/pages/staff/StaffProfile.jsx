@@ -31,7 +31,7 @@ const initialStaff = Array.from({ length: 12 }).map((_, i) => ({
   address: `${i + 10} Nguyễn Huệ, Quận ${i + 1}, TP.HCM`,
   created_at: `2025-0${(i % 9) + 1}-12`,
   updated_at: `2025-0${(i % 9) + 1}-20`,
-  avatar: `https://i.pravatar.cc/150?img=${i + 10}`,
+  avatar: ``,
   department: i % 2 === 0 ? "Thiết bị" : "Marketing",
   position: i % 2 === 0 ? "Trưởng nhóm" : "Nhân viên",
   salary: `${10 + i} triệu`,

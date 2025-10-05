@@ -46,9 +46,9 @@ export default function Sidebar() {
       children: [
         { label: "Danh sách từng thiết bị", path: "/app/equipment/list" },
         { label: "Danh sách loại thiết bị", path: "/app/equipment/page" },
-        { label: "Thêm nhóm, loại", path: "/app/equipment/add-group" },
-        { label: "Thêm thẻ kho, thông số", path: "/app/equipment/add-card" },
-        { label: "Nhập hàng", path: "/app/equipment/import" },
+        { label: "Tạo thông tin thiết bị", path: "/app/equipment/add-group" },
+        // { label: "Thêm thẻ kho, thông số", path: "/app/equipment/add-card" },
+        { label: "Nhập thiết bị", path: "/app/equipment/import" },
       ],
     },
     {
