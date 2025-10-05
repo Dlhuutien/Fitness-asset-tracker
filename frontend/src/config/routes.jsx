@@ -14,7 +14,6 @@ import EquipmentAddCardPage from "@/components/layouts/equipment/EquipmentAddCar
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
 import EquipmentProfilePage from "@/pages/equipment/EquipmentProfilePage";
 
-
 // Staff
 import StaffPage from "@/pages/staff/StaffPage";
 import StaffProfile from "@/pages/staff/StaffProfile";
@@ -30,6 +29,9 @@ import InvoiceAddPage from "@/pages/invoice/InvoiceAddPage";
 // Maintenance
 import MaintenanceUrgentPage from "@/pages/maintenance/MaintenanceUrgentPage";
 import MaintenanceReadyPage from "@/pages/maintenance/MaintenanceReadyPage";
+
+// Profile user
+import UserProfile from "@/pages/userProfile/UserProfile";
 
 const routes = [
   // Auth
@@ -184,6 +186,11 @@ const routes = [
             <MaintenanceReadyPage />
           </PageTransition>
         ),
+      },
+      // User Profile
+      {
+        path: "/userProfile",
+        element: <UserProfile />,
       },
     ],
   },
