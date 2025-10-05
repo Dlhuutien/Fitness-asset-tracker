@@ -17,6 +17,7 @@ import EquipmentProfilePage from "@/pages/equipment/EquipmentProfilePage";
 // Staff
 import StaffPage from "@/pages/staff/StaffPage";
 import StaffProfile from "@/pages/staff/StaffProfile";
+import AddStaffPage from "@/pages/staff/AddStaffPage";
 
 // Vendor
 import VendorPage from "@/pages/vendor/VendorPage";
@@ -122,6 +123,15 @@ const routes = [
         ),
       },
       {
+        path: "/app/staff/add",
+        element: (
+          <PageTransition>
+            <AddStaffPage />
+          </PageTransition>
+        ),
+      },
+
+      {
         path: "/app/staff/:id",
         element: (
           <PageTransition>
@@ -129,7 +139,6 @@ const routes = [
           </PageTransition>
         ),
       },
-
       // Vendor
       {
         path: "/app/vendor",
