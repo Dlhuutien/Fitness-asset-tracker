@@ -147,9 +147,9 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                   Đang xử lý...
                 </>
               ) : editGroupId ? (
-                "💾 Lưu"
+                "💾 Cập nhật"
               ) : (
-                "+ Tạo nhóm"
+                "+ Lưu"
               )}
             </Button>
           </div>

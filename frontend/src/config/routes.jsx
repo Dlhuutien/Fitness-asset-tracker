@@ -10,7 +10,7 @@ import LoginPage from "@/pages/LoginPage";
 import EquipmentListPage from "@/pages/equipment/EquipmentListPage";
 import EquipmentGroupPage from "@/pages/equipment/EquipmentGroupPage";
 import EquipmentAddGroupPage from "@/pages/equipment/EquipmentGroupTypePage";
-import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
+import EquipmentAddCardPage from "@/components/layouts/equipment/EquipmentAddCardPage";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
 import EquipmentProfilePage from "@/pages/equipment/EquipmentProfilePage";
 
