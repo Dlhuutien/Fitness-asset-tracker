@@ -1,9 +1,16 @@
 import { useState } from "react";
 import { LogOut, User, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 export default function UserMenu({ username, onLogoutClick }) {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const goToProfile = () => {
+    setOpen(false);
+    navigate("/userProfile");
+  };
 
   return (
     <div className="relative">
@@ -29,9 +36,15 @@ export default function UserMenu({ username, onLogoutClick }) {
             <li className="px-4 py-2 text-gray-500 dark:text-gray-300 text-sm border-b border-gray-200 dark:border-gray-700">
               Xin chào, <span className="font-semibold">{username}</span>
             </li>
-            <li className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+
+            {/* 🧩 Profile */}
+            <li
+              onClick={goToProfile}
+              className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
               <User size={18} /> Profile
             </li>
+
             <li
               onClick={onLogoutClick}
               className="flex items-center gap-2 px-4 py-2 cursor-pointer hover:bg-red-100 dark:hover:bg-red-600/30 text-red-600 dark:text-red-400"
