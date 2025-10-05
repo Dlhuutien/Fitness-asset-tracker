@@ -12,6 +12,8 @@ import EquipmentGroupPage from "@/pages/equipment/EquipmentGroupPage";
 import EquipmentAddGroupPage from "@/pages/equipment/EquipmentGroupTypePage";
 import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
+import EquipmentProfilePage from "@/pages/equipment/EquipmentProfilePage";
+
 
 // Staff
 import StaffPage from "@/pages/staff/StaffPage";
@@ -64,6 +66,14 @@ const routes = [
         element: (
           <PageTransition>
             <EquipmentListPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/equipment/:id",
+        element: (
+          <PageTransition>
+            <EquipmentProfilePage />
           </PageTransition>
         ),
       },
