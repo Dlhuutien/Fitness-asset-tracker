@@ -3,11 +3,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, UserPlus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import UserService from "@/services/UserService";
 
 export default function AddStaffPage() {
   const [form, setForm] = useState({
     username: "",
-    password: "",
     email: "",
     role: "",
     branch: "",
@@ -17,22 +18,28 @@ export default function AddStaffPage() {
     address: "",
     birthdate: "",
   });
+
   const [expandExtra, setExpandExtra] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async () => {
-    if (!form.username || !form.password || !form.email || !form.role || !form.name) {
-      alert("⚠️ Vui lòng nhập đầy đủ các trường bắt buộc!");
+    setSuccessMsg("");
+    setErrorMsg("");
+
+    if (!form.username || !form.email || !form.role || !form.name) {
+      toast.warning("⚠️ Vui lòng nhập đầy đủ các trường bắt buộc!");
+      setErrorMsg("Vui lòng nhập đầy đủ các trường bắt buộc!");
       return;
     }
 
     const payload = {
       username: form.username,
-      password: form.password,
       email: form.email,
       role: form.role,
       extra: {
@@ -48,28 +55,43 @@ export default function AddStaffPage() {
     try {
       setLoading(true);
       console.log("📤 Body gửi API:", payload);
-      // await UserService.create(payload)
-      alert("✅ Tạo nhân viên thành công (mock demo)");
+
+      const res = await UserService.createUser(payload);
+
+      setSuccessMsg(`✅ ${res.message} (${res.username} - ${res.role})`);
+      toast.success(`✅ ${res.message} (${res.username} - ${res.role})`);
+
+      setForm({
+        username: "",
+        email: "",
+        role: "",
+        branch: "",
+        name: "",
+        gender: "",
+        phone_number: "",
+        address: "",
+        birthdate: "",
+      });
     } catch (err) {
       console.error("❌ Lỗi khi tạo nhân viên:", err);
+      const msg =
+        err.response?.data?.message || err.message || "Không rõ nguyên nhân";
+      setErrorMsg(`❌ Lỗi khi tạo nhân viên: ${msg}`);
+      toast.error(`❌ Lỗi khi tạo nhân viên: ${msg}`);
     } finally {
       setLoading(false);
     }
   };
 
   const roleOptions = [
-    { label: "Người quản trị", value: "super-admin" },
     { label: "Người quản lý", value: "admin" },
     { label: "Nhân viên kỹ thuật", value: "technician" },
     { label: "Nhân viên trực phòng", value: "operator" },
   ];
 
   const branchOptions = [
-    "Chi nhánh Quận 1",
-    "Chi nhánh Quận 3",
-    "Chi nhánh Quận 7",
-    "Chi nhánh Quận 10",
-    "Chi nhánh Gò Vấp",
+    { label: "Fitness X Gym Gò Vấp", value: "GV" },
+    { label: "Fitness X Gym Quận 3", value: "Q3" },
   ];
 
   return (
@@ -78,7 +100,7 @@ export default function AddStaffPage() {
         <UserPlus className="text-emerald-500" /> Thêm nhân viên mới
       </h1>
 
-      {/* CARD 1 - Thông tin cơ bản */}
+      {/* CARD 1 - Thông tin bắt buộc */}
       <div className="bg-white dark:bg-gray-900 border border-emerald-500/40 rounded-2xl shadow p-6 space-y-5">
         <h2 className="text-lg font-semibold text-emerald-600">Thông tin bắt buộc</h2>
 
@@ -87,12 +109,6 @@ export default function AddStaffPage() {
             placeholder="Tên đăng nhập"
             value={form.username}
             onChange={(e) => handleChange("username", e.target.value)}
-          />
-          <Input
-            type="password"
-            placeholder="Mật khẩu"
-            value={form.password}
-            onChange={(e) => handleChange("password", e.target.value)}
           />
           <Input
             placeholder="Email"
@@ -125,8 +141,8 @@ export default function AddStaffPage() {
           >
             <option value="">-- Chọn chi nhánh --</option>
             {branchOptions.map((b) => (
-              <option key={b} value={b}>
-                {b}
+              <option key={b.value} value={b.value}>
+                {b.label}
               </option>
             ))}
           </select>
@@ -187,15 +203,28 @@ export default function AddStaffPage() {
         </AnimatePresence>
       </div>
 
-      {/* Submit */}
-      <div className="flex justify-end">
+      {/* Submit + thông báo */}
+      <div className="flex flex-col items-end space-y-3">
         <Button
           onClick={handleSubmit}
           disabled={loading}
-          className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-cyan-500 hover:to-emerald-500 text-white shadow-md"
+          className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-cyan-500 hover:to-emerald-500 text-white shadow-md flex items-center gap-2"
         >
-          {loading ? <Loader2 className="animate-spin mr-2" /> : "➕ Tạo nhân viên"}
+          {loading && <Loader2 className="animate-spin w-4 h-4" />}
+          {loading ? "Đang tạo..." : "➕ Tạo nhân viên"}
         </Button>
+
+        {/* Thông báo dưới nút */}
+        {successMsg && (
+          <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+            {successMsg}
+          </div>
+        )}
+        {errorMsg && (
+          <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+            {errorMsg}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -21,7 +21,6 @@ import AddStaffPage from "@/pages/staff/AddStaffPage";
 
 // Vendor
 import VendorPage from "@/pages/vendor/VendorPage";
-import VendorAddPage from "@/pages/vendor/VendorAddPage";
 
 // Invoice
 import InvoicePage from "@/pages/invoice/InvoicePage";
@@ -33,6 +32,9 @@ import MaintenanceReadyPage from "@/pages/maintenance/MaintenanceReadyPage";
 
 // Profile user
 import UserProfile from "@/pages/userProfile/UserProfile";
+
+//Branch
+import BranchPage from "@/pages/branch/branchListPage";
 
 const routes = [
   // Auth
@@ -148,11 +150,13 @@ const routes = [
           </PageTransition>
         ),
       },
+
+      // Branch
       {
-        path: "/app/vendor/add",
+        path: "/app/branch",
         element: (
           <PageTransition>
-            <VendorAddPage />
+            <BranchPage />
           </PageTransition>
         ),
       },

@@ -4,6 +4,7 @@ import {
   Dumbbell,
   Users,
   Truck,
+  Building2,
   BarChart3,
   ChevronLeft,
   ChevronRight,
@@ -66,16 +67,21 @@ export default function Sidebar() {
       icon: Truck,
       children: [
         { label: "Danh sách nhà cung cấp", path: "/app/vendor" },
-        { label: "Thêm thông tin NCC", path: "/app/vendor/add" },
+      ],
+    },
+    {
+      key: "branch",
+      label: "Quản lý chi nhánh",
+      icon: Building2,
+      children: [
+        { label: "Danh sách chi nhánh", path: "/app/branch" },
       ],
     },
     {
       key: "invoice",
       label: "Quản lý hóa đơn",
       icon: BarChart3,
-      children: [
-        { label: "Danh sách hóa đơn", path: "/app/invoice" },
-      ],
+      children: [{ label: "Danh sách hóa đơn", path: "/app/invoice" }],
     },
     {
       key: "maintenance",
