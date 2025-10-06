@@ -10,7 +10,8 @@ const UserService = {
    */
   async getAll() {
     const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập hoặc token không hợp lệ");
+    if (!auth?.accessToken)
+      throw new Error("Chưa đăng nhập hoặc token không hợp lệ");
 
     try {
       const res = await axios.get(`${API}user/list-user`, {
@@ -29,8 +30,7 @@ const UserService = {
   },
 
   /**
-   * 🔹 Lấy chi tiết user theo username
-   * (vì dữ liệu trả về đã có đầy đủ attributes, nên lọc local)
+   * Lấy chi tiết user theo username
    */
   async getByUsername(username) {
     try {
@@ -39,6 +39,36 @@ const UserService = {
     } catch (err) {
       console.error("❌ Lỗi khi tìm user theo username:", err);
       throw err;
+    }
+  },
+
+  /**
+   * Admin tạo user mới
+   * POST /user/create
+   * Header: Authorization: Bearer <accessToken>
+   * Body: { username, email, role, extra }
+   */
+  async createUser(data) {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken)
+      throw new Error("Chưa đăng nhập hoặc token không hợp lệ");
+
+    try {
+      const res = await axios.post(`${API}user/create`, data, {
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      // { message: "Admin created user", username: "tech001", role: "technician" }
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi khi tạo user:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
     }
   },
 };
