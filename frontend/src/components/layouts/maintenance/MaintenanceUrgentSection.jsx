@@ -19,7 +19,7 @@ const initialEquipments = Array.from({ length: 10 }).map((_, idx) => ({
   maintenanceHistory: [],
 }));
 
-export default function MaintenanceUrgentPage() {
+export default function MaintenanceUrgentSection() {
   const [equipments, setEquipments] = useState(initialEquipments);
   const [selected, setSelected] = useState(null);
   const [maintenanceSteps, setMaintenanceSteps] = useState({}); // id → step

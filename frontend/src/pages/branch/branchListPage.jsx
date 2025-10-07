@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import PageContainer from "@/components/common/PageContainer";
 import { toast } from "sonner";
+import BranchService from "@/services/branchService";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -54,7 +55,7 @@ export default function BranchListPage() {
     const fetchBranches = async () => {
       try {
         setLoading(true);
-        const data = MOCK_BRANCHES; // sau này thay bằng BranchService.getAll()
+        const data = await BranchService.getAll();
         setBranches(data);
       } catch (err) {
         console.error("❌ Lỗi khi tải chi nhánh:", err);
@@ -91,14 +92,17 @@ export default function BranchListPage() {
 
     try {
       setLoading(true);
-      // await BranchService.update(form.id, form); // thật
-      const updated = branches.map((b) =>
-        b.id === form.id
-          ? { ...b, name: form.name, address: form.address, updated_at: new Date().toISOString() }
-          : b
-      );
-      setBranches(updated);
-      toast.success(`✅ Đã cập nhật chi nhánh "${form.name}"`);
+      const updatedBranch = await BranchService.update(form.id, {
+        name: form.name,
+        address: form.address,
+      });
+      toast.success(`✅ Đã cập nhật chi nhánh "${updatedBranch.name}"`);
+
+      // Cập nhật lại danh sách
+      const data = await BranchService.getAll();
+      setBranches(data);
+
+      // Reset form
       setEditBranch(null);
       setForm({ id: "", name: "", address: "" });
     } catch (err) {
@@ -127,7 +131,9 @@ export default function BranchListPage() {
   );
 
   if (loading && branches.length === 0)
-    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
+    );
   if (errorMsg)
     return <div className="p-4 text-red-500 text-sm">{errorMsg}</div>;
 
@@ -229,13 +235,27 @@ export default function BranchListPage() {
             <Table className="min-w-[800px] border border-gray-200 dark:border-gray-700">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
-                  <TableHead className="border dark:border-gray-600">Mã chi nhánh</TableHead>
-                  <TableHead className="border dark:border-gray-600">Tên chi nhánh</TableHead>
-                  <TableHead className="border dark:border-gray-600">Địa chỉ</TableHead>
-                  <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
-                  <TableHead className="border dark:border-gray-600">Cập nhật gần nhất</TableHead>
-                  <TableHead className="text-center border dark:border-gray-600">Thao tác</TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">
+                    #
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Mã chi nhánh
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Tên chi nhánh
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Địa chỉ
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Ngày tạo
+                  </TableHead>
+                  <TableHead className="border dark:border-gray-600">
+                    Cập nhật gần nhất
+                  </TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">
+                    Thao tác
+                  </TableHead>
                 </TableRow>
               </TableHeader>
 
@@ -251,7 +271,9 @@ export default function BranchListPage() {
                     <TableCell className="border dark:border-gray-600 font-semibold text-emerald-600">
                       {b.id}
                     </TableCell>
-                    <TableCell className="border dark:border-gray-600">{b.name}</TableCell>
+                    <TableCell className="border dark:border-gray-600">
+                      {b.name}
+                    </TableCell>
                     <TableCell className="border dark:border-gray-600">
                       <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                         <MapPin className="w-4 h-4 text-gray-500" />

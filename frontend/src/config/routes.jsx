@@ -27,8 +27,7 @@ import InvoicePage from "@/pages/invoice/InvoicePage";
 import InvoiceAddPage from "@/pages/invoice/InvoiceAddPage";
 
 // Maintenance
-import MaintenanceUrgentPage from "@/pages/maintenance/MaintenanceUrgentPage";
-import MaintenanceReadyPage from "@/pages/maintenance/MaintenanceReadyPage";
+import MaintenancePage from "@/pages/maintenance/MaintenancePage";
 
 // Profile user
 import UserProfile from "@/pages/userProfile/UserProfile";
@@ -182,24 +181,13 @@ const routes = [
       // Maintenance
       {
         path: "/app/maintenance",
-        element: <Navigate to="/app/maintenance/urgent" replace />,
-      },
-      {
-        path: "/app/maintenance/urgent",
         element: (
           <PageTransition>
-            <MaintenanceUrgentPage />
+            <MaintenancePage />
           </PageTransition>
         ),
       },
-      {
-        path: "/app/maintenance/ready",
-        element: (
-          <PageTransition>
-            <MaintenanceReadyPage />
-          </PageTransition>
-        ),
-      },
+
       // User Profile
       {
         path: "/userProfile",

@@ -109,6 +109,8 @@
     - `GET /equipmentUnit` — Lấy danh sách equipment units
     - `GET /equipmentUnit/:id` — Lấy chi tiết equipment unit
     - `GET /equipmentUnit/equipment/:equipment_id` — Lấy tất cả unit theo equipment_id
+    - `GET /equipmentUnit/status/:status` — Lấy tất cả thiết bị có 1 trạng thái cụ thể
+    - `GET /equipmentUnit/status-group?statuses=Ready,Failed` — Lấy thiết bị có nhiều trạng thái
     - `PUT /equipmentUnit/:id` — Cập nhật equipment unit
     - `DELETE /equipmentUnit/:id` — Xóa equipment unit
 
@@ -125,6 +127,7 @@
     - `POST /maintenance` — Tạo yêu cầu bảo trì thiết bị
     - `GET /maintenance` — Lấy danh sách yêu cầu bảo trì
     - `GET /maintenance/:id` — Lấy chi tiết một yêu cầu bảo trì
+    - `GET /maintenance/by-unit/:unitId` — Lấy maintenance hiện hành theo equipment_unit_id
     - `PUT /maintenance/:id/progress` — Bắt đầu bảo trì (In Progress)
     - `PUT /maintenance/:id/complete` — Hoàn tất bảo trì (Ready / Failed)
     - `DELETE /maintenance/:id` — Xóa yêu cầu bảo trì
@@ -2095,6 +2098,100 @@ Response (200):
 ```
 
 ---
+### ### GET `/equipmentUnit/status/:status`
+
+Lọc danh sách **equipment units** theo **trạng thái duy nhất**.
+
+**Ví dụ:**
+
+```bash
+GET /equipmentUnit/status/In%20Progress
+```
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "CAOTMJS-2",
+    "equipment_id": "CAOTMJS",
+    "branch_id": "GV",
+    "status": "In Progress",
+    "description": "Imported via invoice",
+    "updated_at": "2025-09-28T10:58:26.931Z",
+    "equipment": {
+      "id": "CAOTMJS",
+      "name": "Treadmill Pro",
+      "main_name": "Cardio",
+      "vendor_name": "Johnson Fitness",
+      "type_name": "Treadmill"
+    }
+  }
+]
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment Unit not found" }
+```
+
+---
+
+### ### GET `/equipmentUnit/status-group?statuses=Ready,Failed`
+
+Lọc danh sách **equipment units** theo **nhiều trạng thái** cùng lúc.
+
+**Query params:**
+
+* `statuses`: Danh sách trạng thái, cách nhau bằng dấu phẩy (`,`)
+
+**Ví dụ:**
+
+```bash
+GET /equipmentUnit/status-group?statuses=Ready,Failed
+```
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "CAOTMJS-3",
+    "equipment_id": "CAOTMJS",
+    "branch_id": "GV",
+    "status": "Ready",
+    "description": "Bảo trì hoàn tất - chờ duyệt",
+    "equipment": {
+      "id": "CAOTMJS",
+      "name": "Treadmill Pro",
+      "main_name": "Cardio",
+      "vendor_name": "Johnson Fitness"
+    }
+  },
+  {
+    "id": "CAOBIKE-5",
+    "equipment_id": "CAOBIKE",
+    "branch_id": "G3",
+    "status": "Failed",
+    "description": "Lỗi bo mạch chính",
+    "equipment": {
+      "id": "CAOBIKE",
+      "name": "Matrix Bike S300",
+      "main_name": "Cardio",
+      "vendor_name": "Matrix Fitness"
+    }
+  }
+]
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Equipment Unit not found" }
+```
+
+---
 
 ### PUT `/equipmentUnit/:id`
 
@@ -2401,6 +2498,41 @@ Lấy chi tiết một yêu cầu bảo trì.
 
 ```json
 { "error": "Maintenance not found" }
+```
+
+---
+
+### ### GET `/maintenance/by-unit/:unitId`
+
+Lấy **yêu cầu bảo trì** của một `equipment_unit_id`.
+
+**Ví dụ:**
+
+```bash
+GET /maintenance/by-unit/CAOTGMT-2
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "e3c7a23b-1f1c-4a6a-b4ee-8a3517fbd43c",
+  "equipment_unit_id": "CAOTGMT-2",
+  "branch_id": "GV",
+  "user_id": "TECH001",
+  "assigned_by": "ADMIN001",
+  "maintenance_reason": "Lỗi cảm biến tốc độ",
+  "maintenance_detail": null,
+  "start_date": "2025-09-29T07:31:12.713Z",
+  "end_date": null,
+  "warranty": true
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "No active maintenance" }
 ```
 
 ---
