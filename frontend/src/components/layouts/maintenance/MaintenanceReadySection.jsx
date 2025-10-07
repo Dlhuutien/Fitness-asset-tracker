@@ -24,7 +24,7 @@ const initialReadyEquipments = Array.from({ length: 22 }).map((_, idx) => ({
   ],
 }));
 
-export default function MaintenanceReadyPage() {
+export default function MaintenanceReadySection() {
   const [equipments, setEquipments] = useState(initialReadyEquipments);
   const [selected, setSelected] = useState(null);
   const [page, setPage] = useState(1);

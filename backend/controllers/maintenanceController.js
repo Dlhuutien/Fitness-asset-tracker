@@ -28,7 +28,11 @@ const maintenanceController = {
       const recipients = admins.map((u) => u.email);
 
       // 3. Gửi thông báo tạo mới
-      await notificationService.notifyMaintenanceCreated(maintenance, admins, sub);
+      await notificationService.notifyMaintenanceCreated(
+        maintenance,
+        admins,
+        sub
+      );
 
       // 4. Trả response
       res.status(201).json(maintenance);
@@ -55,7 +59,11 @@ const maintenanceController = {
       const recipients = admins.map((u) => u.email);
 
       // 3. Gửi thông báo
-      await notificationService.notifyMaintenanceInProgress(maintenance, admins, sub);
+      await notificationService.notifyMaintenanceInProgress(
+        maintenance,
+        admins,
+        sub
+      );
 
       // 5. Trả response
       res.json(maintenance);
@@ -82,7 +90,11 @@ const maintenanceController = {
       const recipients = admins.map((u) => u.email);
 
       // 3. Gửi thông báo
-      await notificationService.notifyMaintenanceCompleted(maintenance, admins, sub);
+      await notificationService.notifyMaintenanceCompleted(
+        maintenance,
+        admins,
+        sub
+      );
 
       // 5. Trả response về client
       res.json(maintenance);
@@ -115,6 +127,17 @@ const maintenanceController = {
       res.json({ message: "Maintenance deleted successfully" });
     } catch (error) {
       res.status(404).json({ error: error.message });
+    }
+  },
+
+  getByUnitId: async (req, res) => {
+    try {
+      const data = await maintenanceService.getByUnitId(req.params.unitId);
+      if (!data)
+        return res.status(404).json({ error: "No active maintenance" });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   },
 };

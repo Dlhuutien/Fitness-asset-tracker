@@ -21,7 +21,10 @@ const equipmentUnitController = {
 
   updateUnit: async (req, res) => {
     try {
-      const updated = await equipmentUnitService.updateUnit(req.params.id, req.body);
+      const updated = await equipmentUnitService.updateUnit(
+        req.params.id,
+        req.body
+      );
       res.json(updated);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -45,6 +48,34 @@ const equipmentUnitController = {
       res.json(units);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  },
+
+  getByStatus: async (req, res) => {
+    try {
+      const status = req.params.status;
+      const all = await equipmentUnitService.getAllUnits();
+      const filtered = all.filter(
+        (u) => u.status.toLowerCase() === status.toLowerCase()
+      );
+      res.json(filtered);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+  // GET /equipmentUnit/status-group?statuses=Temporary%20Urgent,In%20Progress
+  getByStatusGroup: async (req, res) => {
+    try {
+      const statuses = req.query.statuses
+        ? req.query.statuses.split(",").map((s) => s.trim().toLowerCase())
+        : [];
+      const all = await equipmentUnitService.getAllUnits();
+      const filtered = all.filter((u) =>
+        statuses.includes(u.status.toLowerCase())
+      );
+      res.json(filtered);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   },
 };

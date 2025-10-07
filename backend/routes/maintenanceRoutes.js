@@ -11,6 +11,14 @@ router.post(
   maintenanceController.create
 );
 
+// GET maintenance theo unit ID
+router.get(
+  "/by-unit/:unitId",
+  verifyAccessToken,
+  requireRole("super-admin", "admin", "technician"),
+  maintenanceController.getByUnitId
+);
+
 // GET
 router.get("/", maintenanceController.getAll);
 router.get("/:id", maintenanceController.getById);

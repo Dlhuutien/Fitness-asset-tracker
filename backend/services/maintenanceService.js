@@ -119,6 +119,14 @@ const maintenanceService = {
   delete: async (id) => {
     return await maintenanceRepository.delete(id);
   },
+  
+  getByUnitId: async (equipment_unit_id) => {
+    const all = await maintenanceRepository.findAll();
+    const active = all.find(
+      (m) => m.equipment_unit_id === equipment_unit_id && !m.end_date // nghĩa là chưa hoàn thành
+    );
+    return active || null;
+  },
 };
 
 module.exports = maintenanceService;

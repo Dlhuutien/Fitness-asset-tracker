@@ -50,6 +50,7 @@ export default function Sidebar() {
         { label: "Tạo thông tin thiết bị", path: "/app/equipment/add-group" },
         // { label: "Thêm thẻ kho, thông số", path: "/app/equipment/add-card" },
         { label: "Nhập thiết bị", path: "/app/equipment/import" },
+        { label: "Bảo trì thiết bị", path: "/app/maintenance" },
       ],
     },
     {
@@ -65,32 +66,19 @@ export default function Sidebar() {
       key: "vendor",
       label: "Quản lý thông tin NCC",
       icon: Truck,
-      children: [
-        { label: "Danh sách nhà cung cấp", path: "/app/vendor" },
-      ],
+      path: "/app/vendor",
     },
     {
       key: "branch",
       label: "Quản lý chi nhánh",
       icon: Building2,
-      children: [
-        { label: "Danh sách chi nhánh", path: "/app/branch" },
-      ],
+      path: "/app/branch",
     },
     {
       key: "invoice",
       label: "Quản lý hóa đơn",
       icon: BarChart3,
       children: [{ label: "Danh sách hóa đơn", path: "/app/invoice" }],
-    },
-    {
-      key: "maintenance",
-      label: "Bảo trì thiết bị",
-      icon: FileX,
-      children: [
-        { label: "Các thiết bị cần bảo trì", path: "/app/maintenance/urgent" },
-        { label: "Chờ phê duyệt", path: "/app/maintenance/ready" },
-      ],
     },
   ];
 

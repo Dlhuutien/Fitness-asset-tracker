@@ -20,7 +20,7 @@ const ITEMS_PER_PAGE = 8;
 const STATUS_MAP = {
   active: "Hoạt động",
   inactive: "Ngưng hoạt động",
-  "temporary urgent": "Ngừng khẩn cấp",
+  "temporary urgent": "Ngừng tạm thời",
   "in progress": "Đang bảo trì",
   ready: "Bảo trì thành công",
   failed: "Bảo trì thất bại",
