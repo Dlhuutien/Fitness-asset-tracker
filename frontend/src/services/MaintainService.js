@@ -33,6 +33,26 @@ const MaintainService = {
   },
 
   /**
+   * 🔍 Lấy maintenance hiện hành theo unit ID
+   * GET /maintenance/by-unit/:unitId
+   */
+  async getByUnit(unitId) {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken) throw new Error("⚠️ Chưa đăng nhập!");
+
+    try {
+      const res = await axios.get(`${API}maintenance/by-unit/${unitId}`, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      return res.data;
+    } catch (err) {
+      if (err.response?.status === 404) return null; // không có maintenance đang mở
+      console.error("❌ Lỗi khi lấy maintenance theo unit:", err.response?.data || err.message);
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
    * 🧠 Tạo yêu cầu bảo trì mới
    * POST /maintenance
    * Role: operator, admin, super-admin, technician
@@ -53,11 +73,11 @@ const MaintainService = {
   },
 
   /**
-   * ⚙️ Chuyển yêu cầu sang In Progress
+   * ⚙️ Bắt đầu bảo trì (In Progress)
    * PUT /maintenance/:id/progress
    * Role: admin, super-admin, technician
    */
-  async setInProgress(id) {
+  async progress(id) {
     const auth = AuthService.getAuth();
     if (!auth?.accessToken) throw new Error("⚠️ Chưa đăng nhập!");
 
@@ -73,7 +93,7 @@ const MaintainService = {
   },
 
   /**
-   * ✅ Hoàn tất yêu cầu bảo trì
+   * ✅ Hoàn tất bảo trì
    * PUT /maintenance/:id/complete
    * Role: admin, super-admin, technician
    * @param {Object} data - { maintenance_detail, status, cost }

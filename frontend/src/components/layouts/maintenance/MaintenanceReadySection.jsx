@@ -1,245 +1,437 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import Status from "@/components/common/Status";
+import { Grid, Loader2 } from "lucide-react";
+import EquipmentUnitService from "@/services/equipmentUnitService";
+import MaintainService from "@/services/MaintainService";
+import { toast } from "sonner";
 
-const initialReadyEquipments = Array.from({ length: 22 }).map((_, idx) => ({
-  id: idx + 100,
-  name: `Thiết bị ready ${idx + 1}`,
-  vendor: idx % 2 === 0 ? "Technogym" : "Matrix Fitness",
-  importDate: `2023-0${(idx % 9) + 1}-10`,
-  warrantyExpire: idx % 3 === 0 ? "2025-12-01" : "2023-11-15",
-  // status = kết quả bảo trì
-  status: idx % 2 === 0 ? "Bảo trì thành công" : "Bảo trì thất bại",
-  // workStatus = trạng thái hiển thị trên bảng (ban đầu luôn Đang bảo trì)
-  workStatus: "Đang bảo trì",
-  image: "https://cdn-icons-png.flaticon.com/512/1041/1041883.png",
-  maintenanceHistory: [
-    {
-      dateStart: "2025-09-01",
-      dateEnd: "2025-09-02",
-      technician: `Kỹ thuật viên ${String.fromCharCode(65 + (idx % 5))}`,
-      cost: idx % 2 === 0 ? 0 : 1200000,
-      result: idx % 2 === 0 ? "Bảo trì thành công" : "Bảo trì thất bại",
-    },
-  ],
-}));
+const STATUS_MAP = {
+  active: "Hoạt động",
+  inactive: "Ngưng hoạt động",
+  ready: "Bảo trì thành công",
+  failed: "Bảo trì thất bại",
+  moving: "Đang di chuyển",
+  "in stock": "Thiết bị trong kho",
+  deleted: "Đã xóa",
+};
+
+const ITEMS_PER_PAGE = 8;
 
 export default function MaintenanceReadySection() {
-  const [equipments, setEquipments] = useState(initialReadyEquipments);
+  const [equipments, setEquipments] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const [maintenanceHistory, setMaintenanceHistory] = useState([]);
+  const [search, setSearch] = useState("");
+  const [activeGroup, setActiveGroup] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const [banner, setBanner] = useState(null); // { text, tone: 'green' | 'red' }
+  const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const totalPages = Math.ceil(equipments.length / pageSize) || 1;
-  const pageData = equipments.slice((page - 1) * pageSize, page * pageSize);
+  // 🧭 Load danh sách thiết bị chờ phê duyệt (Ready / Failed)
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const data = await EquipmentUnitService.getByStatusGroup([
+          "Ready",
+          "Failed",
+        ]);
+        setEquipments(data);
+        setFiltered(data);
+      } catch (err) {
+        console.error("❌ Lỗi load thiết bị:", err);
+        toast.error("Không thể tải danh sách thiết bị chờ phê duyệt");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
-  // finalize khi ấn duyệt
-  const finalizeStatus = (finalWorkStatus) => {
-    if (!selected) return;
+  // Lọc & tìm kiếm
+  useEffect(() => {
+    const q = search.trim().toLowerCase();
 
-    setEquipments((prev) =>
-      prev.map((eq) =>
-        eq.id === selected.id ? { ...eq, workStatus: finalWorkStatus } : eq
-      )
-    );
-    setSelected((prev) =>
-      prev ? { ...prev, workStatus: finalWorkStatus } : prev
-    );
+    const f = equipments.filter((u) => {
+      const matchSearch =
+        !q ||
+        u.equipment?.name?.toLowerCase().includes(q) ||
+        u.equipment?.vendor_name?.toLowerCase().includes(q) ||
+        u.equipment?.type_name?.toLowerCase().includes(q);
 
-    if (finalWorkStatus === "Hoạt động") {
-      setBanner({ text: "✅ Thiết bị đã hoạt động", tone: "green" });
-    } else {
-      setBanner({ text: "❌ Thiết bị đã ngưng hoạt động", tone: "red" });
+      if (activeGroup === "all") return matchSearch;
+      return u.equipment?.main_name === activeGroup && matchSearch;
+    });
+
+    setFiltered(f);
+    setCurrentPage(1);
+  }, [search, activeGroup, equipments]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const currentData = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // 🧾 Load lịch sử bảo trì của unit được chọn
+  const loadHistory = async (unitId) => {
+    try {
+      setLoadingHistory(true);
+      const res = await MaintainService.getByUnit(unitId);
+      if (res) setMaintenanceHistory([res]); // có thể là 1 hoặc nhiều record
+      else setMaintenanceHistory([]);
+    } catch (err) {
+      console.error("❌ Lỗi load lịch sử:", err);
+      toast.error("Không thể tải lịch sử bảo trì");
+    } finally {
+      setLoadingHistory(false);
     }
-
-    setTimeout(() => {
-      setEquipments((prev) => {
-        const next = prev.filter((eq) => eq.id !== selected.id);
-        const nextTotal = Math.ceil(next.length / pageSize) || 1;
-        if (page > nextTotal) setPage(nextTotal);
-        return next;
-      });
-      setSelected(null);
-      setTimeout(() => setBanner(null), 1500);
-    }, 1500);
   };
 
+  // 🟢 Phê duyệt trạng thái cuối
+  const finalizeStatus = async (status) => {
+    if (!selected) return;
+    try {
+      setActionLoading(true);
+      await EquipmentUnitService.update(selected.id, { status });
+      toast.success(`✅ Thiết bị đã được cập nhật trạng thái "${status}"`);
+      setSuccessMsg(`Thiết bị đã được chuyển sang trạng thái "${status}"`);
+      setErrorMsg("");
+
+      // Cập nhật UI
+      setEquipments((prev) => prev.filter((eq) => eq.id !== selected.id));
+      setSelected(null);
+    } catch (err) {
+      console.error("❌ Lỗi khi phê duyệt:", err);
+      toast.error("Không thể cập nhật trạng thái thiết bị");
+      setErrorMsg("Không thể cập nhật trạng thái, vui lòng thử lại.");
+      setSuccessMsg("");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="p-6 text-gray-500 dark:text-gray-300 animate-pulse">
+        Đang tải danh sách thiết bị...
+      </div>
+    );
+
   return (
-    <div className="p-6 space-y-6 transition-colors">
-      {/* Bảng danh sách */}
-      <div className="bg-white dark:bg-[#1e1e1e] shadow rounded-xl p-4 transition-colors">
-        <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">
-          Thiết bị chờ phê duyệt
+    <div className="grid grid-cols-12 gap-4">
+      {/* Sidebar bộ lọc */}
+      <div className="col-span-3 space-y-4">
+        <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+          Bộ lọc thiết bị
         </h2>
-        <div className="overflow-x-auto">
-          <table className="w-full border text-sm rounded overflow-hidden dark:border-gray-700">
-            <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
-              <tr>
-                <th className="border p-2">Tên</th>
-                <th className="border p-2">Nhà cung cấp</th>
-                <th className="border p-2">Ngày nhập</th>
-                <th className="border p-2">Trạng thái</th>
-                <th className="border p-2">Kết quả bảo trì</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageData.map((eq) => (
-                <tr
-                  key={eq.id}
-                  className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition ${
-                    selected?.id === eq.id
-                      ? "bg-blue-50 dark:bg-blue-900/30"
-                      : ""
-                  }`}
-                  onClick={() => setSelected(eq)}
-                >
-                  <td className="border p-2">{eq.name}</td>
-                  <td className="border p-2">{eq.vendor}</td>
-                  <td className="border p-2">{eq.importDate}</td>
-                  <td className="border p-2">
-                    <Status status={eq.workStatus} />
-                  </td>
-                  <td className="border p-2">
-                    <Status status={eq.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        {/* Ô tìm kiếm */}
+        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow space-y-2">
+          <h3 className="font-semibold text-sm dark:text-gray-200">Tìm kiếm</h3>
+          <Input
+            placeholder="Tìm tên, loại, nhà cung cấp..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="dark:bg-gray-700 dark:text-gray-100"
+          />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSearch("")}
+              className="dark:border-gray-600 dark:text-gray-200"
+            >
+              Reset
+            </Button>
+            <Button
+              size="sm"
+              className="bg-emerald-500 text-white hover:bg-emerald-600"
+            >
+              Tìm
+            </Button>
+          </div>
         </div>
 
-        {/* Pagination */}
-        <div className="flex justify-center mt-4 gap-2">
-          <Button
-            disabled={page === 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            ⬅
-          </Button>
-          <span className="px-3 py-1 text-sm text-gray-700 dark:text-gray-300">
-            Trang {page}/{totalPages}
-          </span>
-          <Button
-            disabled={page === totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            ➡
-          </Button>
+        {/* Nhóm thiết bị */}
+        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
+            Hiển thị theo nhóm
+          </h3>
+          <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto">
+            {[
+              { id: "all", name: "Tất cả" },
+              ...Array.from(
+                new Set(equipments.map((e) => e.equipment?.main_name))
+              ).map((n) => ({ id: n, name: n })),
+            ].map((g, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveGroup(g.id)}
+                className={`flex items-center gap-3 px-2 py-2 rounded-md border text-sm transition ${
+                  activeGroup === g.id
+                    ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
+                    : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                }`}
+              >
+                <Grid size={16} />
+                <span className="flex-1 truncate">{g.name}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Panel chi tiết */}
-      {selected && (
-        <div
-          className={`grid grid-cols-2 gap-6 border-t-4 rounded-xl shadow bg-white dark:bg-[#1e1e1e] p-6 transition-colors
-            ${
-              selected.status === "Bảo trì thành công"
+      {/* Main content */}
+      <div className="col-span-9 space-y-3">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-600">
+              <TableHeader>
+                <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
+                  <TableHead>#</TableHead>
+                  <TableHead>Mã Unit</TableHead>
+                  <TableHead>Hình ảnh</TableHead>
+                  <TableHead>Tên thiết bị</TableHead>
+                  <TableHead>Nhóm</TableHead>
+                  <TableHead>Loại</TableHead>
+                  <TableHead className="text-center">Kết quả bảo trì</TableHead>
+                  <TableHead>Nhà cung cấp</TableHead>
+                  <TableHead>Chi nhánh</TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {currentData.map((row, idx) => {
+                  const normalized = row.status?.trim().toLowerCase();
+                  const translated = STATUS_MAP[normalized] || row.status;
+                  return (
+                    <TableRow
+                      key={row.id}
+                      className={`cursor-pointer transition ${
+                        selected?.id === row.id
+                          ? "bg-blue-50 dark:bg-blue-900/30"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-700"
+                      }`}
+                      onClick={() => {
+                        setSelected(row);
+                        setSuccessMsg("");
+                        setErrorMsg("");
+                        loadHistory(row.id);
+                      }}
+                    >
+                      <TableCell className="text-center">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                      </TableCell>
+                      <TableCell>{row.id}</TableCell>
+                      <TableCell>
+                        <img
+                          src={row.equipment?.image}
+                          alt={row.equipment?.name}
+                          className="w-12 h-10 object-contain rounded"
+                        />
+                      </TableCell>
+                      <TableCell>{row.equipment?.name}</TableCell>
+                      <TableCell>{row.equipment?.main_name}</TableCell>
+                      <TableCell>{row.equipment?.type_name}</TableCell>
+                      <TableCell className="text-center">
+                        <Status status={translated} />
+                      </TableCell>
+                      <TableCell>{row.equipment?.vendor_name}</TableCell>
+                      <TableCell>{row.branch_id}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
+              Tổng cộng: {filtered.length} thiết bị
+            </div>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                «
+              </Button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <Button
+                  key={i}
+                  size="sm"
+                  variant={currentPage === i + 1 ? "default" : "outline"}
+                  className={`transition-all ${
+                    currentPage === i + 1
+                      ? "bg-emerald-500 text-white font-semibold"
+                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
+                  }`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                »
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Panel chi tiết */}
+        {selected && (
+          <div
+            className={`grid grid-cols-2 gap-6 border-t-4 rounded-xl shadow bg-white dark:bg-[#1e1e1e] p-6 transition-colors ${
+              selected.status === "ready"
                 ? "border-green-500"
                 : "border-rose-500"
             }`}
-        >
-          {/* Chi tiết (trái) */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Chi tiết thiết bị
-            </h2>
-            <div className="flex gap-6">
-              <img
-                src={selected.image}
-                alt={selected.name}
-                className="w-40 h-32 object-contain border rounded-lg"
-              />
-              <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
-                <p>
-                  <strong>Tên:</strong> {selected.name}
-                </p>
-                <p>
-                  <strong>Nhà cung cấp:</strong> {selected.vendor}
-                </p>
-                <p>
-                  <strong>Ngày nhập:</strong> {selected.importDate}
-                </p>
-                <p>
-                  <strong>Bảo hành:</strong> {selected.warrantyExpire}
-                </p>
-                <p>
-                  <strong>Trạng thái:</strong>{" "}
-                  <Status status={selected.workStatus} />
-                </p>
-                <p>
-                  <strong>Kết quả bảo trì:</strong>{" "}
-                  <Status status={selected.status} />
-                </p>
+          >
+            {/* Chi tiết */}
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Chi tiết thiết bị</h2>
+              <div className="flex gap-6">
+                <img
+                  src={selected.equipment?.image}
+                  alt={selected.equipment?.name}
+                  className="w-40 h-32 object-contain border rounded-lg"
+                />
+                <div className="space-y-2 text-sm">
+                  <p>
+                    <strong>Tên:</strong> {selected.equipment?.name}
+                  </p>
+                  <p>
+                    <strong>Nhà cung cấp:</strong>{" "}
+                    {selected.equipment?.vendor_name}
+                  </p>
+                  <p>
+                    <strong>Chi nhánh:</strong> {selected.branch_id}
+                  </p>
+                  <p>
+                    <strong>Trạng thái:</strong>{" "}
+                    <Status status={selected.status} />
+                  </p>
+                </div>
               </div>
             </div>
+
+            {/* Lịch sử bảo trì */}
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Lịch sử bảo trì</h2>
+              {loadingHistory ? (
+                <div className="text-gray-500 animate-pulse">
+                  Đang tải lịch sử...
+                </div>
+              ) : maintenanceHistory.length > 0 ? (
+                <table className="w-full border text-sm dark:border-gray-700">
+                  <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
+                    <tr>
+                      <th className="border p-2">Bắt đầu</th>
+                      <th className="border p-2">Kết thúc</th>
+                      <th className="border p-2">Chi phí</th>
+                      <th className="border p-2">Kết quả</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {maintenanceHistory.map((mh, idx) => (
+                      <tr key={idx}>
+                        <td className="border p-2">
+                          {mh.start_date?.slice(0, 10)}
+                        </td>
+                        <td className="border p-2">
+                          {mh.end_date?.slice(0, 10) || "—"}
+                        </td>
+                        <td className="border p-2">
+                          {mh.cost?.toLocaleString() || 0}đ
+                        </td>
+                        <td className="border p-2">
+                          <Status status={mh.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">
+                  Không có lịch sử bảo trì
+                </p>
+              )}
+
+              {/* Nút phê duyệt */}
+              {selected.status?.toLowerCase() === "ready" && (
+                <Button
+                  onClick={() => finalizeStatus("Active")}
+                  disabled={actionLoading}
+                  className="bg-green-600 text-white w-full mt-4 flex items-center justify-center"
+                >
+                  {actionLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    "Hoạt động thiết bị"
+                  )}
+                </Button>
+              )}
+
+              {selected.status?.toLowerCase() === "failed" && (
+                <Button
+                  onClick={() => finalizeStatus("Inactive")}
+                  disabled={actionLoading}
+                  className="bg-rose-600 text-white w-full mt-4 flex items-center justify-center"
+                >
+                  {actionLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : (
+                    "Ngưng hoạt động máy"
+                  )}
+                </Button>
+              )}
+
+              {/* Thông báo */}
+              {successMsg && (
+                <div className="mt-3 px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+                  {successMsg}
+                </div>
+              )}
+              {errorMsg && (
+                <div className="mt-3 px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+                  {errorMsg}
+                </div>
+              )}
+            </div>
           </div>
-
-          {/* Lịch sử (phải) */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Lịch sử bảo trì
-            </h2>
-            <table className="w-full border text-sm dark:border-gray-700">
-              <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
-                <tr>
-                  <th className="border p-2">Bắt đầu</th>
-                  <th className="border p-2">Kết thúc</th>
-                  <th className="border p-2">Kỹ thuật viên</th>
-                  <th className="border p-2">Chi phí</th>
-                  <th className="border p-2">Kết quả</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selected.maintenanceHistory?.map((mh, idx) => (
-                  <tr key={idx}>
-                    <td className="border p-2">{mh.dateStart}</td>
-                    <td className="border p-2">{mh.dateEnd}</td>
-                    <td className="border p-2">{mh.technician}</td>
-                    <td className="border p-2">{mh.cost.toLocaleString()}đ</td>
-                    <td className="border p-2">
-                      <Status status={mh.result} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* Nút duyệt */}
-            {selected.status === "Bảo trì thành công" && (
-              <Button
-                onClick={() => finalizeStatus("Hoạt động")}
-                className="bg-green-600 text-white w-full mt-4"
-              >
-                Hoạt động thiết bị
-              </Button>
-            )}
-            {selected.status === "Bảo trì thất bại" && (
-              <Button
-                onClick={() => finalizeStatus("Ngưng hoạt động")}
-                className="bg-rose-600 text-white w-full mt-4"
-              >
-                Ngưng hoạt động máy
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Alert Notification */}
-      {banner && (
-        <div
-          className={`fixed bottom-6 right-6 px-5 py-2 rounded-lg shadow-md border animate-fade-in-up text-sm font-semibold
-      ${
-        banner.tone === "green"
-          ? "bg-emerald-100/90 border-emerald-300 text-emerald-700"
-          : "bg-rose-100/90 border-rose-300 text-rose-700"
-      }`}
-        >
-          {banner.text}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
