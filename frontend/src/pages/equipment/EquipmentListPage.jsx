@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -9,14 +9,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Grid } from "lucide-react";
+import { Grid, Settings, Filter } from "lucide-react";
 import Status from "@/components/common/Status";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 import { useNavigate } from "react-router-dom";
 
 const ITEMS_PER_PAGE = 8;
 
-// 🟢 Dịch trạng thái
 const STATUS_MAP = {
   active: "Hoạt động",
   inactive: "Ngưng hoạt động",
@@ -30,29 +29,98 @@ const STATUS_MAP = {
 };
 
 export default function EquipmentListPage() {
+  const navigate = useNavigate();
   const [activeGroup, setActiveGroup] = useState("all");
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
-  const navigate = useNavigate();
-  // SWR fetch — chỉ gọi API 1 lần, tự cache 5 phút
+
+  // ✅ Excel-style filters
+  const [columnFilters, setColumnFilters] = useState({
+    name: [],
+    main: [],
+    type: [],
+    vendor: [],
+    status: [],
+  });
+  const [openFilter, setOpenFilter] = useState(null);
+  const [filterSearch, setFilterSearch] = useState("");
+  const dropdownRef = useRef(null);
+
+  // ✅ Show/Hide columns
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    image: true,
+    name: true,
+    main: true,
+    type: true,
+    status: true,
+    vendor: true,
+    createdAt: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const columnMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
+        setShowColumnMenu(false);
+      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setOpenFilter(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Fetch data
   const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
     useEquipmentData();
-
-  // Kết hợp dữ liệu
   const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
   const units = eqUnits || [];
 
-  // Lọc dữ liệu
+  // ✅ Tạo danh sách giá trị duy nhất cho từng cột
+  const uniqueValues = {
+    name: [...new Set(units.map((u) => u.equipment?.name).filter(Boolean))],
+    main: [...new Set(units.map((u) => u.equipment?.main_name).filter(Boolean))],
+    type: [...new Set(units.map((u) => u.equipment?.type_name).filter(Boolean))],
+    vendor: [
+      ...new Set(units.map((u) => u.equipment?.vendor_name).filter(Boolean)),
+    ],
+    status: [
+      ...new Set(
+        units
+          .map(
+            (u) => STATUS_MAP[u.status?.trim()?.toLowerCase()] || "Không xác định"
+          )
+          .filter(Boolean)
+      ),
+    ],
+  };
+
+  // ✅ Lọc dữ liệu theo các bộ lọc Excel
   const filtered = units.filter((u) => {
-    const q = search.trim().toLowerCase();
-    const matchSearch =
-      !q ||
-      u.equipment?.name?.toLowerCase().includes(q) ||
-      u.equipment?.vendor_name?.toLowerCase().includes(q) ||
-      u.equipment?.type_name?.toLowerCase().includes(q);
-    if (activeGroup === "all") return matchSearch;
-    return u.equipment?.main_name === activeGroup && matchSearch;
+    const matchesSearch =
+      !search ||
+      u.equipment?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.equipment?.vendor_name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.equipment?.type_name?.toLowerCase().includes(search.toLowerCase());
+
+    const matchGroup =
+      activeGroup === "all" || u.equipment?.main_name === activeGroup;
+
+    const matchFilters = Object.keys(columnFilters).every((col) => {
+      const selected = columnFilters[col];
+      if (selected.length === 0) return true;
+      const val =
+        col === "status"
+          ? STATUS_MAP[u.status?.trim()?.toLowerCase()] || "Không xác định"
+          : u.equipment?.[`${col}_name`] || u.equipment?.[col];
+      return selected.includes(val);
+    });
+
+    return matchesSearch && matchGroup && matchFilters;
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
@@ -61,26 +129,30 @@ export default function EquipmentListPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  // Loading state
   if (unitLoading || catLoading)
-    return (
-      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
-    );
+    return <div className="p-4 text-gray-500">Đang tải dữ liệu...</div>;
   if (eqErr || catErr)
-    return (
-      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
-    );
+    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu</div>;
 
-  // ===== UI =====
+  // ✅ Toggle chọn filter
+  const toggleValue = (col, val) => {
+    setColumnFilters((prev) => {
+      const newVals = prev[col].includes(val)
+        ? prev[col].filter((v) => v !== val)
+        : [...prev[col], val];
+      return { ...prev, [col]: newVals };
+    });
+  };
+
   return (
     <div className="grid grid-cols-12 gap-4">
-      {/* Sidebar bộ lọc */}
+      {/* Sidebar */}
       <div className="col-span-3 space-y-4">
         <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
           Danh sách nhóm thiết bị
         </h2>
 
-        {/* Ô tìm kiếm */}
+        {/* Tìm kiếm */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow space-y-2">
           <h3 className="font-semibold text-sm dark:text-gray-200">Tìm kiếm</h3>
           <Input
@@ -96,10 +168,7 @@ export default function EquipmentListPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setSearch("");
-                setCurrentPage(1);
-              }}
+              onClick={() => setSearch("")}
               className="dark:border-gray-600 dark:text-gray-200"
             >
               Reset
@@ -107,30 +176,26 @@ export default function EquipmentListPage() {
             <Button
               size="sm"
               className="bg-emerald-500 text-white hover:bg-emerald-600"
-              onClick={() => setCurrentPage(1)}
             >
               Tìm
             </Button>
           </div>
         </div>
 
-        {/* Nhóm thiết bị */}
+        {/* Nhóm */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow h-[340px] overflow-y-auto">
           <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
             Hiển thị theo nhóm
           </h3>
           <div className="flex flex-col gap-2">
-            {groups.map((g, idx) => (
+            {groups.map((g) => (
               <button
-                key={g.id ?? idx}
-                onClick={() => {
-                  setActiveGroup(g.id === "all" ? "all" : g.name);
-                  setCurrentPage(1);
-                }}
+                key={g.id}
+                onClick={() => setActiveGroup(g.id === "all" ? "all" : g.name)}
                 className={`flex items-center gap-3 px-2 py-2 rounded-md border text-sm transition ${
                   activeGroup === (g.id === "all" ? "all" : g.name)
-                    ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
-                    : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
+                    ? "bg-emerald-100 border-emerald-500 text-emerald-700"
+                    : "bg-white border-gray-200 hover:bg-gray-50"
                 }`}
               >
                 {g.id === "all" ? (
@@ -139,7 +204,7 @@ export default function EquipmentListPage() {
                   <img
                     src={g.image}
                     alt={g.name}
-                    className="w-6 h-6 object-cover rounded-full border border-gray-300 dark:border-gray-500"
+                    className="w-6 h-6 object-cover rounded-full border border-gray-300"
                   />
                 ) : (
                   <Grid size={18} className="text-gray-400" />
@@ -151,154 +216,286 @@ export default function EquipmentListPage() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="col-span-9 space-y-3">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      {/* Main */}
+      <div className="col-span-9 space-y-3 relative">
+        {/* ⚙️ Hiển thị cột */}
+        <div className="flex justify-end" ref={columnMenuRef}>
+          <Button
+            size="icon"
+            onClick={() => setShowColumnMenu(!showColumnMenu)}
+            className="p-2 bg-white border hover:shadow transition"
+          >
+            <Settings size={16} />
+          </Button>
+          {showColumnMenu && (
+            <div className="absolute right-0 mt-2 w-56 bg-white border rounded-md shadow-lg p-3 z-50">
+              <p className="font-semibold text-sm mb-2 text-gray-600">
+                Hiển thị cột
+              </p>
+              {Object.keys(visibleColumns).map((col) => (
+                <label
+                  key={col}
+                  className="flex items-center gap-2 text-sm py-1 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns[col]}
+                    onChange={() =>
+                      setVisibleColumns((prev) => ({
+                        ...prev,
+                        [col]: !prev[col],
+                      }))
+                    }
+                  />
+                  {col === "id"
+                    ? "Mã đơn vị"
+                    : col === "image"
+                    ? "Hình ảnh"
+                    : col === "name"
+                    ? "Tên thiết bị"
+                    : col === "main"
+                    ? "Nhóm"
+                    : col === "type"
+                    ? "Loại"
+                    : col === "status"
+                    ? "Trạng thái"
+                    : col === "vendor"
+                    ? "Nhà cung cấp"
+                    : "Ngày tạo"}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 🧩 Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden relative">
           <div className="overflow-x-auto">
-            <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
+            <Table className="min-w-[1100px] border border-gray-200">
               <TableHeader>
-                <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">
-                    #
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mã đơn vị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Hình ảnh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên thiết bị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhóm
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Loại
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600 text-center">
-                    Trạng thái
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhà cung cấp
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Ngày tạo
-                  </TableHead>
+                <TableRow className="bg-gray-100 text-sm font-semibold">
+                  {visibleColumns.name && (
+                    <TableHead className="relative">
+                      Tên thiết bị
+                      <Filter
+                        size={13}
+                        className="inline ml-1 cursor-pointer text-gray-500 hover:text-emerald-500"
+                        onClick={() =>
+                          setOpenFilter(openFilter === "name" ? null : "name")
+                        }
+                      />
+                      {openFilter === "name" && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute top-8 left-0 bg-white border rounded-md shadow-lg p-2 z-50 w-48"
+                        >
+                          <Input
+                            placeholder="Tìm..."
+                            value={filterSearch}
+                            onChange={(e) => setFilterSearch(e.target.value)}
+                            className="h-7 text-xs mb-2"
+                          />
+                          <div className="max-h-40 overflow-y-auto text-sm">
+                            {uniqueValues.name
+                              .filter((v) =>
+                                v
+                                  ?.toLowerCase()
+                                  .includes(filterSearch.toLowerCase())
+                              )
+                              .map((v) => (
+                                <label
+                                  key={v}
+                                  className="flex items-center gap-2 py-1"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={columnFilters.name.includes(v)}
+                                    onChange={() => toggleValue("name", v)}
+                                  />
+                                  {v}
+                                </label>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.main && (
+                    <TableHead className="relative">
+                      Nhóm
+                      <Filter
+                        size={13}
+                        className="inline ml-1 cursor-pointer text-gray-500 hover:text-emerald-500"
+                        onClick={() =>
+                          setOpenFilter(openFilter === "main" ? null : "main")
+                        }
+                      />
+                      {openFilter === "main" && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute top-8 left-0 bg-white border rounded-md shadow-lg p-2 z-50 w-48"
+                        >
+                          <div className="max-h-40 overflow-y-auto text-sm">
+                            {uniqueValues.main.map((v) => (
+                              <label
+                                key={v}
+                                className="flex items-center gap-2 py-1"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={columnFilters.main.includes(v)}
+                                  onChange={() => toggleValue("main", v)}
+                                />
+                                {v}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.type && (
+                    <TableHead className="relative">
+                      Loại
+                      <Filter
+                        size={13}
+                        className="inline ml-1 cursor-pointer text-gray-500 hover:text-emerald-500"
+                        onClick={() =>
+                          setOpenFilter(openFilter === "type" ? null : "type")
+                        }
+                      />
+                      {openFilter === "type" && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute top-8 left-0 bg-white border rounded-md shadow-lg p-2 z-50 w-48"
+                        >
+                          <div className="max-h-40 overflow-y-auto text-sm">
+                            {uniqueValues.type.map((v) => (
+                              <label
+                                key={v}
+                                className="flex items-center gap-2 py-1"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={columnFilters.type.includes(v)}
+                                  onChange={() => toggleValue("type", v)}
+                                />
+                                {v}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.status && (
+                    <TableHead className="relative text-center">
+                      Trạng thái
+                      <Filter
+                        size={13}
+                        className="inline ml-1 cursor-pointer text-gray-500 hover:text-emerald-500"
+                        onClick={() =>
+                          setOpenFilter(openFilter === "status" ? null : "status")
+                        }
+                      />
+                      {openFilter === "status" && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute top-8 left-0 bg-white border rounded-md shadow-lg p-2 z-50 w-48"
+                        >
+                          <div className="max-h-40 overflow-y-auto text-sm">
+                            {uniqueValues.status.map((v) => (
+                              <label
+                                key={v}
+                                className="flex items-center gap-2 py-1"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={columnFilters.status.includes(v)}
+                                  onChange={() => toggleValue("status", v)}
+                                />
+                                {v}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.vendor && (
+                    <TableHead className="relative">
+                      Nhà cung cấp
+                      <Filter
+                        size={13}
+                        className="inline ml-1 cursor-pointer text-gray-500 hover:text-emerald-500"
+                        onClick={() =>
+                          setOpenFilter(openFilter === "vendor" ? null : "vendor")
+                        }
+                      />
+                      {openFilter === "vendor" && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute top-8 left-0 bg-white border rounded-md shadow-lg p-2 z-50 w-48"
+                        >
+                          <div className="max-h-40 overflow-y-auto text-sm">
+                            {uniqueValues.vendor.map((v) => (
+                              <label
+                                key={v}
+                                className="flex items-center gap-2 py-1"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={columnFilters.vendor.includes(v)}
+                                  onChange={() => toggleValue("vendor", v)}
+                                />
+                                {v}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
 
               <TableBody>
                 {currentData.map((row, idx) => {
-                  const normalized =
-                    typeof row.status === "string"
-                      ? row.status.trim().toLowerCase()
-                      : "unknown";
-                  const translated = STATUS_MAP[normalized] || "Không xác định";
-
+                  const translated =
+                    STATUS_MAP[row.status?.trim()?.toLowerCase()] ||
+                    "Không xác định";
                   return (
                     <TableRow
-                      key={row.id ?? idx}
+                      key={row.id}
                       onClick={() => navigate(`/app/equipment/${row.id}`)}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm transition cursor-pointer"
+                      className="hover:bg-gray-50 text-sm cursor-pointer"
                     >
-                      <TableCell className="text-center">
-                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
-                      </TableCell>
-                      <TableCell>{row.id}</TableCell>
-                      <TableCell>
-                        <img
-                          src={row.equipment?.image}
-                          alt={row.equipment?.name}
-                          className="w-12 h-10 object-contain rounded"
-                        />
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.main_name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.type_name}
-                      </TableCell>
-                      <TableCell className="border text-center dark:border-gray-600">
-                        <Status status={translated} />
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.vendor_name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {new Date(row.created_at).toLocaleString("vi-VN")}
-                      </TableCell>
+                      {visibleColumns.name && (
+                        <TableCell>{row.equipment?.name}</TableCell>
+                      )}
+                      {visibleColumns.main && (
+                        <TableCell>{row.equipment?.main_name}</TableCell>
+                      )}
+                      {visibleColumns.type && (
+                        <TableCell>{row.equipment?.type_name}</TableCell>
+                      )}
+                      {visibleColumns.status && (
+                        <TableCell className="text-center">
+                          <Status status={translated} />
+                        </TableCell>
+                      )}
+                      {visibleColumns.vendor && (
+                        <TableCell>{row.equipment?.vendor_name}</TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
-          </div>
-          {/* Pagination */}
-          <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="dark:text-gray-200">Go to:</span>
-              <input
-                type="number"
-                min={1}
-                max={totalPages}
-                className="w-16 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                value={goToPage}
-                onChange={(e) => setGoToPage(e.target.value)}
-              />
-              <Button
-                size="sm"
-                onClick={() => {
-                  let page = parseInt(goToPage);
-                  if (isNaN(page)) return;
-                  if (page < 1) page = 1;
-                  if (page > totalPages) page = totalPages;
-                  setCurrentPage(page);
-                }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
-              >
-                Go
-              </Button>
-            </div>
-
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                className="dark:border-gray-600 dark:text-gray-200"
-              >
-                «
-              </Button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <Button
-                  key={i}
-                  size="sm"
-                  variant={currentPage === i + 1 ? "default" : "outline"}
-                  className={`transition-all ${
-                    currentPage === i + 1
-                      ? "bg-emerald-500 text-white font-semibold"
-                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
-                  }`}
-                  onClick={() => setCurrentPage(i + 1)}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(p + 1, totalPages))
-                }
-                className="dark:border-gray-600 dark:text-gray-200"
-              >
-                »
-              </Button>
-            </div>
           </div>
         </div>
       </div>
