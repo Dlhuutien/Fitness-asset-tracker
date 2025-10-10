@@ -19,6 +19,11 @@ import {
 import VendorService from "@/services/vendorService";
 import PageContainer from "@/components/common/PageContainer";
 import { toast } from "sonner";
+import {
+  ColumnVisibilityButton,
+  HeaderFilter,
+  getUniqueValues,
+} from "@/components/common/ExcelTableTools";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -38,7 +43,22 @@ export default function VendorPage() {
   });
   const [editMode, setEditMode] = useState(false);
 
-  // 🧩 Fetch dữ liệu vendor
+  // 🔍 Bộ lọc từng cột (Excel Filter)
+  const [selectedId, setSelectedId] = useState([]);
+  const [selectedName, setSelectedName] = useState([]);
+  const [selectedOrigin, setSelectedOrigin] = useState([]);
+  const [selectedDesc, setSelectedDesc] = useState([]);
+
+  // 👁️ Hiển thị cột
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    name: true,
+    origin: true,
+    description: true,
+    action: true,
+  });
+
+  // 🧩 Fetch vendors
   useEffect(() => {
     const fetchVendors = async () => {
       try {
@@ -55,7 +75,7 @@ export default function VendorPage() {
     fetchVendors();
   }, []);
 
-  // 🧮 Lọc và tìm kiếm
+  // 🧮 Filter + search
   const filtered = vendors.filter((v) => {
     const q = search.trim().toLowerCase();
     const matchSearch =
@@ -63,20 +83,39 @@ export default function VendorPage() {
       v.name.toLowerCase().includes(q) ||
       v.id.toLowerCase().includes(q) ||
       (v.description || "").toLowerCase().includes(q);
+
     const matchOrigin =
       filterOrigin === "all" ||
       v.origin.toLowerCase() === filterOrigin.toLowerCase();
-    return matchSearch && matchOrigin;
+
+    const matchHeaderId =
+      selectedId.length === 0 || selectedId.includes(v.id);
+    const matchHeaderName =
+      selectedName.length === 0 || selectedName.includes(v.name);
+    const matchHeaderOrigin =
+      selectedOrigin.length === 0 || selectedOrigin.includes(v.origin);
+    const matchHeaderDesc =
+      selectedDesc.length === 0 ||
+      selectedDesc.includes(v.description || "(Trống)");
+
+    return (
+      matchSearch &&
+      matchOrigin &&
+      matchHeaderId &&
+      matchHeaderName &&
+      matchHeaderOrigin &&
+      matchHeaderDesc
+    );
   });
 
-  // 🔢 Phân trang
+  // 🔢 Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const currentData = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  // 🧱 Form handler
+  // ✏️ Form handlers
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -101,8 +140,6 @@ export default function VendorPage() {
         await VendorService.create(form);
         toast.success(`✅ Đã thêm nhà cung cấp "${form.name}"`);
       }
-
-      // Refresh list
       const data = await VendorService.getAll();
       setVendors(data);
       resetForm();
@@ -129,11 +166,8 @@ export default function VendorPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // ====== Render ======
   if (loading && vendors.length === 0)
-    return (
-      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
-    );
+    return <div className="p-4 text-gray-500 animate-pulse">Đang tải...</div>;
   if (errorMsg)
     return <div className="p-4 text-red-500 text-sm">{errorMsg}</div>;
 
@@ -150,14 +184,14 @@ export default function VendorPage() {
           </p>
         </div>
 
-        {/* Form thêm / cập nhật vendor */}
+        {/* Form */}
         <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow border border-emerald-100 dark:border-gray-700 space-y-4">
           <h2 className="text-lg font-semibold text-emerald-600">
             {editMode ? "✏️ Cập nhật nhà cung cấp" : "➕ Thêm nhà cung cấp mới"}
           </h2>
           <div className="grid md:grid-cols-2 gap-4">
             <Input
-              placeholder="Mã nhà cung cấp (VD: MT)"
+              placeholder="Mã (VD: MT)"
               value={form.id}
               onChange={(e) => handleChange("id", e.target.value.toUpperCase())}
               disabled={editMode}
@@ -166,13 +200,13 @@ export default function VendorPage() {
               }`}
             />
             <Input
-              placeholder="Tên nhà cung cấp (VD: Matrix Fitness)"
+              placeholder="Tên nhà cung cấp"
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
               className="dark:bg-gray-700 dark:text-white"
             />
             <Input
-              placeholder="Quốc gia (VD: VIETNAM, USA...)"
+              placeholder="Quốc gia"
               value={form.origin}
               onChange={(e) =>
                 handleChange("origin", e.target.value.toUpperCase())
@@ -186,12 +220,13 @@ export default function VendorPage() {
               className="dark:bg-gray-700 dark:text-white"
             />
           </div>
-          <div className="flex gap-2 justify-end">
+
+          <div className="flex justify-end gap-2">
             {editMode && (
               <Button
                 variant="outline"
                 onClick={resetForm}
-                className="border-gray-400 dark:border-gray-600 dark:text-gray-200"
+                className="dark:border-gray-600 dark:text-gray-200"
               >
                 Hủy
               </Button>
@@ -218,174 +253,179 @@ export default function VendorPage() {
           </div>
         </div>
 
-        {/* Bộ lọc + tìm kiếm */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-emerald-100 dark:border-gray-700 flex flex-wrap gap-3 items-center">
-          <Input
-            placeholder="🔍 Tìm theo tên, mã hoặc mô tả..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full md:w-1/3 dark:bg-gray-700 dark:text-white"
-          />
-          <select
-            value={filterOrigin}
-            onChange={(e) => {
-              setFilterOrigin(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white"
-          >
-            <option value="all">🌏 Tất cả quốc gia</option>
-            {Array.from(new Set(vendors.map((v) => v.origin))).map((o) => (
-              <option key={o} value={o}>
-                {o}
-              </option>
-            ))}
-          </select>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setSearch("");
-              setFilterOrigin("all");
-            }}
-            className="flex items-center gap-2 dark:border-gray-600"
-          >
-            <RefreshCw className="w-4 h-4" /> Reset
-          </Button>
+        {/* Bộ lọc */}
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-emerald-100 dark:border-gray-700 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-3 items-center">
+            <Input
+              placeholder="🔍 Tìm theo tên, mã hoặc mô tả..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full md:w-1/3 dark:bg-gray-700 dark:text-white"
+            />
+            <select
+              value={filterOrigin}
+              onChange={(e) => {
+                setFilterOrigin(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="border rounded-lg px-3 py-2 dark:bg-gray-700 dark:text-white"
+            >
+              <option value="all">🌏 Tất cả quốc gia</option>
+              {Array.from(new Set(vendors.map((v) => v.origin))).map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setSearch("");
+                setFilterOrigin("all");
+              }}
+              className="flex items-center gap-2 dark:border-gray-600"
+            >
+              <RefreshCw className="w-4 h-4" /> Reset
+            </Button>
+          </div>
+
+          {/* 👁️ Hiển thị cột */}
+          <div className="ml-auto">
+            <ColumnVisibilityButton
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+              labels={{
+                id: "Mã",
+                name: "Tên nhà cung cấp",
+                origin: "Quốc gia",
+                description: "Mô tả",
+                action: "Thao tác",
+              }}
+            />
+          </div>
         </div>
 
         {/* Bảng dữ liệu */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <Table className="min-w-[800px] border border-gray-200 dark:border-gray-700">
+            <Table className="min-w-[900px] border border-gray-200 dark:border-gray-700">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">
-                    #
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mã
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên nhà cung cấp
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Quốc gia
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mô tả
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600 text-center">
-                    Thao tác
-                  </TableHead>
+                  <TableHead>#</TableHead>
+
+                  {visibleColumns.id && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="id"
+                        label="Mã"
+                        values={getUniqueValues(vendors, "id")}
+                        selected={selectedId}
+                        onChange={setSelectedId}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.name && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="name"
+                        label="Tên nhà cung cấp"
+                        values={getUniqueValues(vendors, "name")}
+                        selected={selectedName}
+                        onChange={setSelectedName}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.origin && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="origin"
+                        label="Quốc gia"
+                        values={getUniqueValues(vendors, "origin")}
+                        selected={selectedOrigin}
+                        onChange={setSelectedOrigin}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.description && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="desc"
+                        label="Mô tả"
+                        values={getUniqueValues(vendors, "description")}
+                        selected={selectedDesc}
+                        onChange={setSelectedDesc}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.action && (
+                    <TableHead className="text-center">Thao tác</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {currentData.map((v, idx) => (
-                  <TableRow
-                    key={v.id ?? idx}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
-                  >
-                    <TableCell className="text-center border dark:border-gray-600">
-                      {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600 font-semibold text-emerald-600">
-                      {v.id}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      {v.name}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      <div className="flex items-center gap-2">
-                        <Globe2 className="w-4 h-4 text-gray-500" />
-                        {v.origin}
-                      </div>
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600 text-gray-600 dark:text-gray-300 italic">
-                      {v.description || "-"}
-                    </TableCell>
-                    <TableCell className="border text-center dark:border-gray-600">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(v)}
-                        className="text-xs dark:border-gray-600 dark:text-gray-200"
-                      >
-                        Sửa
-                      </Button>
+                {currentData.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="text-center py-6 text-gray-500 dark:text-gray-400"
+                    >
+                      Không có nhà cung cấp phù hợp.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  currentData.map((v, idx) => (
+                    <TableRow
+                      key={v.id ?? idx}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                    >
+                      <TableCell className="text-center">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                      </TableCell>
+                      {visibleColumns.id && (
+                        <TableCell className="font-semibold text-emerald-600">
+                          {v.id}
+                        </TableCell>
+                      )}
+                      {visibleColumns.name && <TableCell>{v.name}</TableCell>}
+                      {visibleColumns.origin && (
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Globe2 className="w-4 h-4 text-gray-500" />
+                            {v.origin}
+                          </div>
+                        </TableCell>
+                      )}
+                      {visibleColumns.description && (
+                        <TableCell className="text-gray-600 italic">
+                          {v.description || "-"}
+                        </TableCell>
+                      )}
+                      {visibleColumns.action && (
+                        <TableCell className="text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(v)}
+                            className="text-xs dark:border-gray-600 dark:text-gray-200"
+                          >
+                            Sửa
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
-          </div>
-
-          {/* Pagination */}
-          <div className="flex justify-between items-center border-t dark:border-gray-700 px-4 py-2 bg-gray-50 dark:bg-gray-700">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="dark:text-gray-200">Go to:</span>
-              <input
-                type="number"
-                min={1}
-                max={totalPages}
-                className="w-16 px-2 py-1 border rounded text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
-                value={goToPage}
-                onChange={(e) => setGoToPage(e.target.value)}
-              />
-              <Button
-                size="sm"
-                onClick={() => {
-                  let page = parseInt(goToPage);
-                  if (isNaN(page)) return;
-                  if (page < 1) page = 1;
-                  if (page > totalPages) page = totalPages;
-                  setCurrentPage(page);
-                }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
-              >
-                Go
-              </Button>
-            </div>
-
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                className="dark:border-gray-600 dark:text-gray-200"
-              >
-                «
-              </Button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <Button
-                  key={i}
-                  size="sm"
-                  variant={currentPage === i + 1 ? "default" : "outline"}
-                  className={`transition-all ${
-                    currentPage === i + 1
-                      ? "bg-emerald-500 text-white font-semibold"
-                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
-                  }`}
-                  onClick={() => setCurrentPage(i + 1)}
-                >
-                  {i + 1}
-                </Button>
-              ))}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(p + 1, totalPages))
-                }
-                className="dark:border-gray-600 dark:text-gray-200"
-              >
-                »
-              </Button>
-            </div>
           </div>
         </div>
       </div>
