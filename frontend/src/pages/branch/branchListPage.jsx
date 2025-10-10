@@ -12,33 +12,19 @@ import {
 import {
   Building2,
   MapPin,
-  CalendarClock,
   RefreshCw,
   CheckCircle2,
 } from "lucide-react";
 import PageContainer from "@/components/common/PageContainer";
 import { toast } from "sonner";
 import BranchService from "@/services/branchService";
+import {
+  ColumnVisibilityButton,
+  HeaderFilter,
+  getUniqueValues,
+} from "@/components/common/ExcelTableTools";
 
 const ITEMS_PER_PAGE = 6;
-
-// 🔧 Mock data (sau này thay bằng BranchService)
-const MOCK_BRANCHES = [
-  {
-    updated_at: "2025-09-19T05:55:23.566Z",
-    created_at: "2025-09-19T05:55:23.566Z",
-    address: "364, Dương Quảng Hàm, Gò Vấp, HCM",
-    id: "GV",
-    name: "Fitness X Gym GV",
-  },
-  {
-    updated_at: "2025-09-21T11:37:40.116Z",
-    created_at: "2025-09-20T07:40:26.337Z",
-    address: "Lê Văn Sĩ, Q3, HCM",
-    id: "Q3",
-    name: "Fitness X Gym Q3",
-  },
-];
 
 export default function BranchListPage() {
   const [branches, setBranches] = useState([]);
@@ -50,7 +36,23 @@ export default function BranchListPage() {
   const [editBranch, setEditBranch] = useState(null);
   const [form, setForm] = useState({ id: "", name: "", address: "" });
 
-  // 🧭 Giả lập fetch API
+  // 🧩 Excel Filters
+  const [selectedId, setSelectedId] = useState([]);
+  const [selectedName, setSelectedName] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState([]);
+  const [selectedCreated, setSelectedCreated] = useState([]);
+  const [selectedUpdated, setSelectedUpdated] = useState([]);
+
+  // 👁️ Column visibility
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    name: true,
+    address: true,
+    created: true,
+    updated: true,
+    action: true,
+  });
+
   useEffect(() => {
     const fetchBranches = async () => {
       try {
@@ -67,7 +69,6 @@ export default function BranchListPage() {
     fetchBranches();
   }, []);
 
-  // 🧩 Chọn chi nhánh để sửa
   const handleEdit = (branch) => {
     setEditBranch(branch);
     setForm({
@@ -78,12 +79,10 @@ export default function BranchListPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // 🧱 Cập nhật giá trị form
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // 💾 Giả lập cập nhật chi nhánh
   const handleUpdate = async () => {
     if (!form.name || !form.address) {
       toast.warning("⚠️ Vui lòng nhập đủ tên và địa chỉ!");
@@ -98,11 +97,8 @@ export default function BranchListPage() {
       });
       toast.success(`✅ Đã cập nhật chi nhánh "${updatedBranch.name}"`);
 
-      // Cập nhật lại danh sách
       const data = await BranchService.getAll();
       setBranches(data);
-
-      // Reset form
       setEditBranch(null);
       setForm({ id: "", name: "", address: "" });
     } catch (err) {
@@ -112,18 +108,40 @@ export default function BranchListPage() {
     }
   };
 
-  // 🧮 Tìm kiếm
+  // 🧮 Filter logic
   const filtered = branches.filter((b) => {
     const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return (
+    const matchSearch =
+      !q ||
       b.name.toLowerCase().includes(q) ||
       b.id.toLowerCase().includes(q) ||
-      (b.address || "").toLowerCase().includes(q)
+      (b.address || "").toLowerCase().includes(q);
+
+    const matchId = selectedId.length === 0 || selectedId.includes(b.id);
+    const matchName = selectedName.length === 0 || selectedName.includes(b.name);
+    const matchAddress =
+      selectedAddress.length === 0 || selectedAddress.includes(b.address);
+    const matchCreated =
+      selectedCreated.length === 0 ||
+      selectedCreated.includes(
+        new Date(b.created_at).toLocaleDateString("vi-VN")
+      );
+    const matchUpdated =
+      selectedUpdated.length === 0 ||
+      selectedUpdated.includes(
+        new Date(b.updated_at).toLocaleDateString("vi-VN")
+      );
+
+    return (
+      matchSearch &&
+      matchId &&
+      matchName &&
+      matchAddress &&
+      matchCreated &&
+      matchUpdated
     );
   });
 
-  // 🔢 Phân trang
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const currentData = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -205,99 +223,184 @@ export default function BranchListPage() {
           </div>
         )}
 
-        {/* Thanh tìm kiếm */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-emerald-100 dark:border-gray-700 flex flex-wrap gap-3 items-center">
-          <Input
-            placeholder="🔍 Tìm theo tên, mã hoặc địa chỉ..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
+        {/* Thanh tìm kiếm + Hiển thị cột */}
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-emerald-100 dark:border-gray-700 flex flex-wrap justify-between items-center gap-3">
+          <div className="flex flex-wrap gap-3 items-center">
+            <Input
+              placeholder="🔍 Tìm theo tên, mã hoặc địa chỉ..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full md:w-1/3 dark:bg-gray-700 dark:text-white"
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setSearch("");
+                setCurrentPage(1);
+              }}
+              className="flex items-center gap-2 dark:border-gray-600"
+            >
+              <RefreshCw className="w-4 h-4" /> Reset
+            </Button>
+          </div>
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              id: "Mã chi nhánh",
+              name: "Tên chi nhánh",
+              address: "Địa chỉ",
+              created: "Ngày tạo",
+              updated: "Cập nhật gần nhất",
+              action: "Thao tác",
             }}
-            className="w-full md:w-1/3 dark:bg-gray-700 dark:text-white"
           />
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setSearch("");
-              setCurrentPage(1);
-            }}
-            className="flex items-center gap-2 dark:border-gray-600"
-          >
-            <RefreshCw className="w-4 h-4" /> Reset
-          </Button>
         </div>
 
         {/* Bảng dữ liệu */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <Table className="min-w-[800px] border border-gray-200 dark:border-gray-700">
+            <Table className="min-w-[900px] border border-gray-200 dark:border-gray-700">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">
-                    #
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mã chi nhánh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên chi nhánh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Địa chỉ
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Ngày tạo
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Cập nhật gần nhất
-                  </TableHead>
-                  <TableHead className="text-center border dark:border-gray-600">
-                    Thao tác
-                  </TableHead>
+                  <TableHead>#</TableHead>
+
+                  {visibleColumns.id && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="id"
+                        label="Mã chi nhánh"
+                        values={getUniqueValues(branches, "id")}
+                        selected={selectedId}
+                        onChange={setSelectedId}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.name && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="name"
+                        label="Tên chi nhánh"
+                        values={getUniqueValues(branches, "name")}
+                        selected={selectedName}
+                        onChange={setSelectedName}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.address && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="address"
+                        label="Địa chỉ"
+                        values={getUniqueValues(branches, "address")}
+                        selected={selectedAddress}
+                        onChange={setSelectedAddress}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.created && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="created"
+                        label="Ngày tạo"
+                        values={getUniqueValues(
+                          branches,
+                          (b) =>
+                            new Date(b.created_at).toLocaleDateString("vi-VN")
+                        )}
+                        selected={selectedCreated}
+                        onChange={setSelectedCreated}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.updated && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="updated"
+                        label="Cập nhật gần nhất"
+                        values={getUniqueValues(
+                          branches,
+                          (b) =>
+                            new Date(b.updated_at).toLocaleDateString("vi-VN")
+                        )}
+                        selected={selectedUpdated}
+                        onChange={setSelectedUpdated}
+                      />
+                    </TableHead>
+                  )}
+
+                  {visibleColumns.action && (
+                    <TableHead className="text-center">Thao tác</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {currentData.map((b, idx) => (
-                  <TableRow
-                    key={b.id ?? idx}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
-                  >
-                    <TableCell className="text-center border dark:border-gray-600">
-                      {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600 font-semibold text-emerald-600">
-                      {b.id}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      {b.name}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600">
-                      <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                        <MapPin className="w-4 h-4 text-gray-500" />
-                        {b.address}
-                      </div>
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600 text-gray-600 dark:text-gray-300">
-                      {new Date(b.created_at).toLocaleDateString("vi-VN")}
-                    </TableCell>
-                    <TableCell className="border dark:border-gray-600 text-gray-600 dark:text-gray-300">
-                      {new Date(b.updated_at).toLocaleDateString("vi-VN")}
-                    </TableCell>
-                    <TableCell className="border text-center dark:border-gray-600">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(b)}
-                        className="text-xs dark:border-gray-600 dark:text-gray-200"
-                      >
-                        Sửa
-                      </Button>
+                {currentData.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className="text-center py-6 text-gray-500 dark:text-gray-400"
+                    >
+                      Không có chi nhánh nào phù hợp.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  currentData.map((b, idx) => (
+                    <TableRow
+                      key={b.id ?? idx}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                    >
+                      <TableCell className="text-center">
+                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                      </TableCell>
+                      {visibleColumns.id && (
+                        <TableCell className="font-semibold text-emerald-600">
+                          {b.id}
+                        </TableCell>
+                      )}
+                      {visibleColumns.name && <TableCell>{b.name}</TableCell>}
+                      {visibleColumns.address && (
+                        <TableCell>
+                          <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                            <MapPin className="w-4 h-4 text-gray-500" />
+                            {b.address}
+                          </div>
+                        </TableCell>
+                      )}
+                      {visibleColumns.created && (
+                        <TableCell className="text-gray-600 dark:text-gray-300">
+                          {new Date(b.created_at).toLocaleDateString("vi-VN")}
+                        </TableCell>
+                      )}
+                      {visibleColumns.updated && (
+                        <TableCell className="text-gray-600 dark:text-gray-300">
+                          {new Date(b.updated_at).toLocaleDateString("vi-VN")}
+                        </TableCell>
+                      )}
+                      {visibleColumns.action && (
+                        <TableCell className="text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(b)}
+                            className="text-xs dark:border-gray-600 dark:text-gray-200"
+                          >
+                            Sửa
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
