@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Grid } from "lucide-react";
+import { Grid, Filter, Settings, X } from "lucide-react";
 import Status from "@/components/common/Status";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 import { useNavigate } from "react-router-dom";
@@ -35,41 +35,182 @@ export default function EquipmentListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
   const navigate = useNavigate();
-  // SWR fetch — chỉ gọi API 1 lần, tự cache 5 phút
-  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
-    useEquipmentData();
 
-  // Kết hợp dữ liệu
+  // ==== Column visibility ====
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    image: true,
+    name: true,
+    main: true,
+    type: true,
+    status: true,
+    vendor: true,
+    created_at: true,
+  });
+  const [showColumnMenu, setShowColumnMenu] = useState(false);
+  const columnMenuRef = useRef(null);
+
+  // ==== Excel-like filter ====
+  const [openFilter, setOpenFilter] = useState(null);
+  const [filterSearch, setFilterSearch] = useState("");
+  const [filters, setFilters] = useState({
+    name: [],
+    main: [],
+    type: [],
+    status: [],
+    vendor: [],
+  });
+  const filterRef = useRef(null);
+
+  // ==== Data ====
+  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } = useEquipmentData();
   const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
   const units = eqUnits || [];
 
-  // Lọc dữ liệu
-  const filtered = units.filter((u) => {
+  // ==== Click ngoài để đóng menu ====
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
+        setShowColumnMenu(false);
+      }
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setOpenFilter(null);
+        setFilterSearch("");
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // ==== Unique values per column ====
+  const uniqueValues = useMemo(() => {
+    const names = new Set();
+    const mains = new Set();
+    const types = new Set();
+    const vendors = new Set();
+    const statuses = new Set();
+    for (const u of units) {
+      if (u.equipment?.name) names.add(u.equipment.name);
+      if (u.equipment?.main_name) mains.add(u.equipment.main_name);
+      if (u.equipment?.type_name) types.add(u.equipment.type_name);
+      if (u.equipment?.vendor_name) vendors.add(u.equipment.vendor_name);
+      statuses.add(STATUS_MAP[u.status?.trim()?.toLowerCase()] || "Không xác định");
+    }
+    const toSorted = (s) => Array.from(s).sort((a, b) => a.localeCompare(b, "vi"));
+    return {
+      name: toSorted(names),
+      main: toSorted(mains),
+      type: toSorted(types),
+      vendor: toSorted(vendors),
+      status: toSorted(statuses),
+    };
+  }, [units]);
+
+  // ==== Filter logic ====
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const matchSearch =
-      !q ||
-      u.equipment?.name?.toLowerCase().includes(q) ||
-      u.equipment?.vendor_name?.toLowerCase().includes(q) ||
-      u.equipment?.type_name?.toLowerCase().includes(q);
-    if (activeGroup === "all") return matchSearch;
-    return u.equipment?.main_name === activeGroup && matchSearch;
-  });
+    return units.filter((u) => {
+      const matchSearch =
+        !q ||
+        u.equipment?.name?.toLowerCase().includes(q) ||
+        u.equipment?.vendor_name?.toLowerCase().includes(q) ||
+        u.equipment?.type_name?.toLowerCase().includes(q);
+
+      const matchGroup = activeGroup === "all" || u.equipment?.main_name === activeGroup;
+
+      const nameOK =
+        filters.name.length === 0 ||
+        filters.name.includes(u.equipment?.name);
+      const mainOK =
+        filters.main.length === 0 ||
+        filters.main.includes(u.equipment?.main_name);
+      const typeOK =
+        filters.type.length === 0 ||
+        filters.type.includes(u.equipment?.type_name);
+      const statusVN = STATUS_MAP[u.status?.trim()?.toLowerCase()] || "Không xác định";
+      const statusOK =
+        filters.status.length === 0 || filters.status.includes(statusVN);
+      const vendorOK =
+        filters.vendor.length === 0 ||
+        filters.vendor.includes(u.equipment?.vendor_name);
+
+      return matchSearch && matchGroup && nameOK && mainOK && typeOK && statusOK && vendorOK;
+    });
+  }, [units, search, activeGroup, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const currentData = filtered.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+  const currentData = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // Loading state
+  // ==== Toggle filter value ====
+  const toggleFilterValue = (col, val) => {
+    setFilters((prev) => {
+      const has = prev[col].includes(val);
+      const next = has ? prev[col].filter((v) => v !== val) : [...prev[col], val];
+      return { ...prev, [col]: next };
+    });
+  };
+
+  // ==== Render filter dropdown ====
+  const renderFilter = (col, label) => {
+    const list = uniqueValues[col] || [];
+    const filteredList = list.filter((v) =>
+      v?.toLowerCase().includes(filterSearch.toLowerCase())
+    );
+    return (
+      openFilter === col && (
+        <div
+          ref={filterRef}
+          className="absolute z-50 top-[2rem] left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg w-56 p-2"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Input
+              placeholder={`Tìm ${label.toLowerCase()}...`}
+              value={filterSearch}
+              onChange={(e) => setFilterSearch(e.target.value)}
+              className="h-8 text-xs dark:bg-gray-700 dark:text-gray-100"
+            />
+            <button
+              onClick={() => {
+                setFilters((prev) => ({ ...prev, [col]: [] }));
+                setFilterSearch("");
+                setOpenFilter(null);
+              }}
+              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
+              title="Xóa bộ lọc"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="max-h-48 overflow-y-auto text-sm pr-1">
+            {filteredList.length === 0 ? (
+              <div className="text-xs text-gray-500 px-1 py-2">
+                Không có giá trị phù hợp
+              </div>
+            ) : (
+              filteredList.map((v) => (
+                <label
+                  key={v}
+                  className="flex items-center gap-2 py-1 px-1 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters[col].includes(v)}
+                    onChange={() => toggleFilterValue(col, v)}
+                  />
+                  <span className="truncate">{v}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </div>
+      )
+    );
+  };
+
   if (unitLoading || catLoading)
-    return (
-      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
-    );
+    return <div className="p-4 text-gray-500 animate-pulse">Đang tải dữ liệu...</div>;
   if (eqErr || catErr)
-    return (
-      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
-    );
+    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
 
   // ===== UI =====
   return (
@@ -153,6 +294,46 @@ export default function EquipmentListPage() {
 
       {/* Main content */}
       <div className="col-span-9 space-y-3">
+        {/* Hiển thị cột */}
+        <div className="flex justify-end relative" ref={columnMenuRef}>
+          <Button
+            size="icon"
+            onClick={() => setShowColumnMenu((s) => !s)}
+            className="p-2 bg-white border hover:shadow transition dark:bg-gray-800 dark:border-gray-600"
+            title="Hiển thị cột"
+          >
+            <Settings size={16} />
+          </Button>
+          {showColumnMenu && (
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg p-3 z-50">
+              <p className="font-semibold text-sm mb-2 text-gray-600 dark:text-gray-300">
+                Hiển thị cột
+              </p>
+              {Object.entries({
+                id: "Mã đơn vị",
+                image: "Hình ảnh",
+                name: "Tên thiết bị",
+                main: "Nhóm",
+                type: "Loại",
+                status: "Trạng thái",
+                vendor: "Nhà cung cấp",
+                created_at: "Ngày tạo",
+              }).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2 text-sm py-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns[key]}
+                    onChange={() =>
+                      setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }))
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
@@ -161,41 +342,104 @@ export default function EquipmentListPage() {
                   <TableHead className="text-center border dark:border-gray-600">
                     #
                   </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Mã đơn vị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Hình ảnh
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Tên thiết bị
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhóm
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Loại
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600 text-center">
-                    Trạng thái
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Nhà cung cấp
-                  </TableHead>
-                  <TableHead className="border dark:border-gray-600">
-                    Ngày tạo
-                  </TableHead>
+                  {visibleColumns.id && (
+                    <TableHead className="border dark:border-gray-600">
+                      Mã đơn vị
+                    </TableHead>
+                  )}
+                  {visibleColumns.image && (
+                    <TableHead className="border dark:border-gray-600">
+                      Hình ảnh
+                    </TableHead>
+                  )}
+                  {visibleColumns.name && (
+                    <TableHead className="border dark:border-gray-600 relative">
+                      <div className="flex items-center gap-1">
+                        <span>Tên thiết bị</span>
+                        <Filter
+                          size={14}
+                          className="cursor-pointer text-gray-500 hover:text-emerald-600"
+                          onClick={() =>
+                            setOpenFilter((p) => (p === "name" ? null : "name"))
+                          }
+                        />
+                      </div>
+                      {renderFilter("name", "tên thiết bị")}
+                    </TableHead>
+                  )}
+                  {visibleColumns.main && (
+                    <TableHead className="border dark:border-gray-600 relative">
+                      <div className="flex items-center gap-1">
+                        <span>Nhóm</span>
+                        <Filter
+                          size={14}
+                          className="cursor-pointer text-gray-500 hover:text-emerald-600"
+                          onClick={() =>
+                            setOpenFilter((p) => (p === "main" ? null : "main"))
+                          }
+                        />
+                      </div>
+                      {renderFilter("main", "nhóm")}
+                    </TableHead>
+                  )}
+                  {visibleColumns.type && (
+                    <TableHead className="border dark:border-gray-600 relative">
+                      <div className="flex items-center gap-1">
+                        <span>Loại</span>
+                        <Filter
+                          size={14}
+                          className="cursor-pointer text-gray-500 hover:text-emerald-600"
+                          onClick={() =>
+                            setOpenFilter((p) => (p === "type" ? null : "type"))
+                          }
+                        />
+                      </div>
+                      {renderFilter("type", "loại")}
+                    </TableHead>
+                  )}
+                  {visibleColumns.status && (
+                    <TableHead className="border text-center dark:border-gray-600 relative">
+                      <div className="flex justify-center items-center gap-1">
+                        <span>Trạng thái</span>
+                        <Filter
+                          size={14}
+                          className="cursor-pointer text-gray-500 hover:text-emerald-600"
+                          onClick={() =>
+                            setOpenFilter((p) => (p === "status" ? null : "status"))
+                          }
+                        />
+                      </div>
+                      {renderFilter("status", "trạng thái")}
+                    </TableHead>
+                  )}
+                  {visibleColumns.vendor && (
+                    <TableHead className="border dark:border-gray-600 relative">
+                      <div className="flex items-center gap-1">
+                        <span>Nhà cung cấp</span>
+                        <Filter
+                          size={14}
+                          className="cursor-pointer text-gray-500 hover:text-emerald-600"
+                          onClick={() =>
+                            setOpenFilter((p) => (p === "vendor" ? null : "vendor"))
+                          }
+                        />
+                      </div>
+                      {renderFilter("vendor", "nhà cung cấp")}
+                    </TableHead>
+                  )}
+                  {visibleColumns.created_at && (
+                    <TableHead className="border dark:border-gray-600">
+                      Ngày tạo
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
 
               <TableBody>
                 {currentData.map((row, idx) => {
-                  const normalized =
-                    typeof row.status === "string"
-                      ? row.status.trim().toLowerCase()
-                      : "unknown";
-                  const translated = STATUS_MAP[normalized] || "Không xác định";
-
+                  const translated =
+                    STATUS_MAP[row.status?.trim()?.toLowerCase()] ||
+                    "Không xác định";
                   return (
                     <TableRow
                       key={row.id ?? idx}
@@ -205,38 +449,45 @@ export default function EquipmentListPage() {
                       <TableCell className="text-center">
                         {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                       </TableCell>
-                      <TableCell>{row.id}</TableCell>
-                      <TableCell>
-                        <img
-                          src={row.equipment?.image}
-                          alt={row.equipment?.name}
-                          className="w-12 h-10 object-contain rounded"
-                        />
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.main_name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.type_name}
-                      </TableCell>
-                      <TableCell className="border text-center dark:border-gray-600">
-                        <Status status={translated} />
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {row.equipment?.vendor_name}
-                      </TableCell>
-                      <TableCell className="border dark:border-gray-600">
-                        {new Date(row.created_at).toLocaleString("vi-VN")}
-                      </TableCell>
+                      {visibleColumns.id && <TableCell>{row.id}</TableCell>}
+                      {visibleColumns.image && (
+                        <TableCell>
+                          <img
+                            src={row.equipment?.image}
+                            alt={row.equipment?.name}
+                            className="w-12 h-10 object-contain rounded"
+                          />
+                        </TableCell>
+                      )}
+                      {visibleColumns.name && (
+                        <TableCell>{row.equipment?.name}</TableCell>
+                      )}
+                      {visibleColumns.main && (
+                        <TableCell>{row.equipment?.main_name}</TableCell>
+                      )}
+                      {visibleColumns.type && (
+                        <TableCell>{row.equipment?.type_name}</TableCell>
+                      )}
+                      {visibleColumns.status && (
+                        <TableCell className="text-center">
+                          <Status status={translated} />
+                        </TableCell>
+                      )}
+                      {visibleColumns.vendor && (
+                        <TableCell>{row.equipment?.vendor_name}</TableCell>
+                      )}
+                      {visibleColumns.created_at && (
+                        <TableCell>
+                          {new Date(row.created_at).toLocaleString("vi-VN")}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
           </div>
+
           {/* Pagination */}
           <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
             <div className="flex items-center gap-2 text-sm">
