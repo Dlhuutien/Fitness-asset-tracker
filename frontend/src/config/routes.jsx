@@ -35,6 +35,8 @@ import UserProfile from "@/pages/userProfile/UserProfile";
 //Branch
 import BranchPage from "@/pages/branch/branchListPage";
 
+import NotificationScreen from "@/pages/NotificationScreen";
+
 const routes = [
   // Auth
   {
@@ -192,6 +194,15 @@ const routes = [
       {
         path: "/userProfile",
         element: <UserProfile />,
+      },
+
+      {
+        path: "/notifications",
+        element: (
+          <PageTransition>
+            <NotificationScreen />
+          </PageTransition>
+        ),
       },
     ],
   },
