@@ -13,7 +13,10 @@ const MaintainService = {
       const res = await axios.get(`${API}maintenance`);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lấy danh sách maintenance:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy danh sách maintenance:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -27,7 +30,10 @@ const MaintainService = {
       const res = await axios.get(`${API}maintenance/${id}`);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lấy chi tiết maintenance:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy chi tiết maintenance:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -47,7 +53,10 @@ const MaintainService = {
       return res.data;
     } catch (err) {
       if (err.response?.status === 404) return null; // không có maintenance đang mở
-      console.error("❌ Lỗi khi lấy maintenance theo unit:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy maintenance theo unit:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -67,7 +76,10 @@ const MaintainService = {
       });
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi tạo yêu cầu bảo trì:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi tạo yêu cầu bảo trì:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -82,12 +94,19 @@ const MaintainService = {
     if (!auth?.accessToken) throw new Error("⚠️ Chưa đăng nhập!");
 
     try {
-      const res = await axios.put(`${API}maintenance/${id}/progress`, {}, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.put(
+        `${API}maintenance/${id}/progress`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+        }
+      );
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi cập nhật trạng thái In Progress:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi cập nhật trạng thái In Progress:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -108,7 +127,58 @@ const MaintainService = {
       });
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi hoàn tất bảo trì:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi hoàn tất bảo trì:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * 🧾 Lấy toàn bộ lịch sử bảo trì (bao gồm hóa đơn)
+   * GET /maintenance/history/:unitId
+   */
+  async getFullHistory(unitId) {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken) throw new Error("⚠️ Chưa đăng nhập!");
+
+    try {
+      const res = await axios.get(`${API}maintenance/history/${unitId}`, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi khi lấy lịch sử bảo trì:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * 🕐 Lấy lịch sử bảo trì gần nhất
+   * GET /maintenance/history/:unitId/latest
+   */
+  async getLatestHistory(unitId) {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken) throw new Error("⚠️ Chưa đăng nhập!");
+
+    try {
+      const res = await axios.get(
+        `${API}maintenance/history/${unitId}/latest`,
+        {
+          headers: { Authorization: `Bearer ${auth.accessToken}` },
+        }
+      );
+      return res.data;
+    } catch (err) {
+      if (err.response?.status === 404) return null;
+      console.error(
+        "❌ Lỗi khi lấy lịch sử bảo trì gần nhất:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },

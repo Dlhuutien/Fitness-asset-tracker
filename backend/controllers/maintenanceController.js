@@ -140,6 +140,35 @@ const maintenanceController = {
       res.status(500).json({ error: error.message });
     }
   },
+
+  // GET /maintenance/history/:unitId
+  getFullHistoryByUnit: async (req, res) => {
+    try {
+      const data = await maintenanceService.getFullHistoryByUnit(
+        req.params.unitId
+      );
+      if (!data.length)
+        return res.status(404).json({ error: "Không có lịch sử bảo trì nào" });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+  // 🕐 GET /maintenance/history/:unitId/latest
+  getLatestHistoryByUnit: async (req, res) => {
+    try {
+      const data = await maintenanceService.getLatestHistoryByUnit(
+        req.params.unitId
+      );
+      if (!data)
+        return res
+          .status(404)
+          .json({ error: "Không có lịch sử bảo trì nào cho thiết bị này" });
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
 };
 
 module.exports = maintenanceController;

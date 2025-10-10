@@ -127,7 +127,9 @@
     - `POST /maintenance` — Tạo yêu cầu bảo trì thiết bị
     - `GET /maintenance` — Lấy danh sách yêu cầu bảo trì
     - `GET /maintenance/:id` — Lấy chi tiết một yêu cầu bảo trì
-    - `GET /maintenance/by-unit/:unitId` — Lấy maintenance hiện hành theo equipment_unit_id
+    - `GET /maintenance/by-unit/:unitId` — Lấy maintenance đang bảo trì theo equipment_unit_id
+    - `GET /maintenance/history/:unitId` — Lấy lịch sử bảo trì theo equipment_unit_id
+    - `GET /maintenance/history/:unitId/latest` — Lấy lịch sử bảo trì gần nhất theo equipment_unit_id
     - `PUT /maintenance/:id/progress` — Bắt đầu bảo trì (In Progress)
     - `PUT /maintenance/:id/complete` — Hoàn tất bảo trì (Ready / Failed)
     - `DELETE /maintenance/:id` — Xóa yêu cầu bảo trì
