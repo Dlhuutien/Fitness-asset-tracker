@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Grid, Filter, Settings, X } from "lucide-react";
+import { Grid, Filter, Settings, X, Eye } from "lucide-react";
 import Status from "@/components/common/Status";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 import { useNavigate } from "react-router-dom";
@@ -36,7 +36,7 @@ export default function EquipmentListPage() {
   const [goToPage, setGoToPage] = useState("");
   const navigate = useNavigate();
 
-  // ==== Column visibility ====
+  // ==== Hiển thị cột ====
   const [visibleColumns, setVisibleColumns] = useState({
     id: true,
     image: true,
@@ -50,10 +50,11 @@ export default function EquipmentListPage() {
   const [showColumnMenu, setShowColumnMenu] = useState(false);
   const columnMenuRef = useRef(null);
 
-  // ==== Excel-like filter ====
+  // ==== Filter dropdown ====
   const [openFilter, setOpenFilter] = useState(null);
   const [filterSearch, setFilterSearch] = useState("");
   const [filters, setFilters] = useState({
+    id: [],
     name: [],
     main: [],
     type: [],
@@ -67,7 +68,7 @@ export default function EquipmentListPage() {
   const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
   const units = eqUnits || [];
 
-  // ==== Click ngoài để đóng menu ====
+  // ==== Click ra ngoài đóng popup ====
   useEffect(() => {
     const handleClick = (e) => {
       if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
@@ -84,12 +85,14 @@ export default function EquipmentListPage() {
 
   // ==== Unique values per column ====
   const uniqueValues = useMemo(() => {
+    const ids = new Set();
     const names = new Set();
     const mains = new Set();
     const types = new Set();
     const vendors = new Set();
     const statuses = new Set();
     for (const u of units) {
+      if (u.id) ids.add(u.id);
       if (u.equipment?.name) names.add(u.equipment.name);
       if (u.equipment?.main_name) mains.add(u.equipment.main_name);
       if (u.equipment?.type_name) types.add(u.equipment.type_name);
@@ -98,6 +101,7 @@ export default function EquipmentListPage() {
     }
     const toSorted = (s) => Array.from(s).sort((a, b) => a.localeCompare(b, "vi"));
     return {
+      id: toSorted(ids),
       name: toSorted(names),
       main: toSorted(mains),
       type: toSorted(types),
@@ -118,6 +122,7 @@ export default function EquipmentListPage() {
 
       const matchGroup = activeGroup === "all" || u.equipment?.main_name === activeGroup;
 
+      const idOK = filters.id.length === 0 || filters.id.includes(u.id);
       const nameOK =
         filters.name.length === 0 ||
         filters.name.includes(u.equipment?.name);
@@ -134,14 +139,16 @@ export default function EquipmentListPage() {
         filters.vendor.length === 0 ||
         filters.vendor.includes(u.equipment?.vendor_name);
 
-      return matchSearch && matchGroup && nameOK && mainOK && typeOK && statusOK && vendorOK;
+      return (
+        matchSearch && matchGroup && idOK && nameOK && mainOK && typeOK && statusOK && vendorOK
+      );
     });
   }, [units, search, activeGroup, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const currentData = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  // ==== Toggle filter value ====
+  // ==== Toggle value in filter ====
   const toggleFilterValue = (col, val) => {
     setFilters((prev) => {
       const has = prev[col].includes(val);
@@ -150,7 +157,15 @@ export default function EquipmentListPage() {
     });
   };
 
-  // ==== Render filter dropdown ====
+  // ==== Chọn / Bỏ tất cả ====
+  const selectAllValues = (col, list) => {
+    setFilters((prev) => ({ ...prev, [col]: list }));
+  };
+  const clearAllValues = (col) => {
+    setFilters((prev) => ({ ...prev, [col]: [] }));
+  };
+
+  // ==== Render dropdown filter ====
   const renderFilter = (col, label) => {
     const list = uniqueValues[col] || [];
     const filteredList = list.filter((v) =>
@@ -160,7 +175,7 @@ export default function EquipmentListPage() {
       openFilter === col && (
         <div
           ref={filterRef}
-          className="absolute z-50 top-[2rem] left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg w-56 p-2"
+          className="absolute z-50 top-[2rem] left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg w-60 p-2 animate-fadeIn"
         >
           <div className="flex items-center gap-2 mb-2">
             <Input
@@ -181,7 +196,24 @@ export default function EquipmentListPage() {
               <X size={14} />
             </button>
           </div>
-          <div className="max-h-48 overflow-y-auto text-sm pr-1">
+
+          {/* Chọn / Bỏ tất cả */}
+          <div className="flex justify-between mb-2">
+            <button
+              onClick={() => selectAllValues(col, list)}
+              className="text-xs text-emerald-600 hover:underline"
+            >
+              Chọn tất cả
+            </button>
+            <button
+              onClick={() => clearAllValues(col)}
+              className="text-xs text-red-500 hover:underline"
+            >
+              Bỏ tất cả
+            </button>
+          </div>
+
+          <div className="max-h-52 overflow-y-auto text-sm pr-1">
             {filteredList.length === 0 ? (
               <div className="text-xs text-gray-500 px-1 py-2">
                 Không có giá trị phù hợp
@@ -208,14 +240,13 @@ export default function EquipmentListPage() {
   };
 
   if (unitLoading || catLoading)
-    return <div className="p-4 text-gray-500 animate-pulse">Đang tải dữ liệu...</div>;
+    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
   if (eqErr || catErr)
     return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
 
-  // ===== UI =====
   return (
     <div className="grid grid-cols-12 gap-4">
-      {/* Sidebar bộ lọc */}
+      {/* Sidebar */}
       <div className="col-span-3 space-y-4">
         <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
           Danh sách nhóm thiết bị
@@ -292,20 +323,18 @@ export default function EquipmentListPage() {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="col-span-9 space-y-3">
         {/* Hiển thị cột */}
         <div className="flex justify-end relative" ref={columnMenuRef}>
           <Button
-            size="icon"
             onClick={() => setShowColumnMenu((s) => !s)}
-            className="p-2 bg-white border hover:shadow transition dark:bg-gray-800 dark:border-gray-600"
-            title="Hiển thị cột"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-medium px-4 py-2 rounded-md shadow-md transition"
           >
-            <Settings size={16} />
+            <Eye size={16} /> Hiển thị cột
           </Button>
           {showColumnMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg p-3 z-50">
+            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg p-3 z-50 animate-fadeIn">
               <p className="font-semibold text-sm mb-2 text-gray-600 dark:text-gray-300">
                 Hiển thị cột
               </p>
@@ -334,24 +363,35 @@ export default function EquipmentListPage() {
           )}
         </div>
 
+        {/* Table */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
             <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">
-                    #
-                  </TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
+
+                  {/* Mã đơn vị */}
                   {visibleColumns.id && (
-                    <TableHead className="border dark:border-gray-600">
-                      Mã đơn vị
+                    <TableHead className="border dark:border-gray-600 relative">
+                      <div className="flex items-center gap-1">
+                        <span>Mã đơn vị</span>
+                        <Filter
+                          size={14}
+                          className="cursor-pointer text-gray-500 hover:text-emerald-600"
+                          onClick={() =>
+                            setOpenFilter((p) => (p === "id" ? null : "id"))
+                          }
+                        />
+                      </div>
+                      {renderFilter("id", "mã đơn vị")}
                     </TableHead>
                   )}
+
                   {visibleColumns.image && (
-                    <TableHead className="border dark:border-gray-600">
-                      Hình ảnh
-                    </TableHead>
+                    <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
                   )}
+
                   {visibleColumns.name && (
                     <TableHead className="border dark:border-gray-600 relative">
                       <div className="flex items-center gap-1">
@@ -367,6 +407,7 @@ export default function EquipmentListPage() {
                       {renderFilter("name", "tên thiết bị")}
                     </TableHead>
                   )}
+
                   {visibleColumns.main && (
                     <TableHead className="border dark:border-gray-600 relative">
                       <div className="flex items-center gap-1">
@@ -382,6 +423,7 @@ export default function EquipmentListPage() {
                       {renderFilter("main", "nhóm")}
                     </TableHead>
                   )}
+
                   {visibleColumns.type && (
                     <TableHead className="border dark:border-gray-600 relative">
                       <div className="flex items-center gap-1">
@@ -397,6 +439,7 @@ export default function EquipmentListPage() {
                       {renderFilter("type", "loại")}
                     </TableHead>
                   )}
+
                   {visibleColumns.status && (
                     <TableHead className="border text-center dark:border-gray-600 relative">
                       <div className="flex justify-center items-center gap-1">
@@ -412,6 +455,7 @@ export default function EquipmentListPage() {
                       {renderFilter("status", "trạng thái")}
                     </TableHead>
                   )}
+
                   {visibleColumns.vendor && (
                     <TableHead className="border dark:border-gray-600 relative">
                       <div className="flex items-center gap-1">
@@ -427,10 +471,9 @@ export default function EquipmentListPage() {
                       {renderFilter("vendor", "nhà cung cấp")}
                     </TableHead>
                   )}
+
                   {visibleColumns.created_at && (
-                    <TableHead className="border dark:border-gray-600">
-                      Ngày tạo
-                    </TableHead>
+                    <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -438,8 +481,7 @@ export default function EquipmentListPage() {
               <TableBody>
                 {currentData.map((row, idx) => {
                   const translated =
-                    STATUS_MAP[row.status?.trim()?.toLowerCase()] ||
-                    "Không xác định";
+                    STATUS_MAP[row.status?.trim()?.toLowerCase()] || "Không xác định";
                   return (
                     <TableRow
                       key={row.id ?? idx}
@@ -449,6 +491,7 @@ export default function EquipmentListPage() {
                       <TableCell className="text-center">
                         {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                       </TableCell>
+
                       {visibleColumns.id && <TableCell>{row.id}</TableCell>}
                       {visibleColumns.image && (
                         <TableCell>
