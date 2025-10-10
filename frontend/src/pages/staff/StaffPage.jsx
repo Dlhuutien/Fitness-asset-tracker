@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -16,6 +16,12 @@ import Branch from "@/components/common/Branch";
 import Status from "@/components/common/Status";
 import UserService from "@/services/UserService";
 import { useNavigate } from "react-router-dom";
+import {
+  HeaderFilter,
+  ColumnVisibilityButton,
+  getUniqueValues,
+  useGlobalFilterController,
+} from "@/components/common/ExcelTableTools";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -29,6 +35,23 @@ export default function StaffPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
   const navigate = useNavigate();
+
+  // Excel filter state
+  const [filters, setFilters] = useState({
+    name: [],
+    email: [],
+    branch: [],
+    status: [],
+  });
+  const [visibleColumns, setVisibleColumns] = useState({
+    name: true,
+    email: true,
+    role: true,
+    branch: true,
+    status: true,
+    createdAt: true,
+  });
+  const controller = useGlobalFilterController();
 
   // 🧩 Fetch API
   useEffect(() => {
@@ -70,7 +93,20 @@ export default function StaffPage() {
   ];
   const statusFilters = ["Tất cả", "Đang làm", "Đã nghỉ"];
 
-  // 🔍 Filtering logic
+  // Unique values for Excel filters
+  const uniqueValues = useMemo(() => {
+    const list = users || [];
+    return {
+      name: getUniqueValues(list, (u) => u.attributes?.name || u.username),
+      email: getUniqueValues(list, (u) => u.attributes?.email),
+      branch: getUniqueValues(list, (u) => u.attributes?.["custom:branch_id"]),
+      status: getUniqueValues(list, (u) =>
+        u.enabled ? "Đang làm" : "Đã nghỉ"
+      ),
+    };
+  }, [users]);
+
+  // 🔍 Filtering logic (kết hợp tất cả)
   const filteredUsers = users.filter((u) => {
     const name = u.attributes?.name || u.username;
     const email = u.attributes?.email || "";
@@ -87,11 +123,24 @@ export default function StaffPage() {
     const matchStatus =
       selectedStatus === "Tất cả" || status === selectedStatus;
 
-    return matchSearch && matchRole && matchStatus;
+    const matchFilter = (vals, val) => vals.length === 0 || vals.includes(val);
+
+    return (
+      matchSearch &&
+      matchRole &&
+      matchStatus &&
+      matchFilter(filters.name, name) &&
+      matchFilter(filters.email, email) &&
+      matchFilter(filters.branch, branch) &&
+      matchFilter(filters.status, status)
+    );
   });
 
   // 📄 Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredUsers.length / ITEMS_PER_PAGE)
+  );
   const currentData = filteredUsers.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -118,9 +167,9 @@ export default function StaffPage() {
       />
 
       {/* Filters */}
-      <div className="flex flex-wrap justify-between items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3 w-full">
         {/* Vai trò */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           {allRoles.map((role) => (
             <Button
               key={role}
@@ -138,10 +187,26 @@ export default function StaffPage() {
               {role}
             </Button>
           ))}
+
+          {/* 👁️ Hiển thị cột (cách nhẹ sang phải) */}
+          <div className="ml-5">
+            <ColumnVisibilityButton
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+              labels={{
+                name: "Họ và tên",
+                email: "Email",
+                role: "Vai trò",
+                branch: "Chi nhánh",
+                status: "Trạng thái",
+                createdAt: "Ngày tạo",
+              }}
+            />
+          </div>
         </div>
 
-        {/* Trạng thái dropdown */}
-        <div className="relative">
+        {/* Trạng thái dropdown đẩy sát phải */}
+        <div className="ml-auto">
           <Button
             onClick={() => setDropdownOpen((prev) => !prev)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-emerald-500 hover:to-cyan-500 transition-all duration-300 shadow-md"
@@ -191,7 +256,8 @@ export default function StaffPage() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-10 text-gray-500 dark:text-gray-300">
-            <Loader2 className="animate-spin mr-2" /> Đang tải danh sách người dùng...
+            <Loader2 className="animate-spin mr-2" /> Đang tải danh sách người
+            dùng...
           </div>
         ) : (
           <>
@@ -199,19 +265,85 @@ export default function StaffPage() {
               <Table className="min-w-[950px] w-full border border-gray-200 dark:border-gray-600 table-auto">
                 <TableHeader>
                   <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                    <TableHead className="text-center border dark:border-gray-600 w-[40px]">#</TableHead>
-                    <TableHead className="border dark:border-gray-600">Họ và tên</TableHead>
-                    <TableHead className="border dark:border-gray-600">Email</TableHead>
-                    <TableHead className="border dark:border-gray-600">Vai trò</TableHead>
-                    <TableHead className="border dark:border-gray-600">Chi nhánh</TableHead>
-                    <TableHead className="border dark:border-gray-600">Trạng thái</TableHead>
-                    <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
+                    <TableHead className="text-center border dark:border-gray-600 w-[40px]">
+                      #
+                    </TableHead>
+                    {visibleColumns.name && (
+                      <TableHead className="border dark:border-gray-600">
+                        <HeaderFilter
+                          selfKey="name"
+                          label="Họ và tên"
+                          values={uniqueValues.name}
+                          selected={filters.name}
+                          onChange={(vals) =>
+                            setFilters((f) => ({ ...f, name: vals }))
+                          }
+                          controller={controller}
+                        />
+                      </TableHead>
+                    )}
+                    {visibleColumns.email && (
+                      <TableHead className="border dark:border-gray-600">
+                        <HeaderFilter
+                          selfKey="email"
+                          label="Email"
+                          values={uniqueValues.email}
+                          selected={filters.email}
+                          onChange={(vals) =>
+                            setFilters((f) => ({ ...f, email: vals }))
+                          }
+                          controller={controller}
+                        />
+                      </TableHead>
+                    )}
+                    {visibleColumns.role && (
+                      <TableHead className="border dark:border-gray-600">
+                        Vai trò
+                      </TableHead>
+                    )}
+                    {visibleColumns.branch && (
+                      <TableHead className="border dark:border-gray-600">
+                        <HeaderFilter
+                          selfKey="branch"
+                          label="Chi nhánh"
+                          values={uniqueValues.branch}
+                          selected={filters.branch}
+                          onChange={(vals) =>
+                            setFilters((f) => ({ ...f, branch: vals }))
+                          }
+                          controller={controller}
+                        />
+                      </TableHead>
+                    )}
+                    {visibleColumns.status && (
+                      <TableHead className="border dark:border-gray-600">
+                        <HeaderFilter
+                          selfKey="status"
+                          label="Trạng thái"
+                          values={uniqueValues.status}
+                          selected={filters.status}
+                          onChange={(vals) =>
+                            setFilters((f) => ({ ...f, status: vals }))
+                          }
+                          controller={controller}
+                        />
+                      </TableHead>
+                    )}
+                    {visibleColumns.createdAt && (
+                      <TableHead className="border dark:border-gray-600">
+                        Ngày tạo
+                      </TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {currentData.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-gray-500 dark:text-gray-400">
+                      <TableCell
+                        colSpan={8}
+                        className="text-center py-6 text-gray-500 dark:text-gray-400"
+                      >
                         Không có nhân viên nào phù hợp.
                       </TableCell>
                     </TableRow>
@@ -225,22 +357,42 @@ export default function StaffPage() {
                         <TableCell className="text-center border dark:border-gray-600">
                           {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                         </TableCell>
-                        <TableCell className="border dark:border-gray-600">{u.attributes?.name || "—"}</TableCell>
-                        <TableCell className="border dark:border-gray-600">{u.attributes?.email || "—"}</TableCell>
-                        <TableCell className="border dark:border-gray-600">
-                          {u.roles?.map((r) => (
-                            <Role key={r} role={convertRoleName(r)} />
-                          ))}
-                        </TableCell>
-                        <TableCell className="border dark:border-gray-600">
-                          <Branch branch={u.attributes?.["custom:branch_id"] || "—"} />
-                        </TableCell>
-                        <TableCell className="border dark:border-gray-600">
-                          <Status status={u.enabled ? "Đang làm" : "Đã nghỉ"} />
-                        </TableCell>
-                        <TableCell className="border dark:border-gray-600">
-                          {new Date(u.createdAt).toLocaleDateString("vi-VN")}
-                        </TableCell>
+                        {visibleColumns.name && (
+                          <TableCell className="border dark:border-gray-600">
+                            {u.attributes?.name || "—"}
+                          </TableCell>
+                        )}
+                        {visibleColumns.email && (
+                          <TableCell className="border dark:border-gray-600">
+                            {u.attributes?.email || "—"}
+                          </TableCell>
+                        )}
+                        {visibleColumns.role && (
+                          <TableCell className="border dark:border-gray-600">
+                            {u.roles?.map((r) => (
+                              <Role key={r} role={convertRoleName(r)} />
+                            ))}
+                          </TableCell>
+                        )}
+                        {visibleColumns.branch && (
+                          <TableCell className="border dark:border-gray-600">
+                            <Branch
+                              branch={u.attributes?.["custom:branch_id"] || "—"}
+                            />
+                          </TableCell>
+                        )}
+                        {visibleColumns.status && (
+                          <TableCell className="border dark:border-gray-600">
+                            <Status
+                              status={u.enabled ? "Đang làm" : "Đã nghỉ"}
+                            />
+                          </TableCell>
+                        )}
+                        {visibleColumns.createdAt && (
+                          <TableCell className="border dark:border-gray-600">
+                            {new Date(u.createdAt).toLocaleDateString("vi-VN")}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
@@ -248,7 +400,7 @@ export default function StaffPage() {
               </Table>
             </div>
 
-            {/* Pagination */}
+            {/* Pagination giữ nguyên */}
             <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
               <div className="flex items-center gap-2 text-sm">
                 <span className="dark:text-gray-200">Go to:</span>
@@ -302,7 +454,9 @@ export default function StaffPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(p + 1, totalPages))
+                  }
                   className="dark:border-gray-600 dark:text-gray-200"
                 >
                   »

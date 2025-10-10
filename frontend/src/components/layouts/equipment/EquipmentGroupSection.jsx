@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -12,6 +12,12 @@ import {
 import { Pencil, ImagePlus, CheckCircle2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import CategoryMainService from "@/services/categoryMainService";
+import {
+  HeaderFilter,
+  ColumnVisibilityButton,
+  useGlobalFilterController,
+  getUniqueValues,
+} from "@/components/common/ExcelTableTools";
 
 export default function EquipmentGroupSection({ groups, setGroups }) {
   const [groupForm, setGroupForm] = useState({
@@ -25,6 +31,25 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Excel-style filter
+  const controller = useGlobalFilterController();
+  const [filters, setFilters] = useState({
+    code: [],
+    name: [],
+    desc: [],
+    created: [],
+    updated: [],
+  });
+
+  const [visibleColumns, setVisibleColumns] = useState({
+    image: true,
+    code: true,
+    name: true,
+    desc: true,
+    created: true,
+    updated: true,
+  });
 
   // ===== Load Category Main từ API =====
   useEffect(() => {
@@ -42,7 +67,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const previewURL = URL.createObjectURL(file);
     setGroupForm((prev) => ({ ...prev, img: file, preview: previewURL }));
   };
@@ -50,21 +74,18 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
   // ===== Tạo / Cập nhật nhóm =====
   const handleSaveGroup = async () => {
     if (!groupForm.code || !groupForm.name || !groupForm.desc) return;
-
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
 
     try {
       if (editGroupId) {
-        // Update
         await CategoryMainService.update(editGroupId, {
           name: groupForm.name,
           description: groupForm.desc,
           image: groupForm.img || null,
         });
       } else {
-        // Create
         await CategoryMainService.create({
           id: groupForm.code,
           name: groupForm.name,
@@ -73,11 +94,8 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         });
       }
 
-      // Reload danh sách
       const updated = await CategoryMainService.getAll();
       setGroups(updated);
-
-      // Reset form
       setGroupForm({ code: "", name: "", desc: "", img: null, preview: "" });
       setEditGroupId(null);
       setSuccessMsg("✅ Lưu nhóm thành công!");
@@ -86,11 +104,44 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
       console.error(err);
       setErrorMsg("❌ Có lỗi khi lưu nhóm!");
     } finally {
-      setLoading(false); 
+      setLoading(false);
     }
   };
 
   const isFormValid = groupForm.code && groupForm.name && groupForm.desc;
+
+  // ===== Excel-style filter logic =====
+  const uniqueValues = useMemo(
+    () => ({
+      code: getUniqueValues(groups, (g) => g.id),
+      name: getUniqueValues(groups, (g) => g.name),
+      desc: getUniqueValues(groups, (g) => g.description),
+      created: getUniqueValues(groups, (g) =>
+        new Date(g.created_at).toLocaleDateString("vi-VN")
+      ),
+      updated: getUniqueValues(groups, (g) =>
+        new Date(g.updated_at).toLocaleDateString("vi-VN")
+      ),
+    }),
+    [groups]
+  );
+
+  const filteredGroups = useMemo(() => {
+    return (groups || []).filter((g) => {
+      const matchCode = filters.code.length === 0 || filters.code.includes(g.id);
+      const matchName = filters.name.length === 0 || filters.name.includes(g.name);
+      const matchDesc =
+        filters.desc.length === 0 || filters.desc.includes(g.description);
+      const matchCreated =
+        filters.created.length === 0 ||
+        filters.created.includes(new Date(g.created_at).toLocaleDateString("vi-VN"));
+      const matchUpdated =
+        filters.updated.length === 0 ||
+        filters.updated.includes(new Date(g.updated_at).toLocaleDateString("vi-VN"));
+
+      return matchCode && matchName && matchDesc && matchCreated && matchUpdated;
+    });
+  }, [groups, filters]);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 space-y-6">
@@ -102,35 +153,27 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
             <Input
               placeholder="Mã nhóm VD: CAO"
               value={groupForm.code}
-              onChange={(e) =>
-                setGroupForm({ ...groupForm, code: e.target.value })
-              }
+              onChange={(e) => setGroupForm({ ...groupForm, code: e.target.value })}
               className="h-12"
               readOnly={!!editGroupId}
             />
             <Input
               placeholder="Tên nhóm VD: Cardio"
               value={groupForm.name}
-              onChange={(e) =>
-                setGroupForm({ ...groupForm, name: e.target.value })
-              }
+              onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
               className="h-12"
             />
           </div>
 
-          {/* Mô tả */}
           <div className="col-span-2">
             <Input
               placeholder="Mô tả nhóm"
               value={groupForm.desc}
-              onChange={(e) =>
-                setGroupForm({ ...groupForm, desc: e.target.value })
-              }
+              onChange={(e) => setGroupForm({ ...groupForm, desc: e.target.value })}
               className="h-12"
             />
           </div>
 
-          {/* Nút lưu */}
           <div className="flex justify-center">
             <Button
               onClick={handleSaveGroup}
@@ -176,9 +219,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                 size={48}
                 className="text-emerald-500 mb-1 group-hover:scale-110 transition"
               />
-              <p className="text-sm font-medium group-hover:text-emerald-500">
-                Ảnh nhóm
-              </p>
+              <p className="text-sm font-medium group-hover:text-emerald-500">Ảnh nhóm</p>
             </div>
           )}
           <input
@@ -191,7 +232,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         </label>
       </div>
 
-      {/* Error + Success */}
       {errorMsg && <p className="text-red-500 font-medium">{errorMsg}</p>}
       {successMsg && (
         <motion.div
@@ -204,49 +244,134 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         </motion.div>
       )}
 
+      {/* Filter controls */}
+      <div className="flex justify-end mb-2">
+        <ColumnVisibilityButton
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          labels={{
+            image: "Ảnh",
+            code: "Mã nhóm",
+            name: "Tên nhóm",
+            desc: "Mô tả",
+            created: "Ngày nhập",
+            updated: "Ngày sửa",
+          }}
+        />
+      </div>
+
       {/* Bảng nhóm */}
-      <div className="overflow-y-auto max-h-64 rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
+      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
         <Table>
           <TableHeader className="bg-emerald-50 dark:bg-gray-800">
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Ảnh</TableHead>
-              <TableHead>Mã nhóm</TableHead>
-              <TableHead>Tên nhóm</TableHead>
-              <TableHead>Mô tả</TableHead>
-              <TableHead>Ngày nhập</TableHead>
-              <TableHead>Ngày sửa</TableHead>
-              <TableHead>Hành động</TableHead>
+            <TableRow className="text-sm font-semibold text-gray-700 dark:text-gray-200 [&>th]:py-3 [&>th]:px-2">
+              <TableHead className="text-center">#</TableHead>
+
+              {visibleColumns.image && <TableHead>Ảnh</TableHead>}
+
+              {visibleColumns.code && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="code"
+                    label="Mã nhóm"
+                    values={uniqueValues.code}
+                    selected={filters.code}
+                    onChange={(v) => setFilters((p) => ({ ...p, code: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+
+              {visibleColumns.name && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="name"
+                    label="Tên nhóm"
+                    values={uniqueValues.name}
+                    selected={filters.name}
+                    onChange={(v) => setFilters((p) => ({ ...p, name: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+
+              {visibleColumns.desc && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="desc"
+                    label="Mô tả"
+                    values={uniqueValues.desc}
+                    selected={filters.desc}
+                    onChange={(v) => setFilters((p) => ({ ...p, desc: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+
+              {visibleColumns.created && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="created"
+                    label="Ngày nhập"
+                    values={uniqueValues.created}
+                    selected={filters.created}
+                    onChange={(v) => setFilters((p) => ({ ...p, created: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+
+              {visibleColumns.updated && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="updated"
+                    label="Ngày sửa"
+                    values={uniqueValues.updated}
+                    selected={filters.updated}
+                    onChange={(v) => setFilters((p) => ({ ...p, updated: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+
+              {/* Không có filter ở hành động */}
+              <TableHead className="text-center">Hành động</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
-            {groups.map((g, idx) => (
+            {filteredGroups.map((g, idx) => (
               <TableRow
                 key={g.id}
                 className="hover:bg-emerald-50 dark:hover:bg-gray-800 transition"
               >
-                <TableCell>{idx + 1}</TableCell>
-                <TableCell>
-                  {g.image ? (
-                    <img
-                      src={g.image}
-                      alt={g.name}
-                      className="w-10 h-10 object-cover rounded"
-                    />
-                  ) : (
-                    <span className="text-xs text-gray-400">No img</span>
-                  )}
-                </TableCell>
-                <TableCell>{g.id}</TableCell>
-                <TableCell>{g.name}</TableCell>
-                <TableCell>{g.description}</TableCell>
-                <TableCell>
-                  {new Date(g.created_at).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  {new Date(g.updated_at).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
+                <TableCell className="text-center">{idx + 1}</TableCell>
+
+                {visibleColumns.image && (
+                  <TableCell>
+                    {g.image ? (
+                      <img
+                        src={g.image}
+                        alt={g.name}
+                        className="w-10 h-10 object-cover rounded"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">No img</span>
+                    )}
+                  </TableCell>
+                )}
+
+                {visibleColumns.code && <TableCell>{g.id}</TableCell>}
+                {visibleColumns.name && <TableCell>{g.name}</TableCell>}
+                {visibleColumns.desc && <TableCell>{g.description}</TableCell>}
+                {visibleColumns.created && (
+                  <TableCell>{new Date(g.created_at).toLocaleDateString()}</TableCell>
+                )}
+                {visibleColumns.updated && (
+                  <TableCell>{new Date(g.updated_at).toLocaleDateString()}</TableCell>
+                )}
+
+                <TableCell className="text-center">
                   <Button
                     size="icon"
                     variant="outline"
