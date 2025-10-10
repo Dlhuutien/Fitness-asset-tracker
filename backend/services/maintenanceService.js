@@ -119,13 +119,70 @@ const maintenanceService = {
   delete: async (id) => {
     return await maintenanceRepository.delete(id);
   },
-  
+
   getByUnitId: async (equipment_unit_id) => {
     const all = await maintenanceRepository.findAll();
     const active = all.find(
       (m) => m.equipment_unit_id === equipment_unit_id && !m.end_date // nghĩa là chưa hoàn thành
     );
     return active || null;
+  },
+
+  // Lấy toàn bộ lịch sử bảo trì (bao gồm hóa đơn) của 1 Unit
+  getFullHistoryByUnit: async (equipment_unit_id) => {
+    const allMaintenances = await maintenanceRepository.findAll();
+    const allInvoices = await maintenanceInvoiceRepository.findAll();
+
+    // Lọc tất cả maintenance của unit
+    const history = allMaintenances.filter(
+      (m) => m.equipment_unit_id === equipment_unit_id
+    );
+
+    // Gắn các invoice tương ứng vào từng maintenance
+    const combined = history.map((m) => {
+      const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
+      return {
+        ...m,
+        invoices,
+      };
+    });
+
+    // Sắp xếp mới nhất trước (end_date giảm dần)
+    combined.sort(
+      (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
+    );
+
+    return combined;
+  },
+
+  // Lấy lịch sử bảo trì gần nhất của 1 Unit (bao gồm hóa đơn)
+  getLatestHistoryByUnit: async (equipment_unit_id) => {
+    const allMaintenances = await maintenanceRepository.findAll();
+    const allInvoices = await maintenanceInvoiceRepository.findAll();
+
+    // Lọc tất cả maintenance thuộc unit
+    const history = allMaintenances.filter(
+      (m) => m.equipment_unit_id === equipment_unit_id
+    );
+
+    if (history.length === 0) return null;
+
+    // Sắp xếp giảm dần theo end_date hoặc start_date
+    history.sort(
+      (a, b) =>
+        new Date(b.end_date || b.start_date) -
+        new Date(a.end_date || a.start_date)
+    );
+
+    const latest = history[0];
+    const invoices = allInvoices.filter(
+      (inv) => inv.maintenance_id === latest.id
+    );
+
+    return {
+      ...latest,
+      invoices,
+    };
   },
 };
 

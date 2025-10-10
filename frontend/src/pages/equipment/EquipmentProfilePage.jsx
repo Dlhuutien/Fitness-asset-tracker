@@ -38,6 +38,8 @@ export default function EquipmentProfilePage() {
   const [reason, setReason] = useState("");
   const isTemporarilyStopped =
     data?.status?.toLowerCase() === "temporary urgent";
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [maintenanceHistory, setMaintenanceHistory] = useState([]);
 
   useEffect(() => {
     if (!data) {
@@ -47,6 +49,19 @@ export default function EquipmentProfilePage() {
         .finally(() => setLoading(false));
     }
   }, [id, data]);
+
+  // 🧾 Load lịch sử bảo trì của thiết bị
+  useEffect(() => {
+    if (!data?.id) return;
+    (async () => {
+      try {
+        const res = await MaintainService.getFullHistory(data.id);
+        setMaintenanceHistory(res || []);
+      } catch (err) {
+        console.error("❌ Lỗi khi tải lịch sử bảo trì:", err);
+      }
+    })();
+  }, [data?.id]);
 
   if (loading)
     return (
@@ -255,6 +270,87 @@ export default function EquipmentProfilePage() {
           <p className="text-sm italic text-gray-500 dark:text-gray-400 text-center">
             (Chưa có thông số kỹ thuật nào được thêm cho thiết bị này)
           </p>
+        )}
+      </div>
+
+      {/* Lịch sử bảo trì thiết bị */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
+        {/* Header */}
+        <button
+          onClick={() => setHistoryOpen((p) => !p)}
+          className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+        >
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+            Lịch sử bảo trì thiết bị
+          </h2>
+          <span
+            className={`transform transition-transform ${
+              historyOpen ? "rotate-180" : ""
+            }`}
+          >
+            ▼
+          </span>
+        </button>
+
+        {/* Nội dung */}
+        {historyOpen && (
+          <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+            {maintenanceHistory.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm border dark:border-gray-700">
+                  <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
+                    <tr>
+                      <th className="p-2 border">Bắt đầu</th>
+                      <th className="p-2 border">Kết thúc</th>
+                      <th className="p-2 border">Lý do</th>
+                      <th className="p-2 border">Chi phí</th>
+                      <th className="p-2 border">Kết quả</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {maintenanceHistory.map((item, idx) => (
+                      <tr
+                        key={idx}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                      >
+                        <td className="p-2 border">
+                          {item.start_date
+                            ? new Date(item.start_date).toLocaleDateString(
+                                "vi-VN"
+                              )
+                            : "—"}
+                        </td>
+                        <td className="p-2 border">
+                          {item.end_date
+                            ? new Date(item.end_date).toLocaleDateString(
+                                "vi-VN"
+                              )
+                            : "—"}
+                        </td>
+                        <td className="p-2 border">
+                          {item.maintenance_reason || "—"}
+                        </td>
+                        <td className="p-2 border">
+                          {item.invoices && item.invoices.length > 0
+                            ? `${item.invoices[0].cost.toLocaleString(
+                                "vi-VN"
+                              )} đ`
+                            : "0 đ"}
+                        </td>
+                        <td className="p-2 border text-center">
+                          <Status status={item.status || "—"} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                (Chưa có lịch sử bảo trì nào cho thiết bị này)
+              </p>
+            )}
+          </div>
         )}
       </div>
 

@@ -93,12 +93,12 @@ export default function MaintenanceReadySection() {
     })();
   }, []);
 
-  // 🧾 Load lịch sử bảo trì của unit được chọn
+  // 🧾 Load lịch sử bảo trì gần nhất của unit được chọn
   const loadHistory = async (unitId) => {
     try {
       setLoadingHistory(true);
-      const res = await MaintainService.getByUnit(unitId);
-      if (res) setMaintenanceHistory([res]);
+      const latest = await MaintainService.getLatestHistory(unitId);
+      if (latest) setMaintenanceHistory([latest]);
       else setMaintenanceHistory([]);
     } catch (err) {
       console.error("❌ Lỗi load lịch sử:", err);
@@ -231,7 +231,9 @@ export default function MaintenanceReadySection() {
                       label="Mã Unit"
                       values={unique.id}
                       selected={filters.id}
-                      onChange={(vals) => setFilters((f) => ({ ...f, id: vals }))}
+                      onChange={(vals) =>
+                        setFilters((f) => ({ ...f, id: vals }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -246,7 +248,9 @@ export default function MaintenanceReadySection() {
                       label="Tên thiết bị"
                       values={unique.name}
                       selected={filters.name}
-                      onChange={(vals) => setFilters((f) => ({ ...f, name: vals }))}
+                      onChange={(vals) =>
+                        setFilters((f) => ({ ...f, name: vals }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -259,7 +263,9 @@ export default function MaintenanceReadySection() {
                       label="Nhóm"
                       values={unique.main_name}
                       selected={filters.main_name}
-                      onChange={(vals) => setFilters((f) => ({ ...f, main_name: vals }))}
+                      onChange={(vals) =>
+                        setFilters((f) => ({ ...f, main_name: vals }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -272,7 +278,9 @@ export default function MaintenanceReadySection() {
                       label="Loại"
                       values={unique.type_name}
                       selected={filters.type_name}
-                      onChange={(vals) => setFilters((f) => ({ ...f, type_name: vals }))}
+                      onChange={(vals) =>
+                        setFilters((f) => ({ ...f, type_name: vals }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -285,7 +293,9 @@ export default function MaintenanceReadySection() {
                       label="Kết quả bảo trì"
                       values={unique.status}
                       selected={filters.status}
-                      onChange={(vals) => setFilters((f) => ({ ...f, status: vals }))}
+                      onChange={(vals) =>
+                        setFilters((f) => ({ ...f, status: vals }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -298,7 +308,9 @@ export default function MaintenanceReadySection() {
                       label="Nhà cung cấp"
                       values={unique.vendor_name}
                       selected={filters.vendor_name}
-                      onChange={(vals) => setFilters((f) => ({ ...f, vendor_name: vals }))}
+                      onChange={(vals) =>
+                        setFilters((f) => ({ ...f, vendor_name: vals }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -311,7 +323,9 @@ export default function MaintenanceReadySection() {
                       label="Chi nhánh"
                       values={unique.branch_id}
                       selected={filters.branch_id}
-                      onChange={(vals) => setFilters((f) => ({ ...f, branch_id: vals }))}
+                      onChange={(vals) =>
+                        setFilters((f) => ({ ...f, branch_id: vals }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -386,9 +400,7 @@ export default function MaintenanceReadySection() {
       {selected && (
         <div
           className={`grid grid-cols-2 gap-6 border-t-4 rounded-xl shadow bg-white dark:bg-[#1e1e1e] p-6 transition-colors ${
-            selected.status === "ready"
-              ? "border-green-500"
-              : "border-rose-500"
+            selected.status === "ready" ? "border-green-500" : "border-rose-500"
           }`}
         >
           {/* Chi tiết */}

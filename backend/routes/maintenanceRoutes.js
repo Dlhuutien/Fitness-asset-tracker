@@ -1,7 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const maintenanceController = require("../controllers/maintenanceController");
-const { verifyAccessToken, requireRole } = require("../middlewares/authMiddleware");
+const {
+  verifyAccessToken,
+  requireRole,
+} = require("../middlewares/authMiddleware");
 
 // CREATE
 router.post(
@@ -15,8 +18,20 @@ router.post(
 router.get(
   "/by-unit/:unitId",
   verifyAccessToken,
-  requireRole("super-admin", "admin", "technician"),
   maintenanceController.getByUnitId
+);
+
+// Lấy toàn bộ lịch sử bảo trì (bao gồm hóa đơn)
+router.get(
+  "/history/:unitId",
+  verifyAccessToken,
+  maintenanceController.getFullHistoryByUnit
+);
+// Lấy lịch sử gần nhất (mới nhất)
+router.get(
+  "/history/:unitId/latest",
+  verifyAccessToken,
+  maintenanceController.getLatestHistoryByUnit
 );
 
 // GET
