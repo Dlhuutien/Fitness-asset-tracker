@@ -39,7 +39,12 @@ export function useGlobalFilterController() {
 /* ======================
    Internal hooks
 ====================== */
-function useFixedDropdownPosition(open, anchorRef, menuWidth = 240, offset = 8) {
+function useFixedDropdownPosition(
+  open,
+  anchorRef,
+  menuWidth = 240,
+  offset = 8
+) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
@@ -111,77 +116,95 @@ function PortalDropdown({ open, anchorRef, width = 240, onClose, children }) {
 export function HeaderFilter({
   selfKey,
   label,
-  values = [],
-  selected = [],
+  values,
+  selected,
   onChange,
   controller,
 }) {
-  const anchorRef = useRef(null);
-  const isOpen = controller.openKey === selfKey;
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef(null);
+  const dropdownRef = useRef(null);
 
-  const toggleValue = (val) => {
-    if (selected.includes(val)) onChange(selected.filter((v) => v !== val));
-    else onChange([...selected, val]);
+  const toggleDropdown = (e) => {
+    e.stopPropagation();
+    setOpen(!open);
+    controller?.closeAllExcept?.(selfKey);
   };
 
-  const selectAll = () => onChange([...values]);
-  const clearAll = () => onChange([]);
+  // Đóng dropdown khi click ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target) &&
+        !buttonRef.current.contains(event.target)
+      ) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
-    <div className="relative" ref={anchorRef}>
-      <div
-        className="flex items-center justify-between cursor-pointer group"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={() => controller.toggle(selfKey)}
-      >
-        <span>{label}</span>
-        <Filter
-          size={16}
-          className={`ml-1 transition ${
-            isOpen ? "text-emerald-500" : "text-gray-400 group-hover:text-emerald-400"
-          }`}
-        />
-      </div>
+    <div className="relative inline-flex items-center gap-1 group select-none">
+      {/* Tiêu đề + icon filter nằm cùng dòng */}
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-1">
+        {label}
+        <button
+          ref={buttonRef}
+          onClick={toggleDropdown}
+          className="w-4 h-4 opacity-60 hover:opacity-100 hover:text-emerald-500 transition"
+        >
+          <Filter
+            size={14}
+            className={`transition-transform duration-200 ${
+              open
+                ? "rotate-180 text-emerald-500"
+                : "text-gray-400 dark:text-gray-300"
+            }`}
+          />
+        </button>
+      </span>
 
-      {/* Dropdown render ra body để không bị cắt bởi overflow */}
-      <PortalDropdown
-        open={isOpen}
-        anchorRef={anchorRef}
-        width={240}
-        onClose={() => controller.setOpenKey(null)}
-      >
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-xl max-h-[280px] overflow-y-auto animate-in fade-in zoom-in-95">
-          <div className="sticky top-0 bg-gray-50 dark:bg-gray-700 px-3 py-2 flex items-center justify-between text-xs text-gray-600 dark:text-gray-300 border-b dark:border-gray-600">
-            <button onClick={selectAll} className="hover:text-emerald-500">
+      {/* Dropdown filter */}
+      {open && (
+        <div
+          ref={dropdownRef}
+          className="absolute z-[9999] top-[120%] left-0 min-w-[180px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2 text-sm"
+        >
+          <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+            <button
+              className="hover:text-emerald-500"
+              onClick={() => onChange(values)}
+            >
               Chọn tất cả
             </button>
-            <button onClick={clearAll} className="hover:text-rose-500">
+            <button className="hover:text-red-500" onClick={() => onChange([])}>
               Bỏ tất cả
             </button>
           </div>
-
-          {values.length === 0 ? (
-            <div className="p-3 text-center text-gray-400 text-sm">Không có dữ liệu</div>
-          ) : (
-            values.map((val) => (
-              <label
-                key={val}
-                className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm"
-              >
+          <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+            {values.map((v, i) => (
+              <label key={i} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="accent-emerald-500 w-4 h-4"
-                  checked={selected.includes(val)}
-                  onChange={() => toggleValue(val)}
+                  checked={selected.includes(v)}
+                  onChange={() =>
+                    onChange(
+                      selected.includes(v)
+                        ? selected.filter((x) => x !== v)
+                        : [...selected, v]
+                    )
+                  }
+                  className="accent-emerald-500"
                 />
-                <span className="truncate" title={val}>
-                  {val}
-                </span>
+                <span className="truncate">{v || "(Trống)"}</span>
               </label>
-            ))
-          )}
+            ))}
+          </div>
         </div>
-      </PortalDropdown>
+      )}
     </div>
   );
 }
@@ -189,7 +212,11 @@ export function HeaderFilter({
 /* ======================
    ColumnVisibilityButton (portal)
 ====================== */
-export function ColumnVisibilityButton({ visibleColumns, setVisibleColumns, labels }) {
+export function ColumnVisibilityButton({
+  visibleColumns,
+  setVisibleColumns,
+  labels,
+}) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
 
@@ -198,11 +225,15 @@ export function ColumnVisibilityButton({ visibleColumns, setVisibleColumns, labe
   };
 
   const showAll = () => {
-    const all = Object.fromEntries(Object.keys(visibleColumns).map((k) => [k, true]));
+    const all = Object.fromEntries(
+      Object.keys(visibleColumns).map((k) => [k, true])
+    );
     setVisibleColumns(all);
   };
   const hideAll = () => {
-    const all = Object.fromEntries(Object.keys(visibleColumns).map((k) => [k, false]));
+    const all = Object.fromEntries(
+      Object.keys(visibleColumns).map((k) => [k, false])
+    );
     setVisibleColumns(all);
   };
 
