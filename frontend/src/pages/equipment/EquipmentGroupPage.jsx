@@ -17,6 +17,7 @@ import {
   useGlobalFilterController,
   getUniqueValues,
 } from "@/components/common/ExcelTableTools";
+import { useNavigate } from "react-router-dom";
 
 const ITEMS_PER_PAGE = 7;
 
@@ -25,6 +26,8 @@ export default function EquipmentGroupPage() {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
+  const navigate = useNavigate();
+
 
   const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
     useEquipmentGroupData();
@@ -305,6 +308,7 @@ export default function EquipmentGroupPage() {
                 {currentData.map((row, idx) => (
                   <TableRow
                     key={row.id ?? idx}
+                    onClick={() => navigate(`/app/equipment/specs/${row.id}`)}
                     className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
                   >
                     <TableCell className="text-center border dark:border-gray-600">

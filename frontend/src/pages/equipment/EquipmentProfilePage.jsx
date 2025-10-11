@@ -1,416 +1,487 @@
-import { useEffect, useState } from "react";
-import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import {
-  ArrowLeft,
-  CalendarDays,
-  Factory,
-  Package,
-  Building2,
-} from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/buttonn";
-import Status from "@/components/common/Status";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Loader2,
+  RotateCcw,
+  PlusCircle,
+  ImagePlus,
+  ArrowLeft,
+} from "lucide-react";
+import EquipmentService from "@/services/equipmentService";
+import AttributeService from "@/services/attributeService";
 import { toast } from "sonner";
-import MaintainService from "@/services/MaintainService";
 
-import EquipmentUnitService from "@/services/equipmentUnitService";
-
-const STATUS_MAP = {
-  active: "Hoạt động",
-  inactive: "Ngưng hoạt động",
-  "temporary urgent": "Ngừng tạm thời",
-  "in progress": "Đang bảo trì",
-  ready: "Bảo trì thành công",
-  failed: "Bảo trì thất bại",
-  moving: "Đang di chuyển",
-  "in stock": "Trong kho",
-  deleted: "Đã xóa",
-};
+const fmtDate = (d) => (d ? new Date(d).toLocaleString("vi-VN") : "—");
 
 export default function EquipmentProfilePage() {
   const { id } = useParams();
-  const location = useLocation();
   const navigate = useNavigate();
-  const [data, setData] = useState(location.state || null);
-  const [loading, setLoading] = useState(!location.state);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [reason, setReason] = useState("");
-  const isTemporarilyStopped =
-    data?.status?.toLowerCase() === "temporary urgent";
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [maintenanceHistory, setMaintenanceHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [equipment, setEquipment] = useState(null);
+
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    warranty_duration: "2",
+    image: "",
+    preview: "",
+  });
+
+  const [allAttributes, setAllAttributes] = useState([]);
+  const [selectedAttrs, setSelectedAttrs] = useState({});
+  const [searchAttr, setSearchAttr] = useState("");
+  const [newAttrName, setNewAttrName] = useState("");
+  const [addingAttr, setAddingAttr] = useState(false);
+  const [spinClearChecked, setSpinClearChecked] = useState(false);
+  const [spinClearInputs, setSpinClearInputs] = useState(false);
 
   useEffect(() => {
-    if (!data) {
-      EquipmentUnitService.getById(id)
-        .then((res) => setData(res))
-        .catch((err) => console.error("❌ Lỗi:", err))
-        .finally(() => setLoading(false));
-    }
-  }, [id, data]);
-
-  // 🧾 Load lịch sử bảo trì của thiết bị
-  useEffect(() => {
-    if (!data?.id) return;
     (async () => {
       try {
-        const res = await MaintainService.getFullHistory(data.id);
-        setMaintenanceHistory(res || []);
+        const [eq, attrs] = await Promise.all([
+          EquipmentService.getById(id),
+          AttributeService.getAll(),
+        ]);
+        setEquipment(eq);
+        setFormData({
+          name: eq.name || "",
+          description: eq.description || "",
+          warranty_duration: String(eq.warranty_duration ?? "2"),
+          image: eq.image || "",
+          preview: eq.image || "",
+        });
+        const init = {};
+        (eq.attributes || []).forEach((a) => {
+          if (a?.attribute) init[a.attribute] = a.value || "";
+        });
+        setSelectedAttrs(init);
+        setAllAttributes(attrs || []);
       } catch (err) {
-        console.error("❌ Lỗi khi tải lịch sử bảo trì:", err);
+        toast.error("Không thể tải dữ liệu thiết bị!");
+      } finally {
+        setLoading(false);
       }
     })();
-  }, [data?.id]);
+  }, [id]);
 
-  if (loading)
-    return (
-      <div className="p-6 text-center text-gray-500 dark:text-gray-300 animate-pulse">
-        Đang tải dữ liệu thiết bị...
-      </div>
+  const filteredAttributes = useMemo(() => {
+    const q = searchAttr.trim().toLowerCase();
+    return (allAttributes || []).filter((a) =>
+      a.name.toLowerCase().includes(q)
     );
+  }, [allAttributes, searchAttr]);
 
-  if (!data)
-    return (
-      <div className="p-6 text-center text-red-500 font-semibold">
-        Không tìm thấy thiết bị
-      </div>
+  const handleChange = (key, val) => {
+    setFormData((p) => ({ ...p, [key]: val }));
+  };
+
+  const handlePickImage = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const previewURL = URL.createObjectURL(file);
+    setFormData((p) => ({ ...p, image: file, preview: previewURL }));
+  };
+
+  const toggleAttr = (name) => {
+    setSelectedAttrs((prev) => {
+      const next = { ...prev };
+      if (next[name] !== undefined) delete next[name];
+      else next[name] = "";
+      return next;
+    });
+  };
+
+  const clearAllChecked = () => {
+    setSpinClearChecked(true);
+    setSelectedAttrs({});
+    setTimeout(() => setSpinClearChecked(false), 600);
+  };
+
+  const clearAllInputs = () => {
+    setSpinClearInputs(true);
+    setSelectedAttrs((prev) =>
+      Object.fromEntries(Object.keys(prev).map((k) => [k, ""]))
     );
+    setTimeout(() => setSpinClearInputs(false), 600);
+  };
 
-  const eq = data.equipment || {};
-  const translatedStatus =
-    STATUS_MAP[data.status?.toLowerCase()] || "Không xác định";
-
-  // 🧩 Gửi yêu cầu bảo trì “Dừng tạm thời”
-  const handleCreateMaintenance = async () => {
-    if (!data?.id) {
-      setErrorMsg("⚠️ Không xác định được mã thiết bị!");
-      return;
-    }
-
-    if (!reason.trim()) {
-      setErrorMsg("⚠️ Vui lòng nhập lý do tạm dừng!");
-      return;
-    }
-
+  const handleAddNewAttribute = async () => {
+    const trimmed = newAttrName.trim();
+    if (!trimmed) return toast.error("Nhập tên thông số!");
+    if (allAttributes.some((a) => a.name.toLowerCase() === trimmed.toLowerCase()))
+      return toast.error(`Thông số "${trimmed}" đã tồn tại!`);
     try {
-      setLoading(true);
-      setErrorMsg("");
-      setSuccessMsg("");
-      toast.info("⏳ Đang gửi yêu cầu bảo trì...");
-
-      await MaintainService.create({
-        equipment_unit_id: data.id,
-        maintenance_reason: reason.trim(),
-      });
-
-      setSuccessMsg("✅ Đã gửi yêu cầu bảo trì!");
-      setReason("");
-      toast.success("✅ Đã gửi yêu cầu bảo trì!");
-    } catch (err) {
-      console.error("❌ Lỗi khi tạo maintenance:", err);
-      setErrorMsg("❌ Không thể tạo yêu cầu bảo trì!");
-      toast.error("❌ Không thể tạo yêu cầu bảo trì!");
+      setAddingAttr(true);
+      const created = await AttributeService.create({ name: trimmed });
+      setAllAttributes((prev) => [...prev, created]);
+      setSelectedAttrs((prev) => ({ ...prev, [created.name]: "" }));
+      setNewAttrName("");
+      toast.success(`Đã thêm "${created.name}"`);
+    } catch {
+      toast.error("Không thể thêm thông số mới!");
     } finally {
-      setLoading(false);
+      setAddingAttr(false);
     }
   };
 
+  const handleSave = async () => {
+    console.log("🧩 GỌI HANDLE SAVE!");
+    try {
+      setSaving(true);
+      const attrArray = Object.entries(selectedAttrs)
+        .map(([n, v]) => {
+          const found = allAttributes.find((a) => a.name === n);
+          if (!found) return null;
+          return { attribute_id: found.id, value: v };
+        })
+        .filter(Boolean);
+      await EquipmentService.update(equipment.id, {
+        name: formData.name,
+        description: formData.description,
+        warranty_duration: formData.warranty_duration,
+        image: formData.image,
+        attributes: attrArray,
+      });
+      toast.success("✅ Lưu thay đổi thành công!");
+      setEditing(false);
+      const fresh = await EquipmentService.getById(id);
+      setEquipment(fresh);
+      const next = {};
+      (fresh.attributes || []).forEach((a) => {
+        if (a?.attribute) next[a.attribute] = a.value || "";
+      });
+      setSelectedAttrs(next);
+    } catch {
+      toast.error("❌ Lỗi khi lưu thiết bị!");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditing(false);
+    if (!equipment) return;
+    setFormData({
+      name: equipment.name || "",
+      description: equipment.description || "",
+      warranty_duration: String(equipment.warranty_duration ?? "2"),
+      image: equipment.image || "",
+      preview: equipment.image || "",
+    });
+    const init = {};
+    (equipment.attributes || []).forEach((a) => {
+      if (a?.attribute) init[a.attribute] = a.value || "";
+    });
+    setSelectedAttrs(init);
+  };
+
+  if (loading)
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-500">
+        <Loader2 className="animate-spin mr-2" /> Đang tải dữ liệu...
+      </div>
+    );
+
+  if (!equipment)
+    return (
+      <div className="text-center text-red-500 p-10">Không tìm thấy thiết bị.</div>
+    );
+
   return (
-    <motion.div
-      className="p-6 space-y-6 font-jakarta transition-colors duration-300"
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      {/* Nút quay lại */}
-      <Button
-        onClick={() => navigate(-1)}
-        variant="outline"
-        className="flex items-center gap-2 border-brand text-brand hover:bg-brand/10 dark:hover:bg-brand-dark/30 transition-all text-sm font-medium px-3 py-1.5 rounded-md shadow-sm"
-      >
-        <ArrowLeft size={16} />
-        <span>Quay lại</span>
-      </Button>
-
-      {/* Card chính */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 hover:shadow-lg transition-all duration-300">
-        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-          {/* Ảnh */}
-          <img
-            src={eq.image || "/placeholder.jpg"}
-            alt={eq.name}
-            className="w-64 h-48 object-contain rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
-          />
-
-          {/* Thông tin */}
-          <div className="flex-1 space-y-3">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-              {eq.name || "Thiết bị không xác định"}
-            </h1>
-
-            {/* Nhóm trạng thái */}
-            <div className="flex flex-wrap items-center gap-3">
-              <Status status={translatedStatus} />
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Mã đơn vị:{" "}
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {data.id}
-                </span>
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Nhóm:{" "}
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {eq.main_name || "—"}
-                </span>
-              </span>
-            </div>
-
-            {/* Thông tin chi tiết */}
-            <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <InfoItem
-                icon={<Package size={16} />}
-                label="Loại thiết bị"
-                value={eq.type_name}
-              />
-              <InfoItem
-                icon={<Package size={16} />}
-                label="Mã thiết bị gốc"
-                value={eq.id}
-              />
-              <InfoItem
-                icon={<Factory size={16} />}
-                label="Nhà cung cấp"
-                value={eq.vendor_name}
-              />
-              <InfoItem
-                icon={<Building2 size={16} />}
-                label="Chi nhánh"
-                value={data.branch_id}
-              />
-              <InfoItem
-                icon={<CalendarDays size={16} />}
-                label="Ngày tạo"
-                value={new Date(data.created_at).toLocaleString("vi-VN")}
-              />
-              <InfoItem
-                icon={<CalendarDays size={16} />}
-                label="Cập nhật gần nhất"
-                value={new Date(data.updated_at).toLocaleString("vi-VN")}
-              />
-              <InfoItem
-                icon={<CalendarDays size={16} />}
-                label="Bắt đầu bảo hành"
-                value={new Date(data.warranty_start_date).toLocaleDateString(
-                  "vi-VN"
-                )}
-              />
-              <InfoItem
-                icon={<CalendarDays size={16} />}
-                label="Kết thúc bảo hành"
-                value={
-                  data.warranty_end_date
-                    ? new Date(data.warranty_end_date).toLocaleDateString(
-                        "vi-VN"
-                      )
-                    : "—"
-                }
-              />
-              <InfoItem
-                icon={<Package size={16} />}
-                label="Thời hạn bảo hành"
-                value={
-                  eq.warranty_duration ? `${eq.warranty_duration} năm` : "—"
-                }
-              />
-              <InfoItem
-                icon={<Package size={16} />}
-                label="Mô tả thiết bị"
-                value={eq.description || data.description || "—"}
-              />
-              <InfoItem
-                icon={<Package size={16} />}
-                label="Giá nhập thiết bị"
-                value={
-                  data.cost
-                    ? data.cost.toLocaleString("vi-VN", {
-                        style: "currency",
-                        currency: "VND",
-                      })
-                    : "—"
-                }
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Thông số kỹ thuật */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 hover:shadow-lg transition-all duration-300">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
-          Thông số kỹ thuật
-        </h2>
-
-        {eq.attributes && eq.attributes.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {eq.attributes.map((attr, i) => (
-              <div
-                key={i}
-                className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:border-emerald-400/60 transition"
-              >
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {attr.attribute}
-                </p>
-                <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                  {attr.value || "—"}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm italic text-gray-500 dark:text-gray-400 text-center">
-            (Chưa có thông số kỹ thuật nào được thêm cho thiết bị này)
-          </p>
-        )}
-      </div>
-
-      {/* Lịch sử bảo trì thiết bị */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
-        {/* Header */}
-        <button
-          onClick={() => setHistoryOpen((p) => !p)}
-          className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+    <div className="p-6 font-jakarta space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <Button
+          onClick={() => navigate(-1)}
+          className="bg-gray-400 text-white hover:bg-gray-500 flex items-center gap-2"
         >
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Lịch sử bảo trì thiết bị
-          </h2>
-          <span
-            className={`transform transition-transform ${
-              historyOpen ? "rotate-180" : ""
-            }`}
+          <ArrowLeft size={16} /> Quay lại
+        </Button>
+        {!editing ? (
+          <Button
+            onClick={() => setEditing(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
           >
-            ▼
-          </span>
-        </button>
-
-        {/* Nội dung */}
-        {historyOpen && (
-          <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-            {maintenanceHistory.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm border dark:border-gray-700">
-                  <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
-                    <tr>
-                      <th className="p-2 border">Bắt đầu</th>
-                      <th className="p-2 border">Kết thúc</th>
-                      <th className="p-2 border">Lý do</th>
-                      <th className="p-2 border">Chi phí</th>
-                      <th className="p-2 border">Kết quả</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {maintenanceHistory.map((item, idx) => (
-                      <tr
-                        key={idx}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                      >
-                        <td className="p-2 border">
-                          {item.start_date
-                            ? new Date(item.start_date).toLocaleDateString(
-                                "vi-VN"
-                              )
-                            : "—"}
-                        </td>
-                        <td className="p-2 border">
-                          {item.end_date
-                            ? new Date(item.end_date).toLocaleDateString(
-                                "vi-VN"
-                              )
-                            : "—"}
-                        </td>
-                        <td className="p-2 border">
-                          {item.maintenance_reason || "—"}
-                        </td>
-                        <td className="p-2 border">
-                          {item.invoices && item.invoices.length > 0
-                            ? `${item.invoices[0].cost.toLocaleString(
-                                "vi-VN"
-                              )} đ`
-                            : "0 đ"}
-                        </td>
-                        <td className="p-2 border text-center">
-                          <Status status={item.status || "—"} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                (Chưa có lịch sử bảo trì nào cho thiết bị này)
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Nút bảo trì tạm thời */}
-      {!isTemporarilyStopped ? (
-        <div className="flex flex-col items-center justify-center gap-3 pt-4">
-          <div className="w-full max-w-md flex flex-col items-center gap-2">
-            <input
-              type="text"
-              placeholder="Nhập lý do tạm dừng thiết bị..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm 
-          dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 
-          focus:ring-amber-400 outline-none transition-all"
-            />
-
+            ✏️ Chỉnh sửa
+          </Button>
+        ) : (
+          <div className="flex gap-3">
             <Button
-              onClick={handleCreateMaintenance}
-              disabled={loading}
-              className="bg-gradient-to-r from-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-300 
-          text-gray-800 font-semibold px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all 
-          disabled:opacity-70 disabled:cursor-not-allowed w-full"
+              onClick={handleCancel}
+              className="bg-gray-300 dark:bg-gray-700 dark:text-white hover:bg-gray-400"
             >
-              ⚙️ Dừng tạm thời
+              ❌ Hủy
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />} 💾 Lưu thay đổi
             </Button>
           </div>
+        )}
+      </div>
 
-          {/* Thông báo dưới nút */}
-          {successMsg && (
-            <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
-              {successMsg}
+      {/* CARD 1: Thông tin cơ bản */}
+      <div className="bg-white dark:bg-gray-900 border rounded-2xl shadow p-6 space-y-5">
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Ảnh */}
+          <label
+            htmlFor="eq-img"
+            className={`relative w-64 h-48 border-2 rounded-xl overflow-hidden ${
+              editing
+                ? "border-dashed cursor-pointer hover:border-emerald-500"
+                : "border-solid"
+            }`}
+          >
+            {formData.preview ? (
+              <img
+                src={formData.preview}
+                alt={formData.name}
+                className="object-contain w-full h-full"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <ImagePlus size={40} className="text-emerald-400" />
+                <span className="text-sm">Chọn ảnh</span>
+              </div>
+            )}
+            {editing && (
+              <input
+                type="file"
+                id="eq-img"
+                accept="image/*"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={handlePickImage}
+              />
+            )}
+          </label>
+
+          {/* Thông tin */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
+            <p>
+              <strong>Mã thiết bị:</strong> {equipment.id}
+            </p>
+            <p>
+              <strong>Nhà cung cấp:</strong> {equipment.vendor_name || "—"}
+            </p>
+            <p>
+              <strong>Nhóm:</strong> {equipment.main_name || "—"}
+            </p>
+            <p>
+              <strong>Loại:</strong> {equipment.type_name || "—"}
+            </p>
+
+            <div className="col-span-2">
+              <strong>Tên thiết bị:</strong>
+              {editing ? (
+                <Input
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className="mt-1 h-9"
+                />
+              ) : (
+                <p className="mt-1">{formData.name || "—"}</p>
+              )}
             </div>
-          )}
-          {errorMsg && (
-            <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
-              {errorMsg}
+
+            <div className="col-span-2">
+              <strong>Mô tả:</strong>
+              {editing ? (
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  className="mt-1 text-sm"
+                />
+              ) : (
+                <p className="mt-1">{formData.description || "—"}</p>
+              )}
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="text-center pt-4">
-          <div className="inline-block px-4 py-2 text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-lg shadow-sm">
-            ⚠️ Thiết bị hiện đang ở trạng thái <b>“Ngừng tạm thời”</b>.
+
+            <div>
+              <strong>Bảo hành (năm):</strong>
+              {editing ? (
+                <Input
+                  type="number"
+                  value={formData.warranty_duration}
+                  onChange={(e) =>
+                    handleChange("warranty_duration", e.target.value)
+                  }
+                  className="mt-1 h-9"
+                />
+              ) : (
+                <p className="mt-1">{formData.warranty_duration}</p>
+              )}
+            </div>
+            <p>
+              <strong>Ngày tạo:</strong> {fmtDate(equipment.created_at)}
+            </p>
+            <p>
+              <strong>Cập nhật gần nhất:</strong> {fmtDate(equipment.updated_at)}
+            </p>
           </div>
         </div>
-      )}
-    </motion.div>
-  );
-}
+      </div>
 
-function InfoItem({ icon, label, value }) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="text-brand">{icon}</div>
-      <div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="text-base font-medium text-gray-800 dark:text-gray-100">
-          {value || "—"}
-        </p>
+      {/* CARD 2: Thông số kỹ thuật */}
+      <div className="bg-white dark:bg-gray-900 border rounded-2xl shadow p-6 space-y-5">
+        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+          Thông số kỹ thuật
+        </h3>
+
+        {!editing ? (
+          equipment.attributes && equipment.attributes.length > 0 ? (
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {equipment.attributes.map((a, i) => (
+                <div
+                  key={i}
+                  className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border"
+                >
+                  <p className="text-xs text-gray-500">{a.attribute}</p>
+                  <p className="text-sm font-medium">{a.value || "—"}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="italic text-gray-500">(Chưa có thông số kỹ thuật...)</p>
+          )
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left: Chọn thông số */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="font-medium text-sm">Chọn thông số</Label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearAllChecked}
+                  className="text-xs flex items-center gap-1"
+                >
+                  <RotateCcw
+                    className={`w-4 h-4 ${spinClearChecked ? "animate-spin" : ""}`}
+                  />
+                  Clear Checked
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Tìm thông số..."
+                  value={searchAttr}
+                  onChange={(e) => setSearchAttr(e.target.value)}
+                  className="h-9 text-sm"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setSelectedAttrs(
+                      Object.fromEntries(
+                        filteredAttributes.map((a) => [a.name, ""])
+                      )
+                    )
+                  }
+                  className="text-xs"
+                >
+                  Chọn tất cả
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto border rounded-md p-3">
+                {filteredAttributes.map((attr) => (
+                  <label
+                    key={attr.id}
+                    className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
+                      selectedAttrs[attr.name] !== undefined
+                        ? "bg-emerald-50 dark:bg-gray-700"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedAttrs[attr.name] !== undefined}
+                      onChange={() => toggleAttr(attr.name)}
+                    />
+                    {attr.name}
+                  </label>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t">
+                {addingAttr ? (
+                  <div className="text-sm text-gray-500 flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Đang thêm...
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      placeholder="Thêm thông số mới"
+                      value={newAttrName}
+                      onChange={(e) => setNewAttrName(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                    <Button
+                      onClick={handleAddNewAttribute}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white h-9 text-sm flex items-center gap-1"
+                    >
+                      <PlusCircle className="w-4 h-4" /> Thêm
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Nhập giá trị */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="font-medium text-sm">Giá trị thông số</Label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearAllInputs}
+                  className="text-xs flex items-center gap-1"
+                >
+                  <RotateCcw
+                    className={`w-4 h-4 ${spinClearInputs ? "animate-spin" : ""}`}
+                  />
+                  Clear Inputs
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[420px] overflow-y-auto p-2 border rounded-md">
+                {Object.entries(selectedAttrs).map(([name, val]) => (
+                  <div key={name}>
+                    <Label className="text-xs text-gray-500">{name}</Label>
+                    <Input
+                      placeholder={`Nhập ${name}`}
+                      value={val}
+                      onChange={(e) =>
+                        setSelectedAttrs((prev) => ({
+                          ...prev,
+                          [name]: e.target.value,
+                        }))
+                      }
+                      className="h-9 text-sm mt-1"
+                    />
+                  </div>
+                ))}
+                {Object.keys(selectedAttrs).length === 0 && (
+                  <div className="italic text-gray-500 text-sm">
+                    (Chưa chọn thông số...)
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

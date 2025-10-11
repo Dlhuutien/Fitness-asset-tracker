@@ -31,6 +31,7 @@ router.put(
   "/:id",
   verifyAccessToken,
   requireRole("admin", "super-admin"),
+  upload,
   equipmentController.updateEquipment
 );
 

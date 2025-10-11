@@ -229,7 +229,55 @@ const equipmentService = {
   updateEquipment: async (id, data) => {
     const existing = await equipmentRepository.findById(id);
     if (!existing) throw new Error("Equipment not found");
-    return await equipmentRepository.update(id, data);
+
+    // Update thông tin chính
+    const updated = await equipmentRepository.update(id, {
+      ...existing,
+      ...data,
+      updated_at: new Date().toISOString(),
+    });
+
+    // Nếu có attributes → reset toàn bộ
+    if (Array.isArray(data.attributes)) {
+      // Xóa toàn bộ attribute cũ
+      await attributeValueRepository.deleteAllByEquipmentId(id);
+
+      // Thêm lại toàn bộ attribute mới
+      for (const av of data.attributes) {
+        if (!av.attribute_id || !av.value) {
+          throw new Error("Each attribute must include attribute_id and value");
+        }
+
+        const attr = await attributeRepository.findById(av.attribute_id);
+        if (!attr) {
+          throw new Error(
+            `Attribute with id ${av.attribute_id} does not exist`
+          );
+        }
+
+        await attributeValueRepository.create({
+          equipment_id: id,
+          attribute_id: av.attribute_id,
+          value: av.value,
+        });
+      }
+    }
+
+    // Load lại attribute để trả về
+    const attrValues = await attributeValueRepository.findByEquipmentId(id);
+    const attrs = [];
+    for (const av of attrValues) {
+      const attr = await attributeRepository.findById(av.attribute_id);
+      attrs.push({
+        attribute: attr ? attr.name : av.attribute_id,
+        value: av.value,
+      });
+    }
+
+    return {
+      ...updated,
+      attributes: attrs,
+    };
   },
 
   deleteEquipment: async (id) => {

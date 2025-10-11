@@ -46,13 +46,45 @@ const equipmentController = {
 
   updateEquipment: async (req, res) => {
     try {
-      const equipment = await equipmentService.updateEquipment(
-        req.params.id,
-        req.body
+      console.log("[UPDATE EQUIPMENT] Nhận request:");
+      console.log("- Params ID:", req.params.id);
+      console.log("- Body:", req.body);
+      console.log(
+        "- File:",
+        req.file ? req.file.originalname : "Không có file"
       );
+
+      // Lấy thiết bị cũ
+      const oldEquipment = await equipmentService.getEquipmentById(
+        req.params.id
+      );
+
+      let imageUrl = oldEquipment.image; // mặc định giữ ảnh cũ
+
+      if (req.file) {
+        console.log("Uploading new file...");
+        imageUrl = await uploadFile(req.file);
+        console.log("Uploaded file URL:", imageUrl);
+      }
+
+      // Parse attributes (tránh lỗi khi frontend gửi string)
+      const parsedAttributes =
+        typeof req.body.attributes === "string"
+          ? JSON.parse(req.body.attributes)
+          : req.body.attributes;
+
+      // Cập nhật DB
+      const equipment = await equipmentService.updateEquipment(req.params.id, {
+        ...req.body,
+        image: imageUrl,
+        attributes: parsedAttributes,
+      });
+
+      console.log("Update thành công:", equipment);
       res.json(equipment);
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      console.error("[Error updating equipment]:", error);
+      res.status(400).json({ error: error.message, stack: error.stack });
     }
   },
 

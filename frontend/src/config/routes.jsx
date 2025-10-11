@@ -12,7 +12,8 @@ import EquipmentGroupPage from "@/pages/equipment/EquipmentGroupPage";
 import EquipmentAddGroupPage from "@/pages/equipment/EquipmentGroupTypePage";
 import EquipmentAddCardPage from "@/components/layouts/equipment/EquipmentAddCardPage";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
-import EquipmentProfilePage from "@/pages/equipment/EquipmentProfilePage";
+import EquipmentProfilePage from "@/pages/equipment/EquipmentUnitProfilePage";
+import EquipmentSpecsPage from "@/pages/equipment/EquipmentProfilePage";
 
 // Staff
 import StaffPage from "@/pages/staff/StaffPage";
@@ -82,6 +83,15 @@ const routes = [
           </PageTransition>
         ),
       },
+      {
+        path: "/app/equipment/specs/:id",
+        element: (
+          <PageTransition>
+            <EquipmentSpecsPage />
+          </PageTransition>
+        ),
+      },
+
       {
         path: "/app/equipment/page",
         element: (

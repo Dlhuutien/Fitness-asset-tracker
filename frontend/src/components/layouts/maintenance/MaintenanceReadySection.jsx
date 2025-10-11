@@ -119,7 +119,10 @@ export default function MaintenanceReadySection() {
       type_name: getUniqueValues(equipments, (e) => e.equipment?.type_name),
       vendor_name: getUniqueValues(equipments, (e) => e.equipment?.vendor_name),
       branch_id: getUniqueValues(equipments, (e) => e.branch_id),
-      status: getUniqueValues(equipments, (e) => STATUS_MAP[e.status?.toLowerCase()]),
+      status: getUniqueValues(
+        equipments,
+        (e) => STATUS_MAP[e.status?.toLowerCase()]
+      ),
     }),
     [equipments]
   );
@@ -160,7 +163,10 @@ export default function MaintenanceReadySection() {
     });
   }, [filtered, filters]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredByColumn.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredByColumn.length / ITEMS_PER_PAGE)
+  );
   const currentData = filteredByColumn.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -170,7 +176,7 @@ export default function MaintenanceReadySection() {
   const loadHistory = async (unitId) => {
     try {
       setLoadingHistory(true);
-      const res = await MaintainService.getByUnit(unitId);
+      const res = await MaintainService.getLatestHistory(unitId);
       if (res) setMaintenanceHistory([res]);
       else setMaintenanceHistory([]);
     } catch (err) {
@@ -251,10 +257,12 @@ export default function MaintenanceReadySection() {
             Hiển thị theo nhóm
           </h3>
           <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto">
-            {[{ id: "all", name: "Tất cả" },
+            {[
+              { id: "all", name: "Tất cả" },
               ...Array.from(
                 new Set(equipments.map((e) => e.equipment?.main_name))
-              ).map((n) => ({ id: n, name: n }))].map((g, idx) => (
+              ).map((n) => ({ id: n, name: n })),
+            ].map((g, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveGroup(g.id)}
@@ -535,41 +543,58 @@ export default function MaintenanceReadySection() {
             </div>
 
             {/* Lịch sử bảo trì */}
+            {/* Lịch sử bảo trì */}
             <div>
               <h2 className="text-lg font-semibold mb-4">Lịch sử bảo trì</h2>
+
               {loadingHistory ? (
                 <div className="text-gray-500 animate-pulse">
                   Đang tải lịch sử...
                 </div>
               ) : maintenanceHistory.length > 0 ? (
-                <table className="w-full border text-sm dark:border-gray-700">
-                  <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
-                    <tr>
-                      <th className="border p-2">Bắt đầu</th>
-                      <th className="border p-2">Kết thúc</th>
-                      <th className="border p-2">Chi phí</th>
-                      <th className="border p-2">Kết quả</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {maintenanceHistory.map((mh, idx) => (
-                      <tr key={idx}>
-                        <td className="border p-2">
-                          {mh.start_date?.slice(0, 10)}
-                        </td>
-                        <td className="border p-2">
-                          {mh.end_date?.slice(0, 10) || "—"}
-                        </td>
-                        <td className="border p-2">
-                          {mh.cost?.toLocaleString() || 0}đ
-                        </td>
-                        <td className="border p-2">
-                          <Status status={mh.status} />
-                        </td>
+                <div className="overflow-x-auto overflow-y-auto max-h-64 border rounded-md">
+                  <table className="w-full min-w-[800px] text-sm border-collapse">
+                    <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0 z-10">
+                      <tr>
+                        <th className="border p-2">Tên thiết bị</th>
+                        <th className="border p-2">Người yêu cầu</th>
+                        <th className="border p-2">Kỹ thuật viên</th>
+                        <th className="border p-2">Lý do</th>
+                        <th className="border p-2">Chi tiết</th>
+                        <th className="border p-2">Bắt đầu</th>
+                        <th className="border p-2">Kết thúc</th>
+                        <th className="border p-2 text-right">Chi phí</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="dark:bg-gray-900">
+                      {maintenanceHistory.map((mh, idx) => (
+                        <tr
+                          key={idx}
+                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-800"
+                        >
+                          <td className="border p-2">{mh.equipment_name}</td>
+                          <td className="border p-2">{mh.requested_by_name}</td>
+                          <td className="border p-2">{mh.technician_name}</td>
+                          <td className="border p-2">
+                            {mh.maintenance_reason}
+                          </td>
+                          <td className="border p-2 max-w-[200px] truncate">
+                            {mh.maintenance_detail}
+                          </td>
+                          <td className="border p-2">
+                            {new Date(mh.start_date).toLocaleString("vi-VN")}
+                          </td>
+                          <td className="border p-2">
+                            {new Date(mh.end_date).toLocaleString("vi-VN")}
+                          </td>
+                          <td className="border p-2 text-right">
+                            {mh.invoices?.[0]?.cost?.toLocaleString() || 0} ₫
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
                 <p className="text-gray-500 dark:text-gray-400">
                   Không có lịch sử bảo trì
