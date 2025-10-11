@@ -17,11 +17,19 @@ const EquipmentUnitService = {
    * Lấy tất cả equipment units
    */
   async getAll() {
+    const auth = AuthService.getAuth();
+    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
+
     try {
-      const res = await axios.get(`${API}equipmentUnit`);
+      const res = await axios.get(`${API}equipmentUnit`, {
+        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      });
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy equipment units:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi lấy equipment units:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -34,7 +42,10 @@ const EquipmentUnitService = {
       const res = await axios.get(`${API}equipmentUnit/${id}`);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy equipment unit:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi lấy equipment unit:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -44,10 +55,15 @@ const EquipmentUnitService = {
    */
   async getByEquipmentId(equipmentId) {
     try {
-      const res = await axios.get(`${API}equipmentUnit/equipment/${equipmentId}`);
+      const res = await axios.get(
+        `${API}equipmentUnit/equipment/${equipmentId}`
+      );
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy units theo equipment_id:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi lấy units theo equipment_id:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -69,7 +85,10 @@ const EquipmentUnitService = {
       );
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi lọc theo status:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi lọc theo status:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -92,7 +111,10 @@ const EquipmentUnitService = {
       });
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi lọc theo status-group:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi lọc theo status-group:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -102,7 +124,10 @@ const EquipmentUnitService = {
    * => trả về units có trạng thái Temporary Urgent & In Progress
    */
   async getUrgentUnits() {
-    return this.getByStatusGroup([UNIT_STATUS.TEMP_URGENT, UNIT_STATUS.IN_PROGRESS]);
+    return this.getByStatusGroup([
+      UNIT_STATUS.TEMP_URGENT,
+      UNIT_STATUS.IN_PROGRESS,
+    ]);
   },
 
   /**
@@ -128,7 +153,10 @@ const EquipmentUnitService = {
       });
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi cập nhật equipment unit:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi cập nhật equipment unit:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },

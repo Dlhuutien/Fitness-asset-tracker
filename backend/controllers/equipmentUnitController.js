@@ -3,7 +3,19 @@ const equipmentUnitService = require("../services/equipmentUnitService");
 const equipmentUnitController = {
   getUnits: async (req, res) => {
     try {
-      const units = await equipmentUnitService.getAllUnits();
+      const user = req.user;
+      let branchFilter = null;
+
+      // 🧠 Chỉ super-admin thấy tất cả
+      // Còn lại (admin, technician, operator) chỉ thấy theo chi nhánh của họ
+      if (user && user.role !== "super-admin") {
+        branchFilter =
+          user["custom:branch_id"] ||
+          user?.attributes?.["custom:branch_id"] ||
+          null;
+      }
+
+      const units = await equipmentUnitService.getAllUnits(branchFilter);
       res.json(units);
     } catch (err) {
       res.status(500).json({ error: err.message });
