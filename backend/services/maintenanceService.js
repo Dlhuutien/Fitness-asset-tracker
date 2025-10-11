@@ -1,6 +1,7 @@
 const maintenanceRepository = require("../repositories/maintenanceRepository");
 const maintenanceInvoiceRepository = require("../repositories/maintenanceInvoiceRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
+const equipmentRepository = require("../repositories/equipmentRepository");
 const branchRepository = require("../repositories/branchRepository");
 const userRepository = require("../repositories/userRepository");
 
@@ -108,13 +109,90 @@ const maintenanceService = {
   },
 
   getAll: async () => {
-    return await maintenanceRepository.findAll();
+    const maintenances = await maintenanceRepository.findAll();
+    const allInvoices = await maintenanceInvoiceRepository.findAll();
+
+    const result = [];
+
+    for (const m of maintenances) {
+      // 🧾 Lấy danh sách hóa đơn bảo trì liên quan
+      const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
+
+      // 🧰 Lấy tên thiết bị
+      let equipmentName = "Không rõ";
+      if (m.equipment_unit_id) {
+        const unit = await equipmentUnitRepository.findById(
+          m.equipment_unit_id
+        );
+        if (unit?.equipment_id) {
+          const eq = await equipmentRepository.findById(unit.equipment_id);
+          equipmentName = eq?.name || "Không rõ";
+        }
+      }
+
+      // 👤 Người yêu cầu
+      let requestedByName = "Không rõ";
+      if (m.assigned_by) {
+        const reqUser = await userRepository.getUserBySub(m.assigned_by);
+        requestedByName =
+          reqUser?.attributes?.name ||
+          reqUser?.UserAttributes?.find(
+            (a) => a.Name === "name" || a.Name === "custom:name"
+          )?.Value ||
+          reqUser?.username ||
+          reqUser?.Username ||
+          "Không rõ";
+      }
+
+      // 👨‍🔧 Kỹ thuật viên
+      let technicianName = "Không rõ";
+      if (m.user_id) {
+        const techUser = await userRepository.getUserBySub(m.user_id);
+        technicianName =
+          techUser?.attributes?.name ||
+          techUser?.UserAttributes?.find(
+            (a) => a.Name === "name" || a.Name === "custom:name"
+          )?.Value ||
+          techUser?.username ||
+          techUser?.Username ||
+          "Không rõ";
+      }
+
+      // 🧩 Push kết quả đầy đủ
+      result.push({
+        ...m,
+        invoices,
+        requested_by_name: requestedByName,
+        technician_name: technicianName,
+        equipment_name: equipmentName,
+      });
+    }
+
+    // Sắp xếp mới nhất trước
+    result.sort(
+      (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
+    );
+
+    return result;
   },
 
+  // =======================================================
+  // GET BY ID (thêm tên thiết bị)
+  // =======================================================
   getById: async (id) => {
     const m = await maintenanceRepository.findById(id);
     if (!m) throw new Error("Maintenance not found");
-    return m;
+
+    let equipmentName = "Không rõ";
+    if (m.equipment_unit_id) {
+      const unit = await equipmentUnitRepository.findById(m.equipment_unit_id);
+      if (unit?.equipment_id) {
+        const eq = await equipmentRepository.findById(unit.equipment_id);
+        equipmentName = eq?.name || "Không rõ";
+      }
+    }
+
+    return { ...m, equipment_name: equipmentName };
   },
 
   delete: async (id) => {
@@ -124,17 +202,18 @@ const maintenanceService = {
   getByUnitId: async (equipment_unit_id) => {
     const all = await maintenanceRepository.findAll();
     const active = all.find(
-      (m) => m.equipment_unit_id === equipment_unit_id && !m.end_date // nghĩa là chưa hoàn thành
+      (m) => m.equipment_unit_id === equipment_unit_id && !m.end_date
     );
     return active || null;
   },
 
-  // Lấy toàn bộ lịch sử bảo trì (bao gồm hóa đơn) của 1 Unit
+  // =======================================================
+  // Lịch sử bảo trì của 1 thiết bị
+  // =======================================================
   getFullHistoryByUnit: async (equipment_unit_id) => {
     const allMaintenances = await maintenanceRepository.findAll();
     const allInvoices = await maintenanceInvoiceRepository.findAll();
 
-    // 🧩 Lọc các maintenance thuộc unit
     const history = allMaintenances.filter(
       (m) => m.equipment_unit_id === equipment_unit_id
     );
@@ -143,20 +222,29 @@ const maintenanceService = {
     for (const m of history) {
       const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
 
-      // 🧩 Lấy thông tin người yêu cầu & người sửa chữa
       let requestedByName = "Không rõ";
       let technicianName = "Không rõ";
+      let equipmentName = "Không rõ";
 
+      // 🧩 Lấy tên người yêu cầu
       if (m.assigned_by) {
         const reqUser = await userRepository.getUserBySub(m.assigned_by);
         requestedByName =
           reqUser?.attributes?.name || reqUser?.username || "Không rõ";
       }
 
+      // 🧩 Lấy tên kỹ thuật viên
       if (m.user_id) {
         const techUser = await userRepository.getUserBySub(m.user_id);
         technicianName =
           techUser?.attributes?.name || techUser?.username || "Không rõ";
+      }
+
+      // 🧩 Lấy tên thiết bị
+      const unit = await equipmentUnitRepository.findById(m.equipment_unit_id);
+      if (unit?.equipment_id) {
+        const eq = await equipmentRepository.findById(unit.equipment_id);
+        equipmentName = eq?.name || "Không rõ";
       }
 
       combined.push({
@@ -164,10 +252,10 @@ const maintenanceService = {
         invoices,
         requested_by_name: requestedByName,
         technician_name: technicianName,
+        equipment_name: equipmentName,
       });
     }
 
-    // 🔁 Sắp xếp mới nhất trước
     combined.sort(
       (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
     );
@@ -175,7 +263,9 @@ const maintenanceService = {
     return combined;
   },
 
-  // Lấy lịch sử bảo trì gần nhất của 1 Unit (bao gồm hóa đơn)
+  // =======================================================
+  // Lịch sử gần nhất
+  // =======================================================
   getLatestHistoryByUnit: async (equipment_unit_id) => {
     const allMaintenances = await maintenanceRepository.findAll();
     const allInvoices = await maintenanceInvoiceRepository.findAll();
@@ -183,7 +273,6 @@ const maintenanceService = {
     const history = allMaintenances.filter(
       (m) => m.equipment_unit_id === equipment_unit_id
     );
-
     if (history.length === 0) return null;
 
     history.sort(
@@ -197,9 +286,9 @@ const maintenanceService = {
       (inv) => inv.maintenance_id === latest.id
     );
 
-    // 🧩 Thêm tên người yêu cầu & kỹ thuật viên
     let requestedByName = "Không rõ";
     let technicianName = "Không rõ";
+    let equipmentName = "Không rõ";
 
     if (latest.assigned_by) {
       const reqUser = await userRepository.getUserBySub(latest.assigned_by);
@@ -213,11 +302,20 @@ const maintenanceService = {
         techUser?.attributes?.name || techUser?.username || "Không rõ";
     }
 
+    const unit = await equipmentUnitRepository.findById(
+      latest.equipment_unit_id
+    );
+    if (unit?.equipment_id) {
+      const eq = await equipmentRepository.findById(unit.equipment_id);
+      equipmentName = eq?.name || "Không rõ";
+    }
+
     return {
       ...latest,
       invoices,
       requested_by_name: requestedByName,
       technician_name: technicianName,
+      equipment_name: equipmentName,
     };
   },
 };

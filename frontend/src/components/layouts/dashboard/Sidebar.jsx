@@ -76,9 +76,9 @@ export default function Sidebar() {
     },
     {
       key: "invoice",
-      label: "Quản lý hóa đơn",
+      label: "Danh sách hóa đơn",
       icon: BarChart3,
-      children: [{ label: "Danh sách hóa đơn", path: "/app/invoice" }],
+      path: "/app/invoice",
     },
   ];
 

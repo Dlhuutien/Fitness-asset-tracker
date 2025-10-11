@@ -4,6 +4,7 @@ const equipmentUnitRepository = require("../repositories/equipmentUnitRepository
 const invoiceDetailRepository = require("../repositories/invoiceDetailRepository");
 const branchRepository = require("../repositories/branchRepository");
 const countRepository = require("../repositories/countRepository");
+const userRepository = require("../repositories/userRepository");
 
 const invoiceService = {
   createInvoice: async (data) => {
@@ -92,13 +93,61 @@ const invoiceService = {
   },
 
   getInvoices: async () => {
-    return await invoiceRepository.findAll();
+    const invoices = await invoiceRepository.findAll();
+    const result = [];
+
+    for (const inv of invoices) {
+      let userName = "Không rõ";
+
+      if (inv.user_id) {
+        try {
+          const user = await userRepository.getUserBySub(inv.user_id);
+          userName =
+            user?.attributes?.name ||
+            user?.UserAttributes?.find(
+              (a) => a.Name === "name" || a.Name === "custom:name"
+            )?.Value ||
+            user?.username ||
+            user?.Username ||
+            "Không rõ";
+        } catch (err) {
+          console.warn(`⚠️ Không lấy được user ${inv.user_id}:`, err.message);
+        }
+      }
+
+      result.push({
+        ...inv,
+        user_name: userName,
+      });
+    }
+
+    return result;
   },
 
   getInvoiceById: async (id) => {
     const invoice = await invoiceRepository.findById(id);
     if (!invoice) throw new Error("Invoice not found");
-    return invoice;
+
+    let userName = "Không rõ";
+
+    if (invoice.user_id) {
+      try {
+        const user = await userRepository.getUserBySub(invoice.user_id);
+
+        userName =
+          user?.attributes?.name ||
+          user?.UserAttributes?.find(
+            (a) => a.Name === "name" || a.Name === "custom:name"
+          )?.Value ||
+          user?.username ||
+          user?.Username ||
+          "Không rõ";
+      } catch (err) {
+        console.warn(`⚠️ Không lấy được user ${invoice.user_id}:`, err.message);
+      }
+    }
+
+    return { ...invoice, user_name: userName };
   },
 
   updateInvoice: async (id, data) => {
@@ -113,28 +162,133 @@ const invoiceService = {
     return await invoiceRepository.delete(id);
   },
 
+  // ======================================================
+  // LẤY CHI TIẾT CỦA 1 HÓA ĐƠN
+  // ======================================================
   getInvoiceDetails: async (invoiceId) => {
-    // 1. Lấy invoice
     const invoice = await invoiceRepository.findById(invoiceId);
     if (!invoice) throw new Error("Invoice not found");
 
-    // 2. Lấy danh sách chi tiết
-    const details = await invoiceDetailRepository.findByInvoiceId(invoiceId);
+    // Lấy tên người tạo hóa đơn
+    let userName = "Không rõ";
+    if (invoice.user_id) {
+      try {
+        const user = await userRepository.getUserBySub(invoice.user_id);
+        userName =
+          user?.attributes?.name ||
+          user?.UserAttributes?.find(
+            (a) => a.Name === "name" || a.Name === "custom:name"
+          )?.Value ||
+          user?.username ||
+          user?.Username ||
+          "Không rõ";
+      } catch (err) {
+        console.warn(`⚠️ Không lấy được user ${invoice.user_id}:`, err.message);
+      }
+    }
 
-    // 3. Join với equipment_unit
+    // 🧩 Lấy chi tiết + thông tin thiết bị
+    const details = await invoiceDetailRepository.findByInvoiceId(invoiceId);
     const detailsWithUnits = [];
+
     for (const d of details) {
       const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+
+      let equipmentName = "Không rõ";
+      if (unit?.equipment_id) {
+        const eq = await equipmentRepository.findById(unit.equipment_id);
+        equipmentName = eq?.name || "Không rõ";
+      }
+
       detailsWithUnits.push({
         ...d,
-        equipment_unit: unit,
+        equipment_name: equipmentName,
+        equipment_unit: {
+          ...unit,
+          equipment_name: equipmentName,
+        },
       });
     }
 
     return {
-      invoice,
+      invoice: { ...invoice, user_name: userName },
       details: detailsWithUnits,
     };
+  },
+
+  // ======================================================
+  // LẤY TOÀN BỘ CHI TIẾT HÓA ĐƠN (/invoice/details)
+  // ======================================================
+  getAllInvoiceDetails: async () => {
+    const invoices = await invoiceRepository.findAll();
+    const allDetails = await invoiceDetailRepository.findAll();
+    const combined = [];
+
+    for (const detail of allDetails) {
+      const invoice = invoices.find((inv) => inv.id === detail.invoice_id);
+      if (!invoice) continue;
+
+      // Lấy tên người tạo hóa đơn
+      let userName = "Không rõ";
+      if (invoice.user_id) {
+        try {
+          const user = await userRepository.getUserBySub(invoice.user_id);
+          userName =
+            user?.attributes?.name ||
+            user?.UserAttributes?.find(
+              (a) => a.Name === "name" || a.Name === "custom:name"
+            )?.Value ||
+            user?.username ||
+            user?.Username ||
+            "Không rõ";
+        } catch (err) {
+          console.warn(
+            `⚠️ Không lấy được user ${invoice.user_id}:`,
+            err.message
+          );
+        }
+      }
+
+      // 🧩 Lấy thông tin thiết bị
+      const unit = await equipmentUnitRepository.findById(
+        detail.equipment_unit_id
+      );
+
+      let equipmentName = "Không rõ";
+      if (unit?.equipment_id) {
+        const eq = await equipmentRepository.findById(unit.equipment_id);
+        equipmentName = eq?.name || "Không rõ";
+      }
+
+      // ✅ Cấu trúc chuẩn có thêm equipment_name
+      combined.push({
+        invoice: {
+          id: invoice.id,
+          total: invoice.total,
+          user_id: invoice.user_id,
+          created_at: invoice.created_at,
+          updated_at: invoice.updated_at,
+          user_name: userName,
+        },
+        detail: {
+          ...detail,
+          equipment_name: equipmentName,
+          equipment_unit: {
+            ...unit,
+            equipment_name: equipmentName,
+          },
+        },
+      });
+    }
+
+    // 🔄 Sắp xếp mới nhất
+    combined.sort(
+      (a, b) =>
+        new Date(b.invoice.created_at || 0) -
+        new Date(a.invoice.created_at || 0)
+    );
+
+    return combined;
   },
 };
 

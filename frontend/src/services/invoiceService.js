@@ -29,7 +29,10 @@ const InvoiceService = {
       const res = await axios.get(`${API}invoice`);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi getAll invoices:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi getAll invoices:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -40,7 +43,10 @@ const InvoiceService = {
       const res = await axios.get(`${API}invoice/${id}`);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi get invoice by id:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi get invoice by id:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -51,7 +57,26 @@ const InvoiceService = {
       const res = await axios.get(`${API}invoice/${id}/details`);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi get invoice details:", err.response?.data || err.message);
+      console.error(
+        "Lỗi khi get invoice details:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * Lấy toàn bộ chi tiết của mọi invoice
+   */
+  async getAllDetails() {
+    try {
+      const res = await axios.get(`${API}invoice/details`);
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi khi get all invoice details:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
