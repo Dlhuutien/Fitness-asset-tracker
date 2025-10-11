@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"; 
+import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import DatePicker from "react-datepicker";
 import { vi } from "date-fns/locale";
@@ -136,8 +136,6 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
               locale={vi}
               placeholderText="dd/mm/yyyy"
               className="h-8 text-sm border rounded-md px-2 dark:bg-gray-700 dark:text-white w-full"
-              portalId="root"
-              popperClassName="z-[99999]"
             />
             <span className="text-gray-400">—</span>
             <DatePicker
@@ -149,8 +147,6 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
               locale={vi}
               placeholderText="dd/mm/yyyy"
               className="h-8 text-sm border rounded-md px-2 dark:bg-gray-700 dark:text-white w-full"
-              portalId="root"
-              popperClassName="z-[99999]"
             />
           </div>
           <div className="flex justify-end gap-2 mt-3">
@@ -242,7 +238,6 @@ export default function InvoiceImportSection() {
 
   const filteredInvoices = useMemo(() => {
     let list = invoices;
-
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       list = list.filter(
@@ -252,7 +247,6 @@ export default function InvoiceImportSection() {
           inv.details.some((d) => d.equipment_unit_id?.toLowerCase().includes(s))
       );
     }
-
     if (filterId.length > 0) list = list.filter((inv) => filterId.includes(inv.invoice.id));
     if (filterUser.length > 0) list = list.filter((inv) => filterUser.includes(inv.invoice.user_name));
     if (filterBranch.length > 0)
@@ -290,9 +284,7 @@ export default function InvoiceImportSection() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (loading) {
-    return <div className="text-center py-10 text-gray-500">Đang tải danh sách hóa đơn...</div>;
-  }
+  if (loading) return <div className="text-center py-10 text-gray-500">Đang tải danh sách hóa đơn...</div>;
 
   return (
     <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-5">
@@ -325,6 +317,49 @@ export default function InvoiceImportSection() {
               created_at: "Ngày tạo",
             }}
           />
+
+          {/* Bộ lọc nhanh Tuần / Tháng / Năm */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Lọc nhanh:</span>
+            <select
+              className="border rounded-md px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-100"
+              onChange={(e) => {
+                const now = new Date();
+                const value = e.target.value;
+                let start = "", end = "";
+
+                if (value === "week") {
+                  const firstDay = new Date(now);
+                  firstDay.setDate(now.getDate() - now.getDay() + 1);
+                  const lastDay = new Date(firstDay);
+                  lastDay.setDate(firstDay.getDate() + 6);
+                  start = firstDay.toISOString().split("T")[0];
+                  end = lastDay.toISOString().split("T")[0];
+                } else if (value === "month") {
+                  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+                  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                  start = firstDay.toISOString().split("T")[0];
+                  end = lastDay.toISOString().split("T")[0];
+                } else if (value === "year") {
+                  const firstDay = new Date(now.getFullYear(), 0, 1);
+                  const lastDay = new Date(now.getFullYear(), 11, 31);
+                  start = firstDay.toISOString().split("T")[0];
+                  end = lastDay.toISOString().split("T")[0];
+                } else {
+                  start = "";
+                  end = "";
+                }
+
+                setDateStart(start);
+                setDateEnd(end);
+              }}
+            >
+              <option value="">Tất cả</option>
+              <option value="week">Tuần này</option>
+              <option value="month">Tháng này</option>
+              <option value="year">Năm nay</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -334,7 +369,6 @@ export default function InvoiceImportSection() {
           <TableHeader>
             <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
               <TableHead>#</TableHead>
-
               {visibleColumns.id && (
                 <TableHead>
                   <HeaderFilter
@@ -347,7 +381,6 @@ export default function InvoiceImportSection() {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.user && (
                 <TableHead>
                   <HeaderFilter
@@ -360,7 +393,6 @@ export default function InvoiceImportSection() {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.branch && (
                 <TableHead>
                   <HeaderFilter
@@ -373,7 +405,6 @@ export default function InvoiceImportSection() {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.total && (
                 <TableHead>
                   <NumberRangeHeaderFilter
@@ -385,7 +416,6 @@ export default function InvoiceImportSection() {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.created_at && (
                 <TableHead>
                   <DateRangeHeaderFilter
@@ -397,7 +427,6 @@ export default function InvoiceImportSection() {
                   />
                 </TableHead>
               )}
-
               <TableHead className="text-center">Chi tiết</TableHead>
             </TableRow>
           </TableHeader>
@@ -420,7 +449,6 @@ export default function InvoiceImportSection() {
                       className="text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     >
                       <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + i + 1}</TableCell>
-
                       {visibleColumns.id && (
                         <TableCell className="font-medium text-emerald-600">{inv.invoice.id}</TableCell>
                       )}
@@ -432,7 +460,6 @@ export default function InvoiceImportSection() {
                       {visibleColumns.created_at && (
                         <TableCell>{new Date(inv.invoice.created_at).toLocaleString("vi-VN")}</TableCell>
                       )}
-
                       <TableCell className="text-center">
                         {expandedInvoiceId === inv.invoice.id ? (
                           <ChevronUp className="mx-auto text-emerald-500" />
@@ -469,7 +496,6 @@ export default function InvoiceImportSection() {
                                   </TableRow>
                                 </TableHeader>
 
-                                {/* ✅ NHÓM THIẾT BỊ + HÀNG TỔNG */}
                                 <TableBody>
                                   {(() => {
                                     const grouped = inv.details.reduce((acc, d) => {
@@ -481,7 +507,6 @@ export default function InvoiceImportSection() {
 
                                     let index = 1;
                                     const rows = [];
-
                                     Object.entries(grouped).forEach(([prefix, items]) => {
                                       items.forEach((d) => {
                                         rows.push(
@@ -510,7 +535,6 @@ export default function InvoiceImportSection() {
                                         );
                                       }
                                     });
-
                                     return rows;
                                   })()}
                                 </TableBody>
@@ -562,7 +586,6 @@ export default function InvoiceImportSection() {
             >
               «
             </Button>
-
             {Array.from({ length: totalPages }).map((_, i) => (
               <Button
                 key={i}
@@ -578,7 +601,6 @@ export default function InvoiceImportSection() {
                 {i + 1}
               </Button>
             ))}
-
             <Button
               size="sm"
               variant="outline"
