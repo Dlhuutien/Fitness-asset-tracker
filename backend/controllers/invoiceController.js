@@ -1,6 +1,5 @@
 const invoiceService = require("../services/invoiceService");
 const userService = require("../services/userService");
-// const sendEmail = require("../services/emailService");
 const notificationService = require("../services/notificationService");
 
 const invoiceController = {

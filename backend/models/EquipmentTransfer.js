@@ -15,10 +15,10 @@ const EquipmentTransferModel = {
   createTransfer: async (data) => {
     const item = {
       id: uuidv4(),
-      equipment_unit_id: data.equipment_unit_id,
       from_branch_id: data.from_branch_id,
       to_branch_id: data.to_branch_id,
       approved_by: data.approved_by,
+      receiver_id: null,
       description: data.description,
       status: "Pending",
       move_start_date: data.move_start_date || new Date().toISOString(),
@@ -49,18 +49,20 @@ const EquipmentTransferModel = {
   },
 
   // COMPLETE TRANSFER (only update receive date + status)
-  completeTransfer: async (id, move_receive_date) => {
+  completeTransfer: async (id, move_receive_date, receiver_id) => {
     const result = await dynamodb.send(new UpdateCommand({
       TableName: tableName,
       Key: { id },
-      UpdateExpression: "set #r = :receive, #s = :status",
+      UpdateExpression: "set #r = :receive, #s = :status, #recv = :receiver",
       ExpressionAttributeNames: {
         "#r": "move_receive_date",
         "#s": "status",
+        "#recv": "receiver_id",
       },
       ExpressionAttributeValues: {
         ":receive": move_receive_date || new Date().toISOString(),
         ":status": "Completed",
+        ":receiver": receiver_id,
       },
       ReturnValues: "ALL_NEW",
     }));

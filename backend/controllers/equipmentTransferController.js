@@ -5,15 +5,13 @@ const userService = require("../services/userService");
 const equipmentTransferController = {
   createTransfer: async (req, res) => {
     try {
-      const transfer = await equipmentTransferService.createTransfer(
-        {
-          equipment_unit_id: req.body.equipment_unit_id,
-          to_branch_id: req.body.to_branch_id,
-          description: req.body.description,
-          move_start_date: req.body.move_start_date,
-        },
-        req.user.sub
-      );
+      const { unit_ids, to_branch_id, description, move_start_date } = req.body;
+
+      const { transfer, details } =
+        await equipmentTransferService.createTransfer(
+          { unit_ids, to_branch_id, description, move_start_date },
+          req.user.sub
+        );
 
       const admins = await userService.getUsersByRoles([
         "admin",
@@ -21,11 +19,12 @@ const equipmentTransferController = {
       ]);
       await notificationService.notifyTransferCreated(
         transfer,
+        details,
         admins,
         req.user.sub
       );
 
-      res.status(201).json(transfer);
+      res.status(201).json({ transfer, details });
     } catch (error) {
       res.status(400).json({ error: error.message });
     }
@@ -53,10 +52,12 @@ const equipmentTransferController = {
 
   completeTransfer: async (req, res) => {
     try {
-      const transfer = await equipmentTransferService.completeTransfer(
-        req.params.id,
-        req.body.move_receive_date
-      );
+      const { transfer, details } =
+        await equipmentTransferService.completeTransfer(
+          req.params.id,
+          req.body.move_receive_date,
+          req.user.sub  
+        );
 
       const admins = await userService.getUsersByRoles([
         "admin",
@@ -64,11 +65,12 @@ const equipmentTransferController = {
       ]);
       await notificationService.notifyTransferCompleted(
         transfer,
+        details,
         admins,
         req.user.sub
       );
 
-      res.json(transfer);
+      res.json({ transfer, details });
     } catch (error) {
       res.status(400).json({ error: error.message });
     }

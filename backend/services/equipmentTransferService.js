@@ -1,20 +1,55 @@
 const equipmentTransferRepository = require("../repositories/equipmentTransferRepository");
+const equipmentTransferDetailRepository = require("../repositories/equipmentTransferDetailRepository");
 const branchRepository = require("../repositories/branchRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
 
 const equipmentTransferService = {
+  // ===================================================
+  // CREATE MULTI-TRANSFER
+  // ===================================================
   createTransfer: async (data, userSub) => {
-    if (!data.equipment_unit_id || !data.to_branch_id) {
-      throw new Error("equipment_unit_id and to_branch_id are required");
+    if (!Array.isArray(data.unit_ids) || data.unit_ids.length === 0) {
+      throw new Error("unit_ids must be a non-empty array");
     }
 
-    // Check equipment unit tồn tại
-    const unit = await equipmentUnitRepository.findById(data.equipment_unit_id);
-    if (!unit) {
-      throw new Error(`Equipment unit ${data.equipment_unit_id} not found`);
+    if (!data.to_branch_id) {
+      throw new Error("to_branch_id is required");
     }
 
-    // Các trạng thái không được phép transfer
+    // ✅ Kiểm tra tồn tại chi nhánh đích
+    const toBranch = await branchRepository.findById(data.to_branch_id);
+    if (!toBranch) throw new Error(`To branch ${data.to_branch_id} not found`);
+
+    // ✅ Lấy unit đầu tiên để xác định chi nhánh nguồn
+    const firstUnit = await equipmentUnitRepository.findById(data.unit_ids[0]);
+    if (!firstUnit) throw new Error("Invalid first equipment unit");
+
+    const from_branch_id = firstUnit.branch_id;
+    if (!from_branch_id)
+      throw new Error("Equipment unit does not have branch_id");
+
+    // ✅ Kiểm tra trùng chi nhánh
+    if (from_branch_id === data.to_branch_id) {
+      throw new Error("From branch and To branch cannot be the same");
+    }
+
+    // ✅ Kiểm tra chi nhánh nguồn tồn tại
+    const fromBranch = await branchRepository.findById(from_branch_id);
+    if (!fromBranch) throw new Error(`From branch ${from_branch_id} not found`);
+
+    // ✅ Mô tả chung
+    const description = `Transfer ${data.unit_ids.length} unit(s) from ${fromBranch.name} to ${toBranch.name}`;
+
+    // ✅ Tạo record master (Equipment_transfer)
+    const transfer = await equipmentTransferRepository.create({
+      from_branch_id,
+      to_branch_id: data.to_branch_id,
+      approved_by: userSub,
+      description,
+      move_start_date: data.move_start_date,
+    });
+
+    // ✅ Lặp qua từng unit → kiểm tra & tạo TransferDetail
     const blockedStatuses = [
       "Inactive",
       "Temporary Urgent",
@@ -24,98 +59,132 @@ const equipmentTransferService = {
       "Deleted",
       "Moving",
     ];
-    if (blockedStatuses.includes(unit.status)) {
-      throw new Error(
-        `Cannot transfer equipment unit in status: ${unit.status}`
-      );
+
+    const details = [];
+    for (const unitId of data.unit_ids) {
+      const unit = await equipmentUnitRepository.findById(unitId);
+      if (!unit) {
+        console.warn(`⚠️ Unit ${unitId} not found. Skipped.`);
+        continue;
+      }
+
+      const oldStatus = unit.status || "Unknown"; // 🧩 Lưu trạng thái gốc
+
+      // ❌ Kiểm tra trạng thái không hợp lệ
+      if (blockedStatuses.includes(oldStatus)) {
+        throw new Error(
+          `Cannot transfer equipment unit ${unit.id} in status: ${oldStatus}`
+        );
+      }
+
+      // ❌ Check chi nhánh khác nhau
+      if (unit.branch_id === data.to_branch_id) {
+        throw new Error(
+          `Unit ${unit.id} is already in destination branch ${data.to_branch_id}`
+        );
+      }
+
+      // ✅ Update unit sang trạng thái Moving
+      await equipmentUnitRepository.update(unit.id, {
+        status: "Moving",
+        description,
+      });
+
+      // ✅ Tạo record TransferDetail
+      const detail = await equipmentTransferDetailRepository.create({
+        transfer_id: transfer.id,
+        equipment_unit_id: unit.id,
+      });
+
+      // 🧩 Đính kèm trạng thái gốc để gửi email
+      details.push({
+        ...detail,
+        old_status: oldStatus,
+      });
     }
 
-    // from_branch_id tự lấy từ unit.branch_id
-    const from_branch_id = unit.branch_id;
-    if (!from_branch_id) {
-      throw new Error("Equipment unit does not have branch_id");
-    }
-
-    // Check trùng branch
-    if (from_branch_id === data.to_branch_id) {
-      throw new Error("From branch and To branch cannot be the same");
-    }
-
-    // Check from_branch và to_branch tồn tại
-    const fromBranch = await branchRepository.findById(from_branch_id);
-    if (!fromBranch) {
-      throw new Error(`From branch ${from_branch_id} not found`);
-    }
-
-    const toBranch = await branchRepository.findById(data.to_branch_id);
-    if (!toBranch) {
-      throw new Error(`To branch ${data.to_branch_id} not found`);
-    }
-
-    // Tự động sinh description
-    const description = `Transfer equipment from branch ${fromBranch.name} to ${toBranch.name}`;
-
-    // Tạo transfer
-    const transfer = await equipmentTransferRepository.create({
-      ...data,
-      from_branch_id,
-      approved_by: userSub,
-      description,
-    });
-
-    // Đổi status của unit sang Moving + thêm description
-    await equipmentUnitRepository.update(data.equipment_unit_id, {
-      status: "Moving",
-      description,
-    });
-
-    return transfer;
+    return { transfer, details };
   },
 
+  // ===================================================
+  // 🔍 GET ALL TRANSFERS (kèm details + unit info)
+  // ===================================================
   getTransfers: async () => {
-    return await equipmentTransferRepository.findAll();
+    const transfers = await equipmentTransferRepository.findAll();
+    const results = [];
+
+    for (const t of transfers) {
+      const details = await equipmentTransferDetailRepository.findByTransferId(
+        t.id
+      );
+
+      // Join với EquipmentUnit để lấy thông tin đầy đủ
+      const detailsWithUnits = [];
+      for (const d of details) {
+        const unit = await equipmentUnitRepository.findById(
+          d.equipment_unit_id
+        );
+        detailsWithUnits.push({
+          ...d,
+          equipment_unit: unit,
+        });
+      }
+
+      results.push({
+        ...t,
+        details: detailsWithUnits,
+      });
+    }
+
+    return results;
   },
 
-  getTransferById: async (id) => {
-    const transfer = await equipmentTransferRepository.findById(id);
-    if (!transfer) throw new Error("EquipmentTransfer not found");
-    return transfer;
-  },
-
-  completeTransfer: async (id, move_receive_date) => {
+  // ===================================================
+  // ✅ COMPLETE TRANSFER
+  // ===================================================
+  completeTransfer: async (id, move_receive_date, userSub) => {
     const existing = await equipmentTransferRepository.findById(id);
     if (!existing) throw new Error("EquipmentTransfer not found");
 
-    // Không cho phép complete nếu đã Completed
+    // ❌ Không cho phép complete nếu đã completed
     if (existing.status === "Completed") {
       throw new Error("Transfer already completed");
     }
 
-    // Hoàn tất transfer
+    // ✅ Hoàn tất record master
     const transfer = await equipmentTransferRepository.complete(
       id,
-      move_receive_date
+      move_receive_date,
+      userSub
     );
 
-    // Lấy thông tin chi nhánh đích
+    // ✅ Lấy chi nhánh đích
     const toBranch = await branchRepository.findById(existing.to_branch_id);
     if (!toBranch) {
       throw new Error(`Branch ${existing.to_branch_id} not found`);
     }
 
-    // Tạo description với tên chi nhánh
+    // ✅ Lấy toàn bộ chi tiết
+    const details = await equipmentTransferDetailRepository.findByTransferId(
+      id
+    );
+
+    // ✅ Cập nhật trạng thái cho từng unit
     const description = `Transferred to branch ${toBranch.name}`;
+    for (const d of details) {
+      await equipmentUnitRepository.update(d.equipment_unit_id, {
+        branch_id: existing.to_branch_id,
+        status: "In Stock",
+        description,
+      });
+    }
 
-    // Cập nhật trạng thái unit về "In Stock" + branch_id + description
-    await equipmentUnitRepository.update(existing.equipment_unit_id, {
-      branch_id: existing.to_branch_id,
-      status: "In Stock",
-      description,
-    });
-
-    return transfer;
+    return { transfer, details };
   },
 
+  // ===================================================
+  // 🗑 DELETE TRANSFER
+  // ===================================================
   deleteTransfer: async (id) => {
     const existing = await equipmentTransferRepository.findById(id);
     if (!existing) throw new Error("EquipmentTransfer not found");
