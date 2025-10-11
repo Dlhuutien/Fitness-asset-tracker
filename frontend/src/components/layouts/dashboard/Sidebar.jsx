@@ -64,7 +64,7 @@ export default function Sidebar() {
     },
     {
       key: "vendor",
-      label: "Quản lý thông tin NCC",
+      label: "Quản lý thông tin nhà cung cấp",
       icon: Truck,
       path: "/app/vendor",
     },

@@ -225,7 +225,7 @@ export default function BranchListPage() {
 
         {/* Thanh tìm kiếm + Hiển thị cột */}
         <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-emerald-100 dark:border-gray-700 flex flex-wrap justify-between items-center gap-3">
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex flex-wrap gap-8 items-center">
             <Input
               placeholder="🔍 Tìm theo tên, mã hoặc địa chỉ..."
               value={search}
@@ -233,7 +233,7 @@ export default function BranchListPage() {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full md:w-1/3 dark:bg-gray-700 dark:text-white"
+              className="w-full md:w-/3 dark:bg-gray-700 dark:text-white"
             />
             <Button
               size="sm"

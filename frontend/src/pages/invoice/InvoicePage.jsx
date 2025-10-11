@@ -10,9 +10,6 @@ export default function InvoicePage() {
   return (
     <PageContainer>
       <h1 className="text-xl font-bold mb-2">Danh sách hóa đơn</h1>
-      <p className="text-gray-600 mb-6">
-        Trang hiển thị toàn bộ danh sách hóa đơn nhập và hóa đơn bảo trì.
-      </p>
 
       {/* Tabs */}
       <div className="flex gap-4 border-b pb-2 dark:border-gray-700">
