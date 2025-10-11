@@ -113,6 +113,61 @@ const AttributeValueModel = {
     );
     return { id };
   },
+
+  // DELETE ALL BY equipment_id
+  deleteAllByEquipmentId: async (equipment_id) => {
+    // Lấy toàn bộ attribute value thuộc thiết bị
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "equipment_id-index",
+        KeyConditionExpression: "equipment_id = :eid",
+        ExpressionAttributeValues: { ":eid": equipment_id },
+      })
+    );
+
+    // Xóa từng record
+    if (result.Items && result.Items.length > 0) {
+      for (const item of result.Items) {
+        await dynamodb.send(
+          new DeleteCommand({
+            TableName: tableName,
+            Key: { id: item.id },
+          })
+        );
+      }
+    }
+    return { deleted: result.Items?.length || 0 };
+  },
+
+  // DELETE ONE BY equipment_id + attribute_id (optional, dùng sau này)
+  deleteByEquipmentAndAttribute: async (equipment_id, attribute_id) => {
+    // Truy vấn tìm attr cụ thể
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "equipment_id-index",
+        KeyConditionExpression: "equipment_id = :eid",
+        ExpressionAttributeValues: { ":eid": equipment_id },
+      })
+    );
+
+    if (result.Items && result.Items.length > 0) {
+      const target = result.Items.find(
+        (item) => item.attribute_id === attribute_id
+      );
+      if (target) {
+        await dynamodb.send(
+          new DeleteCommand({
+            TableName: tableName,
+            Key: { id: target.id },
+          })
+        );
+        return { deleted: target.id };
+      }
+    }
+    return { deleted: null };
+  },
 };
 
 module.exports = AttributeValueModel;

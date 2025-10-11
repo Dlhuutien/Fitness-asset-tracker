@@ -89,8 +89,32 @@ const EquipmentService = {
     if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
 
     try {
-      const res = await axios.put(`${API}equipment/${id}`, data, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
+      const formData = new FormData();
+
+      formData.append("name", data.name);
+      formData.append("description", data.description || "");
+      formData.append("vendor_id", data.vendor_id || "");
+      formData.append("category_type_id", data.category_type_id || "");
+      formData.append("warranty_duration", data.warranty_duration || "2");
+
+      // ⚙️ Nếu có file ảnh mới
+      if (data.image instanceof File) {
+        formData.append("image", data.image);
+      } else if (typeof data.image === "string") {
+        // giữ ảnh cũ
+        formData.append("image", data.image);
+      }
+
+      // ⚙️ Attributes: gửi JSON string
+      if (Array.isArray(data.attributes)) {
+        formData.append("attributes", JSON.stringify(data.attributes));
+      }
+
+      const res = await axios.put(`${API}equipment/${id}`, formData, {
+        headers: {
+          Authorization: `Bearer ${auth.accessToken}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
       return res.data;
     } catch (err) {

@@ -50,14 +50,18 @@ const EquipmentModel = {
 
   // READ ONE
   findById: async (id) => {
-    const res = await dynamodb.send(new GetCommand({ TableName: tableName, Key: { id } }));
+    const res = await dynamodb.send(
+      new GetCommand({ TableName: tableName, Key: { id } })
+    );
     return res.Item;
   },
 
   // READ ALL
   getEquipments: async () => {
     try {
-      const res = await dynamodb.send(new ScanCommand({ TableName: tableName }));
+      const res = await dynamodb.send(
+        new ScanCommand({ TableName: tableName })
+      );
       return res.Items || [];
     } catch (error) {
       console.error("Error getting equipments:", error);
@@ -67,7 +71,9 @@ const EquipmentModel = {
 
   getOneEquipment: async (id) => {
     try {
-      const res = await dynamodb.send(new GetCommand({ TableName: tableName, Key: { id } }));
+      const res = await dynamodb.send(
+        new GetCommand({ TableName: tableName, Key: { id } })
+      );
       return res.Item;
     } catch (error) {
       console.error("Error getting equipment:", error);
@@ -116,28 +122,36 @@ const EquipmentModel = {
   // UPDATE
   updateEquipment: async (id, equipmentData) => {
     try {
+      // ✅ Xử lý trước: nếu vendor_id hoặc category_type_id rỗng -> bỏ qua không update
+      const cleanData = { ...equipmentData };
+      if (!cleanData.vendor_id) delete cleanData.vendor_id;
+      if (!cleanData.category_type_id) delete cleanData.category_type_id;
       const res = await dynamodb.send(
         new UpdateCommand({
           TableName: tableName,
           Key: { id },
           UpdateExpression: `set 
-            vendor_id = :vendor_id,
-            category_type_id = :category_type_id,
-            category_main_id = :category_main_id,
-            #n = :name,
-            image = :image,
-            description = :description,
-            warranty_duration = :warranty_duration,
-            updated_at = :updatedAt`,
+          ${cleanData.vendor_id ? "vendor_id = :vendor_id," : ""}
+          ${
+            cleanData.category_type_id
+              ? "category_type_id = :category_type_id,"
+              : ""
+          }
+          #n = :name,
+          image = :image,
+          description = :description,
+          warranty_duration = :warranty_duration,
+          updated_at = :updatedAt`,
           ExpressionAttributeNames: { "#n": "name" },
           ExpressionAttributeValues: {
-            ":vendor_id": equipmentData.vendor_id,
-            ":category_type_id": equipmentData.category_type_id,
-            ":category_main_id": equipmentData.category_main_id,
-            ":name": equipmentData.name,
-            ":image": equipmentData.image,
-            ":description": equipmentData.description,
-            ":warranty_duration": equipmentData.warranty_duration,
+            ...(cleanData.vendor_id && { ":vendor_id": cleanData.vendor_id }),
+            ...(cleanData.category_type_id && {
+              ":category_type_id": cleanData.category_type_id,
+            }),
+            ":name": cleanData.name,
+            ":image": cleanData.image,
+            ":description": cleanData.description,
+            ":warranty_duration": cleanData.warranty_duration,
             ":updatedAt": new Date().toISOString(),
           },
           ReturnValues: "ALL_NEW",
@@ -153,7 +167,9 @@ const EquipmentModel = {
   // DELETE
   deleteEquipment: async (id) => {
     try {
-      await dynamodb.send(new DeleteCommand({ TableName: tableName, Key: { id } }));
+      await dynamodb.send(
+        new DeleteCommand({ TableName: tableName, Key: { id } })
+      );
       return { id };
     } catch (error) {
       console.error("Error deleting equipment:", error);
