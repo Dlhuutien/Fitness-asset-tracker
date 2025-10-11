@@ -92,6 +92,7 @@ const notificationService = {
       message: `Hóa đơn ${
         invoice.id
       } được tạo bởi ${creatorName}, tổng tiền: ${invoice.total.toLocaleString()} VND`,
+      invoice_id: invoice.id,
       receiver_role: receiverRoles,
       receiver_id: receiverIds,
       created_by: invoice.user_id,
@@ -149,6 +150,8 @@ const notificationService = {
       type: "maintenance",
       title: "Tạo yêu cầu bảo trì",
       message: `Một yêu cầu bảo trì mới cho thiết bị ${unitName} (mã: ${unitCode})\nChi nhánh: ${branchName}\nNgười tạo: ${assignerName}\nLý do: ${reason}`,
+      maintenance_id: maintenance.id,
+      unit_id: maintenance.equipment_unit_id,
       receiver_role: receiverRoles,
       receiver_id: receiverIds,
       created_by: createdBy,
@@ -203,6 +206,8 @@ const notificationService = {
       type: "maintenance",
       title: "Đang tiến hành bảo trì",
       message: `Thiết bị ${unitName} (mã: ${unitCode}) đang được bảo trì\nChi nhánh: ${branchName}\nKỹ thuật viên: ${technicianName}\nLý do: ${reason}`,
+      maintenance_id: maintenance.id,
+      unit_id: maintenance.equipment_unit_id,
       receiver_role: receiverRoles,
       receiver_id: receiverIds,
       created_by: createdBy,
@@ -257,6 +262,8 @@ const notificationService = {
       type: "maintenance",
       title: "Hoàn tất bảo trì",
       message: `Thiết bị ${unitName} (mã: ${unitCode}) đã bảo trì xong\nChi nhánh: ${branchName}\nNhân viên: ${technicianName}\nTrạng thái: ${status}`,
+      maintenance_id: maintenance.id,
+      unit_id: maintenance.equipment_unit_id,
       receiver_role: receiverRoles,
       receiver_id: receiverIds,
       created_by: createdBy,
@@ -267,17 +274,11 @@ const notificationService = {
   // Chuyển thiết bị (Transfer)
   // =========================
   /***
-   * Chuyển thiết bị sang chi nhánh khác
+   * Gửi email & notification khi tạo yêu cầu chuyển thiết bị
    */
-  async notifyTransferCreated(transfer, admins, createdBy) {
-    const unit = await equipmentUnitRepository.findById(
-      transfer.equipment_unit_id
-    );
-    if (!unit) return;
-
-    const equipment = unit.equipment_id
-      ? await equipmentRepository.findById(unit.equipment_id)
-      : null;
+  async notifyTransferCreated(transfer, details, admins, createdBy) {
+    const recipients = admins.map((u) => u.email);
+    if (!recipients.length) return;
 
     const fromBranch = await branchRepository.findById(transfer.from_branch_id);
     const toBranch = await branchRepository.findById(transfer.to_branch_id);
@@ -285,38 +286,79 @@ const notificationService = {
       ? await userRepository.getUserBySub(createdBy)
       : null;
 
-    const unitName = equipment?.name || "Không rõ tên";
-    const unitCode = unit.id;
     const fromBranchName = fromBranch?.name || transfer.from_branch_id;
     const toBranchName = toBranch?.name || transfer.to_branch_id;
     const assignerName =
       assigner?.attributes?.name || assigner?.username || "Không rõ";
 
-    // Email
-    const recipients = admins.map((u) => u.email);
+    const moveStart = transfer.move_start_date
+      ? new Date(transfer.move_start_date).toLocaleString("vi-VN")
+      : "Chưa có";
+
+    // 🧩 Tạo bảng danh sách thiết bị
+    let itemsHtml = "";
+    for (const d of details) {
+      const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+      if (!unit) continue;
+
+      const equipment = unit.equipment_id
+        ? await equipmentRepository.findById(unit.equipment_id)
+        : null;
+
+      const equipmentName = equipment?.name || "Không rõ";
+      const unitCode = unit.id;
+
+      // ✅ Ưu tiên hiển thị trạng thái cũ (old_status)
+      const status = d.old_status || unit.status || "Không rõ";
+
+      itemsHtml += `
+      <tr>
+        <td style="border:1px solid #ddd; padding:8px;">${equipmentName}</td>
+        <td style="border:1px solid #ddd; padding:8px;">${unitCode}</td>
+        <td style="border:1px solid #ddd; padding:8px;">${status}</td>
+      </tr>`;
+    }
+
     const subject = "Vận chuyển thiết bị sang chi nhánh khác";
     const html = `
-    <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;">
-      ${buildHeader("Vận chuyển thiết bị")}
-      <div style="padding:20px; color:#333;">
-        <p>Thiết bị <b>${unitName}</b> (mã: ${unitCode}) đã được vận chuyển.</p>
-        <p><b>Từ chi nhánh:</b> ${fromBranchName}<br/>
-           <b>Đến chi nhánh:</b> ${toBranchName}</p>
-        <p><b>Người duyệt:</b> ${assignerName}</p>
-        <p><b>Ngày bắt đầu:</b> ${transfer.move_start_date || "Chưa có"}</p>
+  <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
+              border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+    ${buildHeader("Vận chuyển thiết bị")}
+    <div style="padding:20px; color:#333;">
+      <p>Hệ thống vừa ghi nhận <b>${
+        details.length
+      }</b> thiết bị được vận chuyển.</p>
+      <p><b>Từ chi nhánh:</b> ${fromBranchName}<br/>
+         <b>Đến chi nhánh:</b> ${toBranchName}</p>
+      <p><b>Người duyệt:</b> ${assignerName}</p>
+      <p><b>Ngày chuyển:</b> ${moveStart}</p>
+      <div style="overflow-x:auto; margin-top:10px;">
+        <table style="border-collapse:collapse; width:100%; min-width:500px;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã Unit</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
       </div>
-      ${buildFooter()}
-    </div>`;
-    if (recipients.length) await sendNoReplyEmail(recipients, subject, html);
+    </div>
+    ${buildFooter()}
+  </div>`;
 
-    // DB Notification
+    await sendNoReplyEmail(recipients, subject, html);
+
+    // 🔔 DB Notification
     const receiverRoles = [...new Set(admins.flatMap((u) => u.roles))];
     const receiverIds = admins.map((u) => u.sub).filter(Boolean);
 
     return await notificationRepository.create({
       type: "transfer",
       title: "Vận chuyển thiết bị",
-      message: `Thiết bị ${unitName} (${unitCode}) được vận chuyển chuyển từ ${fromBranchName} sang ${toBranchName} bởi ${assignerName}`,
+      message: `Đã tạo yêu cầu chuyển ${details.length} thiết bị từ ${fromBranchName} sang ${toBranchName} bởi ${assignerName} (Ngày chuyển: ${moveStart})`,
+      transfer_id: transfer.id,
       receiver_role: receiverRoles,
       receiver_id: receiverIds,
       created_by: createdBy,
@@ -324,57 +366,102 @@ const notificationService = {
   },
 
   /***
-   * Chuyển thiết bị thành công
+   * Hoàn tất chuyển thiết bị
    */
-  async notifyTransferCompleted(transfer, admins, createdBy) {
-    const unit = await equipmentUnitRepository.findById(
-      transfer.equipment_unit_id
-    );
-    if (!unit) return;
+  async notifyTransferCompleted(transfer, details, admins, createdBy) {
+    const recipients = admins.map((u) => u.email);
+    if (!recipients.length) return;
 
-    const equipment = unit.equipment_id
-      ? await equipmentRepository.findById(unit.equipment_id)
-      : null;
-
+    // 🏢 Lấy thông tin chi nhánh
     const fromBranch = await branchRepository.findById(transfer.from_branch_id);
     const toBranch = await branchRepository.findById(transfer.to_branch_id);
-    const receiver = createdBy
+
+    // 👤 Lấy người phê duyệt (approve) và người nhận (receiver)
+    const approver = transfer.approved_by
+      ? await userRepository.getUserBySub(transfer.approved_by)
+      : null;
+
+    const receiver = transfer.receiver_id
+      ? await userRepository.getUserBySub(transfer.receiver_id)
+      : createdBy
       ? await userRepository.getUserBySub(createdBy)
       : null;
 
-    const unitName = equipment?.name || "Không rõ tên";
-    const unitCode = unit.id;
     const fromBranchName = fromBranch?.name || transfer.from_branch_id;
     const toBranchName = toBranch?.name || transfer.to_branch_id;
+    const approverName =
+      approver?.attributes?.name || approver?.username || "Không rõ";
     const receiverName =
       receiver?.attributes?.name || receiver?.username || "Không rõ";
 
-    // Email
-    const recipients = admins.map((u) => u.email);
+    const moveStart = transfer.move_start_date
+      ? new Date(transfer.move_start_date).toLocaleString("vi-VN")
+      : "Chưa có";
+    const moveReceive = transfer.move_receive_date
+      ? new Date(transfer.move_receive_date).toLocaleString("vi-VN")
+      : "Chưa có";
+
+    // 🧩 Tạo bảng danh sách thiết bị hoàn tất
+    let itemsHtml = "";
+    for (const d of details) {
+      const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+      if (!unit) continue;
+
+      const equipment = unit.equipment_id
+        ? await equipmentRepository.findById(unit.equipment_id)
+        : null;
+
+      const equipmentName = equipment?.name || "Không rõ";
+      const unitCode = unit.id;
+
+      itemsHtml += `
+      <tr>
+        <td style="border:1px solid #ddd; padding:8px;">${equipmentName}</td>
+        <td style="border:1px solid #ddd; padding:8px;">${unitCode}</td>
+      </tr>`;
+    }
+
     const subject = "Hoàn tất chuyển thiết bị";
     const html = `
-    <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;">
-      ${buildHeader("Hoàn tất chuyển thiết bị")}
-      <div style="padding:20px; color:#333;">
-        <p style="color:#000;">Thiết bị <b>${unitName}</b> (mã: ${unitCode}) đã hoàn tất quá trình vận chuyển.</p>
-        <p><b>Từ chi nhánh:</b> ${fromBranchName}<br/>
-           <b>Đến chi nhánh:</b> ${toBranchName}</p>
-        <p><b>Người duyệt:</b> ${receiverName}</p>
-        <p><b>Ngày bắt đầu:</b> ${transfer.move_start_date || "Chưa có"}</p>
-        <p><b>Ngày nhận:</b> ${transfer.move_receive_date || "Chưa có"}</p>
+  <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
+              border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+    ${buildHeader("Hoàn tất chuyển thiết bị")}
+    <div style="padding:20px; color:#333;">
+      <p>Đã hoàn tất chuyển <b>${
+        details.length
+      }</b> thiết bị từ <b>${fromBranchName}</b> sang <b>${toBranchName}</b>.</p>
+      <p><b>Người phê duyệt:</b> ${approverName}<br/>
+         <b>Người nhận:</b> ${receiverName}</p>
+      <p><b>Ngày chuyển:</b> ${moveStart}<br/>
+         <b>Ngày nhận:</b> ${moveReceive}</p>
+      <div style="overflow-x:auto; margin-top:10px;">
+        <table style="border-collapse:collapse; width:100%; min-width:500px;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã Unit</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
       </div>
-      ${buildFooter()}
-    </div>`;
-    if (recipients.length) await sendNoReplyEmail(recipients, subject, html);
+    </div>
+    ${buildFooter()}
+  </div>`;
 
-    // DB Notification
+    await sendNoReplyEmail(recipients, subject, html);
+
+    // 🔔 DB Notification
     const receiverRoles = [...new Set(admins.flatMap((u) => u.roles))];
     const receiverIds = admins.map((u) => u.sub).filter(Boolean);
 
     return await notificationRepository.create({
       type: "transfer",
       title: "Hoàn tất chuyển thiết bị",
-      message: `Thiết bị ${unitName} (${unitCode}) đã hoàn tất vận chuyển từ ${fromBranchName} sang ${toBranchName} bởi ${receiverName}`,
+      message: `Đã hoàn tất chuyển ${details.length} thiết bị từ ${fromBranchName} sang ${toBranchName}.
+Người phê duyệt: ${approverName}, Người nhận: ${receiverName}
+(Ngày chuyển: ${moveStart}, Ngày nhận: ${moveReceive})`,
+      transfer_id: transfer.id,
       receiver_role: receiverRoles,
       receiver_id: receiverIds,
       created_by: createdBy,

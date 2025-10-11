@@ -2,6 +2,7 @@ const maintenanceRepository = require("../repositories/maintenanceRepository");
 const maintenanceInvoiceRepository = require("../repositories/maintenanceInvoiceRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
 const branchRepository = require("../repositories/branchRepository");
+const userRepository = require("../repositories/userRepository");
 
 const maintenanceService = {
   createMaintenance: async (data, role) => {
@@ -133,21 +134,40 @@ const maintenanceService = {
     const allMaintenances = await maintenanceRepository.findAll();
     const allInvoices = await maintenanceInvoiceRepository.findAll();
 
-    // Lọc tất cả maintenance của unit
+    // 🧩 Lọc các maintenance thuộc unit
     const history = allMaintenances.filter(
       (m) => m.equipment_unit_id === equipment_unit_id
     );
 
-    // Gắn các invoice tương ứng vào từng maintenance
-    const combined = history.map((m) => {
+    const combined = [];
+    for (const m of history) {
       const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
-      return {
+
+      // 🧩 Lấy thông tin người yêu cầu & người sửa chữa
+      let requestedByName = "Không rõ";
+      let technicianName = "Không rõ";
+
+      if (m.assigned_by) {
+        const reqUser = await userRepository.getUserBySub(m.assigned_by);
+        requestedByName =
+          reqUser?.attributes?.name || reqUser?.username || "Không rõ";
+      }
+
+      if (m.user_id) {
+        const techUser = await userRepository.getUserBySub(m.user_id);
+        technicianName =
+          techUser?.attributes?.name || techUser?.username || "Không rõ";
+      }
+
+      combined.push({
         ...m,
         invoices,
-      };
-    });
+        requested_by_name: requestedByName,
+        technician_name: technicianName,
+      });
+    }
 
-    // Sắp xếp mới nhất trước (end_date giảm dần)
+    // 🔁 Sắp xếp mới nhất trước
     combined.sort(
       (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
     );
@@ -160,14 +180,12 @@ const maintenanceService = {
     const allMaintenances = await maintenanceRepository.findAll();
     const allInvoices = await maintenanceInvoiceRepository.findAll();
 
-    // Lọc tất cả maintenance thuộc unit
     const history = allMaintenances.filter(
       (m) => m.equipment_unit_id === equipment_unit_id
     );
 
     if (history.length === 0) return null;
 
-    // Sắp xếp giảm dần theo end_date hoặc start_date
     history.sort(
       (a, b) =>
         new Date(b.end_date || b.start_date) -
@@ -179,9 +197,27 @@ const maintenanceService = {
       (inv) => inv.maintenance_id === latest.id
     );
 
+    // 🧩 Thêm tên người yêu cầu & kỹ thuật viên
+    let requestedByName = "Không rõ";
+    let technicianName = "Không rõ";
+
+    if (latest.assigned_by) {
+      const reqUser = await userRepository.getUserBySub(latest.assigned_by);
+      requestedByName =
+        reqUser?.attributes?.name || reqUser?.username || "Không rõ";
+    }
+
+    if (latest.user_id) {
+      const techUser = await userRepository.getUserBySub(latest.user_id);
+      technicianName =
+        techUser?.attributes?.name || techUser?.username || "Không rõ";
+    }
+
     return {
       ...latest,
       invoices,
+      requested_by_name: requestedByName,
+      technician_name: technicianName,
     };
   },
 };

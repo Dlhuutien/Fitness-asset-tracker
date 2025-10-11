@@ -24,6 +24,7 @@ const maintenanceController = {
       const admins = await userService.getUsersByRoles([
         "admin",
         "super-admin",
+        "technician",
       ]);
       const recipients = admins.map((u) => u.email);
 
@@ -55,6 +56,7 @@ const maintenanceController = {
       const admins = await userService.getUsersByRoles([
         "admin",
         "super-admin",
+        "technician",
       ]);
       const recipients = admins.map((u) => u.email);
 
@@ -86,6 +88,7 @@ const maintenanceController = {
       const admins = await userService.getUsersByRoles([
         "admin",
         "super-admin",
+        "technician",
       ]);
       const recipients = admins.map((u) => u.email);
 

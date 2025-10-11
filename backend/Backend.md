@@ -2269,7 +2269,7 @@ Tạo một yêu cầu chuyển thiết bị giữa các chi nhánh.
 
 ```json
 {
-  "equipment_unit_id": "f5b7fa4a-3f62-400d-a004-0aebc11b9b0f",
+  "unit_ids": ["CAOTGMT-1", "CAOTDJS-4"],
   "to_branch_id": "Q3"
 }
 ```
