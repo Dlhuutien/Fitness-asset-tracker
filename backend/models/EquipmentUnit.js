@@ -38,6 +38,17 @@ const EquipmentUnitModel = {
     return result.Items || [];
   },
 
+  findByBranch: async (branch_id) => {
+    const result = await dynamodb.send(
+      new ScanCommand({
+        TableName: tableName,
+        FilterExpression: "branch_id = :b",
+        ExpressionAttributeValues: { ":b": branch_id },
+      })
+    );
+    return result.Items || [];
+  },
+
   getByEquipmentId: async (equipment_id) => {
     const result = await dynamodb.send(
       new QueryCommand({

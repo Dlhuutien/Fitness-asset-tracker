@@ -1,9 +1,18 @@
 import useSWR, { useSWRConfig } from "swr";
 import axios from "axios";
 import { API } from "@/config/url";
+import AuthService from "@/services/AuthService";
 
-// Hàm fetcher chung cho SWR
-const fetcher = (url) => axios.get(url).then((res) => res.data);
+// 🧩 Hàm fetcher chung có Bearer token
+const fetcher = async (url) => {
+  const auth = AuthService.getAuth();
+  if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
+
+  const res = await axios.get(url, {
+    headers: { Authorization: `Bearer ${auth.accessToken}` },
+  });
+  return res.data;
+};
 
 export function useEquipmentData() {
   // 🧠 Lấy mutate toàn cục từ SWR (cho phép refresh thủ công)
@@ -45,4 +54,3 @@ export function useEquipmentData() {
     refreshCategories, // mutate riêng cho categoryMain
   };
 }
-

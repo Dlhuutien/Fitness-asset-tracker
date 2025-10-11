@@ -1,11 +1,15 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
+import AuthService from "@/services/AuthService"; // 🔥 import thêm
 
 export default function Logout({ open, onClose }) {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    // 🧹 Xóa toàn bộ thông tin đăng nhập
+    AuthService.clearAuth();
+    localStorage.clear();
+
     onClose();
     navigate("/");
   };

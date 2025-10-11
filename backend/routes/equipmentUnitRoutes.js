@@ -7,7 +7,13 @@ const {
 } = require("../middlewares/authMiddleware");
 
 // READ ALL
-router.get("/", equipmentUnitController.getUnits);
+router.get(
+  "/",
+  verifyAccessToken,
+  requireRole("super-admin", "admin", "technician", "operator"),
+  equipmentUnitController.getUnits
+);
+
 // Lấy danh sách theo nhóm trạng thái
 router.get(
   "/status-group",
