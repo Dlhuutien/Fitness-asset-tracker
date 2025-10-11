@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, CheckCircle2 } from "lucide-react";
+import { Pencil, CheckCircle2, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import CategoryTypeService from "@/services/categoryTypeService";
 import {
@@ -31,6 +31,7 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
   const [editTypeId, setEditTypeId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [successMsg, setSuccessMsg] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -109,6 +110,12 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
   // 🎯 Lọc dữ liệu
   const filteredTypes = useMemo(() => {
     return (types || []).filter((t) => {
+      const matchSearch =
+        t.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.main_name.toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchCode = filters.code.length === 0 || filters.code.includes(t.id);
       const matchGroup =
         filters.group.length === 0 || filters.group.includes(t.main_name);
@@ -122,9 +129,18 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
       const matchUpdated =
         filters.updated.length === 0 ||
         filters.updated.includes(new Date(t.updated_at).toLocaleDateString("vi-VN"));
-      return matchCode && matchGroup && matchName && matchDesc && matchCreated && matchUpdated;
+
+      return (
+        matchSearch &&
+        matchCode &&
+        matchGroup &&
+        matchName &&
+        matchDesc &&
+        matchCreated &&
+        matchUpdated
+      );
     });
-  }, [types, filters]);
+  }, [types, filters, searchTerm]);
 
   const totalPages = Math.ceil(filteredTypes.length / ITEMS_PER_PAGE);
   const currentData = filteredTypes.slice(
@@ -205,8 +221,18 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
         </motion.div>
       )}
 
-      {/* Nút hiển thị cột */}
-      <div className="flex justify-end">
+      {/* Search + Hiển thị cột */}
+      <div className="flex justify-between items-center mb-2 gap-3">
+        <div className="relative w-80">
+          <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Tìm loại theo mã, tên, mô tả hoặc nhóm..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8 h-10 text-sm"
+          />
+        </div>
+
         <ColumnVisibilityButton
           visibleColumns={visibleColumns}
           setVisibleColumns={setVisibleColumns}
@@ -325,10 +351,10 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                 {visibleColumns.name && <TableCell>{t.name}</TableCell>}
                 {visibleColumns.desc && <TableCell>{t.description}</TableCell>}
                 {visibleColumns.created && (
-                  <TableCell>{new Date(t.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(t.created_at).toLocaleDateString("vi-VN")}</TableCell>
                 )}
                 {visibleColumns.updated && (
-                  <TableCell>{new Date(t.updated_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(t.updated_at).toLocaleDateString("vi-VN")}</TableCell>
                 )}
 
                 <TableCell className="text-center">

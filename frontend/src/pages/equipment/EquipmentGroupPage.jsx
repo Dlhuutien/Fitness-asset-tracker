@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/buttonn";
+import { Button } from "@/components/ui/buttonn"; 
 import {
   Table,
   TableBody,
@@ -362,6 +362,62 @@ export default function EquipmentGroupPage() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          {/* ⚡ Thanh pagination + Go To Page */}
+          <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-3 bg-gray-50 dark:bg-gray-700 text-sm">
+            <div className="text-gray-700 dark:text-gray-300">
+              Trang {currentPage} / {totalPages} — Tổng: {filteredData.length} thiết bị
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                «
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                »
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <span className="dark:text-gray-200">Go to:</span>
+                <Input
+                  value={goToPage}
+                  onChange={(e) => setGoToPage(e.target.value)}
+                  className="w-16 h-8 text-center dark:bg-gray-600 dark:text-white"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const page = parseInt(goToPage);
+                      if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                        setCurrentPage(page);
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  className="bg-emerald-500 text-white hover:bg-emerald-600"
+                  onClick={() => {
+                    const page = parseInt(goToPage);
+                    if (!isNaN(page) && page >= 1 && page <= totalPages) {
+                      setCurrentPage(page);
+                    }
+                  }}
+                >
+                  Đi
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
