@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, ImagePlus, CheckCircle2, Loader2 } from "lucide-react";
+import { Pencil, ImagePlus, CheckCircle2, Loader2, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import CategoryMainService from "@/services/categoryMainService";
 import {
@@ -31,6 +31,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Excel-style filter
   const controller = useGlobalFilterController();
@@ -128,6 +129,11 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
 
   const filteredGroups = useMemo(() => {
     return (groups || []).filter((g) => {
+      const matchSearch =
+        g.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.description.toLowerCase().includes(searchTerm.toLowerCase());
+
       const matchCode = filters.code.length === 0 || filters.code.includes(g.id);
       const matchName = filters.name.length === 0 || filters.name.includes(g.name);
       const matchDesc =
@@ -139,9 +145,16 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         filters.updated.length === 0 ||
         filters.updated.includes(new Date(g.updated_at).toLocaleDateString("vi-VN"));
 
-      return matchCode && matchName && matchDesc && matchCreated && matchUpdated;
+      return (
+        matchSearch &&
+        matchCode &&
+        matchName &&
+        matchDesc &&
+        matchCreated &&
+        matchUpdated
+      );
     });
-  }, [groups, filters]);
+  }, [groups, filters, searchTerm]);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 space-y-6">
@@ -244,8 +257,18 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         </motion.div>
       )}
 
-      {/* Filter controls */}
-      <div className="flex justify-end mb-2">
+      {/* Filter controls + Search */}
+      <div className="flex justify-between items-center mb-2 gap-3">
+        <div className="relative w-80">
+          <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Tìm nhóm theo mã, tên hoặc mô tả..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8 h-10 text-sm"
+          />
+        </div>
+
         <ColumnVisibilityButton
           visibleColumns={visibleColumns}
           setVisibleColumns={setVisibleColumns}
@@ -268,7 +291,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
               <TableHead className="text-center">#</TableHead>
 
               {visibleColumns.image && <TableHead>Ảnh</TableHead>}
-
               {visibleColumns.code && (
                 <TableHead>
                   <HeaderFilter
@@ -281,7 +303,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.name && (
                 <TableHead>
                   <HeaderFilter
@@ -294,7 +315,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.desc && (
                 <TableHead>
                   <HeaderFilter
@@ -307,7 +327,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.created && (
                 <TableHead>
                   <HeaderFilter
@@ -320,7 +339,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.updated && (
                 <TableHead>
                   <HeaderFilter
@@ -333,8 +351,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                   />
                 </TableHead>
               )}
-
-              {/* Không có filter ở hành động */}
               <TableHead className="text-center">Hành động</TableHead>
             </TableRow>
           </TableHeader>
@@ -346,7 +362,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                 className="hover:bg-emerald-50 dark:hover:bg-gray-800 transition"
               >
                 <TableCell className="text-center">{idx + 1}</TableCell>
-
                 {visibleColumns.image && (
                   <TableCell>
                     {g.image ? (
@@ -360,17 +375,15 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                     )}
                   </TableCell>
                 )}
-
                 {visibleColumns.code && <TableCell>{g.id}</TableCell>}
                 {visibleColumns.name && <TableCell>{g.name}</TableCell>}
                 {visibleColumns.desc && <TableCell>{g.description}</TableCell>}
                 {visibleColumns.created && (
-                  <TableCell>{new Date(g.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(g.created_at).toLocaleDateString("vi-VN")}</TableCell>
                 )}
                 {visibleColumns.updated && (
-                  <TableCell>{new Date(g.updated_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(g.updated_at).toLocaleDateString("vi-VN")}</TableCell>
                 )}
-
                 <TableCell className="text-center">
                   <Button
                     size="icon"
