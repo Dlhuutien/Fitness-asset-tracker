@@ -71,7 +71,11 @@ export default function EquipmentGroupPage() {
       const id = d.id?.toLowerCase() || "";
 
       const matchSearch =
-        !q || name.includes(q) || type.includes(q) || vendor.includes(q) || id.includes(q);
+        !q ||
+        name.includes(q) ||
+        type.includes(q) ||
+        vendor.includes(q) ||
+        id.includes(q);
 
       const matchGroup = activeGroup === "all" || d.main_name === activeGroup;
 
@@ -80,23 +84,33 @@ export default function EquipmentGroupPage() {
         name: filters.name.length === 0 || filters.name.includes(d.name),
         main: filters.main.length === 0 || filters.main.includes(d.main_name),
         type: filters.type.length === 0 || filters.type.includes(d.type_name),
-        vendor: filters.vendor.length === 0 || filters.vendor.includes(d.vendor_name),
+        vendor:
+          filters.vendor.length === 0 || filters.vendor.includes(d.vendor_name),
       };
 
-      return matchSearch && matchGroup && Object.values(matchColumn).every(Boolean);
+      return (
+        matchSearch && matchGroup && Object.values(matchColumn).every(Boolean)
+      );
     });
   }, [equipments, search, activeGroup, filters]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredData.length / ITEMS_PER_PAGE)
+  );
   const currentData = filteredData.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
   if (groupLoading || eqLoading)
-    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
+    );
   if (groupErr || eqErr)
-    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
+    return (
+      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
+    );
 
   return (
     <div className="grid grid-cols-12 gap-4">
@@ -108,7 +122,9 @@ export default function EquipmentGroupPage() {
 
         {/* Tìm kiếm */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow space-y-2">
-          <h3 className="font-semibold text-sm dark:text-gray-200">Tìm kiếm loại</h3>
+          <h3 className="font-semibold text-sm dark:text-gray-200">
+            Tìm kiếm loại
+          </h3>
           <Input
             placeholder="Nhập tên loại..."
             value={search}
@@ -142,7 +158,9 @@ export default function EquipmentGroupPage() {
 
         {/* Nhóm thiết bị */}
         <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow h-[340px] overflow-y-auto">
-          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">Hiển thị theo nhóm</h3>
+          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
+            Hiển thị theo nhóm
+          </h3>
           <div className="flex flex-col gap-2">
             {groupList.map((g, idx) => (
               <button
@@ -182,7 +200,7 @@ export default function EquipmentGroupPage() {
             visibleColumns={visibleColumns}
             setVisibleColumns={setVisibleColumns}
             labels={{
-              id: "Mã thẻ kho",
+              id: "Mã phân loại thiết bị",
               image: "Hình ảnh",
               name: "Tên thiết bị",
               main: "Nhóm",
@@ -198,13 +216,15 @@ export default function EquipmentGroupPage() {
             <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">
+                    #
+                  </TableHead>
 
                   {visibleColumns.id && (
                     <TableHead className="border dark:border-gray-600">
                       <HeaderFilter
                         selfKey="id"
-                        label="Mã thẻ kho"
+                        label="Mã phân loại thiết bị"
                         values={uniqueValues.id}
                         selected={filters.id}
                         onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
@@ -214,7 +234,9 @@ export default function EquipmentGroupPage() {
                   )}
 
                   {visibleColumns.image && (
-                    <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
+                    <TableHead className="border dark:border-gray-600">
+                      Hình ảnh
+                    </TableHead>
                   )}
 
                   {visibleColumns.name && (
@@ -263,14 +285,18 @@ export default function EquipmentGroupPage() {
                         label="Nhà cung cấp"
                         values={uniqueValues.vendor}
                         selected={filters.vendor}
-                        onChange={(v) => setFilters((p) => ({ ...p, vendor: v }))}
+                        onChange={(v) =>
+                          setFilters((p) => ({ ...p, vendor: v }))
+                        }
                         controller={controller}
                       />
                     </TableHead>
                   )}
 
                   {visibleColumns.created_at && (
-                    <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
+                    <TableHead className="border dark:border-gray-600">
+                      Ngày tạo
+                    </TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -286,7 +312,9 @@ export default function EquipmentGroupPage() {
                     </TableCell>
 
                     {visibleColumns.id && (
-                      <TableCell className="border dark:border-gray-600">{row.id}</TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.id}
+                      </TableCell>
                     )}
 
                     {visibleColumns.image && (
@@ -300,11 +328,15 @@ export default function EquipmentGroupPage() {
                     )}
 
                     {visibleColumns.name && (
-                      <TableCell className="border dark:border-gray-600">{row.name}</TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.name}
+                      </TableCell>
                     )}
 
                     {visibleColumns.main && (
-                      <TableCell className="border dark:border-gray-600">{row.main_name}</TableCell>
+                      <TableCell className="border dark:border-gray-600">
+                        {row.main_name}
+                      </TableCell>
                     )}
 
                     {visibleColumns.type && (

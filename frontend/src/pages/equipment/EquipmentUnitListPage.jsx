@@ -239,7 +239,7 @@ export default function EquipmentListPage() {
                     <TableHead className="border dark:border-gray-600">
                       <HeaderFilter
                         selfKey="id"
-                        label="Mã đơn vị"
+                        label="Mã định danh thiết bị"
                         values={uniqueValues.id}
                         selected={filters.id}
                         onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
