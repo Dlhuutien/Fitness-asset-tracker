@@ -20,7 +20,6 @@ import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { API } from "@/config/url";
 
-
 export default function EquipmentAddCardPage() {
   const { mutate } = useSWRConfig(); // Lấy mutate toàn cục
   const [formData, setFormData] = useState({
@@ -47,6 +46,7 @@ export default function EquipmentAddCardPage() {
   const [loadingAdd, setLoadingAdd] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [searchAttr, setSearchAttr] = useState("");
 
   // ===== Fetch dữ liệu từ API =====
   useEffect(() => {
@@ -205,7 +205,7 @@ export default function EquipmentAddCardPage() {
         description: `Thiết bị "${res.name}" đã được thêm.`,
         variant: "success",
       });
-      
+
       // 🔄 Cập nhật cache ngay lập tức cho tất cả các trang liên quan
       mutate(`${API}equipment`);
 
@@ -236,6 +236,10 @@ export default function EquipmentAddCardPage() {
       setLoadingAdd(false);
     }
   };
+
+  const filteredAttributes = attributes.filter((a) =>
+    a.name.toLowerCase().includes(searchAttr.toLowerCase())
+  );
 
   // ===== Giao diện =====
   return (
@@ -386,8 +390,33 @@ export default function EquipmentAddCardPage() {
               </Button>
             </div>
 
+            {/* Thanh tìm kiếm & nút chọn tất cả */}
+            <div className="flex items-center gap-2 mb-3">
+              <Input
+                placeholder="Tìm kiếm thông số..."
+                value={searchAttr}
+                onChange={(e) => setSearchAttr(e.target.value)}
+                className="h-8 text-sm flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setSelectedAttrs(
+                    Object.fromEntries(
+                      filteredAttributes.map((a) => [a.name, ""])
+                    )
+                  )
+                }
+                className="text-xs"
+              >
+                Chọn tất cả
+              </Button>
+            </div>
+
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
-              {attributes.map((attr) => (
+              {filteredAttributes.map((attr) => (
                 <label
                   key={attr.id}
                   className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
@@ -498,16 +527,16 @@ export default function EquipmentAddCardPage() {
 
         {/* Submit */}
         <div className="col-span-6 flex justify-end mt-3">
-        <Button
-          type="submit"
-          disabled={loadingAdd}
-          className="bg-emerald-500 hover:bg-emerald-600 h-10 text-sm flex items-center gap-2"
-        >
-          {loadingAdd && (
-            <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
-          )}
-          {loadingAdd ? "Đang tạo..." : "TẠO LOẠI THIẾT BỊ CỤ THỂ"}
-        </Button>
+          <Button
+            type="submit"
+            disabled={loadingAdd}
+            className="bg-emerald-500 hover:bg-emerald-600 h-10 text-sm flex items-center gap-2"
+          >
+            {loadingAdd && (
+              <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
+            )}
+            {loadingAdd ? "Đang tạo..." : "TẠO LOẠI THIẾT BỊ CỤ THỂ"}
+          </Button>
         </div>
       </form>
       {successMsg && (

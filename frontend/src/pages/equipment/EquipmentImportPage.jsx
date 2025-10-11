@@ -39,6 +39,8 @@ export default function EquipmentImportPage() {
   const [equipmentUnits, setEquipmentUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const [search, setSearch] = useState("");
 
@@ -155,6 +157,8 @@ export default function EquipmentImportPage() {
       const res = await InvoiceService.create({ items });
       toast.success("Tạo invoice thành công!");
       console.log("✅ Invoice created:", res);
+      setSuccessMsg("Tạo invoice thành công!");
+      setErrorMsg("");
 
       // invalidate cache
       mutate(`${API}equipmentUnit`);
@@ -164,6 +168,8 @@ export default function EquipmentImportPage() {
     } catch (err) {
       console.error("❌ Lỗi khi tạo invoice:", err);
       toast.error(err.error || "Có lỗi khi tạo invoice");
+      setErrorMsg("Có lỗi khi tạo invoice!");
+      setSuccessMsg("");
     } finally {
       setLoadingSubmit(false);
     }
@@ -450,7 +456,10 @@ export default function EquipmentImportPage() {
 
                     <div className="max-h-24 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2 text-xs p-2">
                       {(item.attributes || []).map((attr, idx) => (
-                        <div key={idx} className="text-gray-700 dark:text-gray-200">
+                        <div
+                          key={idx}
+                          className="text-gray-700 dark:text-gray-200"
+                        >
                           <span className="font-medium">{attr.attribute}:</span>{" "}
                           {attr.value}
                         </div>
@@ -495,18 +504,33 @@ export default function EquipmentImportPage() {
 
       {/* Layout 4 - Tổng tiền */}
       {Object.keys(selectedItems).length > 0 && (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex justify-between items-center">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex flex-col md:flex-row md:justify-between md:items-center gap-3">
           <h3 className="font-bold text-lg text-emerald-600">
             Tổng cộng: {calcTotal().toLocaleString()} VNĐ
           </h3>
-          <Button
-            className="bg-emerald-500 hover:bg-emerald-600 flex items-center gap-2"
-            onClick={handleConfirmImport}
-            disabled={loadingSubmit}
-          >
-            {loadingSubmit && <Loader2 className="w-4 h-4 animate-spin" />}
-            {loadingSubmit ? "Đang xử lý..." : "Xác nhận nhập hàng"}
-          </Button>
+
+          <div className="flex flex-col items-start md:items-end gap-2">
+            <Button
+              className="bg-emerald-500 hover:bg-emerald-600 flex items-center gap-2"
+              onClick={handleConfirmImport}
+              disabled={loadingSubmit}
+            >
+              {loadingSubmit && <Loader2 className="w-4 h-4 animate-spin" />}
+              {loadingSubmit ? "Đang xử lý..." : "Xác nhận nhập hàng"}
+            </Button>
+
+            {/* Thông báo dưới nút */}
+            {successMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+                {successMsg}
+              </div>
+            )}
+            {errorMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+                {errorMsg}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

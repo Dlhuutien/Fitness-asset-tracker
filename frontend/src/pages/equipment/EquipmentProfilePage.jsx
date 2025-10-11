@@ -104,9 +104,9 @@ export default function EquipmentProfilePage() {
         maintenance_reason: reason.trim(),
       });
 
-      setSuccessMsg("✅ Đã gửi yêu cầu bảo trì thành công!");
+      setSuccessMsg("✅ Đã gửi yêu cầu bảo trì!");
       setReason("");
-      toast.success("✅ Đã gửi yêu cầu bảo trì thành công!");
+      toast.success("✅ Đã gửi yêu cầu bảo trì!");
     } catch (err) {
       console.error("❌ Lỗi khi tạo maintenance:", err);
       setErrorMsg("❌ Không thể tạo yêu cầu bảo trì!");
@@ -209,9 +209,9 @@ export default function EquipmentProfilePage() {
                 label="Kết thúc bảo hành"
                 value={
                   data.warranty_end_date
-                    ? new Date(
-                        data.warranty_end_date.replace("+020252-", "")
-                      ).toLocaleDateString("vi-VN")
+                    ? new Date(data.warranty_end_date).toLocaleDateString(
+                        "vi-VN"
+                      )
                     : "—"
                 }
               />
