@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react"; 
 import { motion, AnimatePresence } from "framer-motion";
 import DatePicker from "react-datepicker";
 import { vi } from "date-fns/locale";
@@ -98,7 +98,6 @@ function NumberRangeHeaderFilter({ label, min, max, onChangeMin, onChangeMax }) 
 }
 
 /* ====== Bộ lọc khoảng ngày ====== */
-/* ====== Bộ lọc khoảng ngày (dùng react-datepicker) ====== */
 function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }) {
   const [open, setOpen] = useState(false);
   return (
@@ -128,7 +127,6 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
             Khoảng ngày tạo
           </div>
           <div className="flex items-center gap-2">
-            {/* 🟩 Ngày bắt đầu */}
             <DatePicker
               selected={start ? new Date(start) : null}
               onChange={(date) =>
@@ -142,7 +140,6 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
               popperClassName="z-[99999]"
             />
             <span className="text-gray-400">—</span>
-            {/* 🟩 Ngày kết thúc */}
             <DatePicker
               selected={end ? new Date(end) : null}
               onChange={(date) =>
@@ -178,8 +175,6 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
   );
 }
 
-
-/* ====== Main Component ====== */
 const ITEMS_PER_PAGE = 6;
 
 export default function InvoiceImportSection() {
@@ -234,7 +229,6 @@ export default function InvoiceImportSection() {
     fetchData();
   }, []);
 
-  // Reset trang khi filter/search thay đổi
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterId, filterUser, filterBranch, totalMin, totalMax, dateStart, dateEnd]);
@@ -246,7 +240,6 @@ export default function InvoiceImportSection() {
     [invoices]
   );
 
-  // Lọc dữ liệu
   const filteredInvoices = useMemo(() => {
     let list = invoices;
 
@@ -475,17 +468,51 @@ export default function InvoiceImportSection() {
                                     <TableHead>Ngày tạo</TableHead>
                                   </TableRow>
                                 </TableHeader>
+
+                                {/* ✅ NHÓM THIẾT BỊ + HÀNG TỔNG */}
                                 <TableBody>
-                                  {inv.details.map((d, idx) => (
-                                    <TableRow key={d.id} className="text-xs">
-                                      <TableCell>{idx + 1}</TableCell>
-                                      <TableCell>{d.equipment_unit_id}</TableCell>
-                                      <TableCell>{d.equipment_unit?.equipment_name || "Không rõ"}</TableCell>
-                                      <TableCell>{d.equipment_unit?.status || "—"}</TableCell>
-                                      <TableCell>{Number(d.cost).toLocaleString("vi-VN")}₫</TableCell>
-                                      <TableCell>{new Date(d.created_at).toLocaleString("vi-VN")}</TableCell>
-                                    </TableRow>
-                                  ))}
+                                  {(() => {
+                                    const grouped = inv.details.reduce((acc, d) => {
+                                      const prefix = d.equipment_unit_id.split("-")[0];
+                                      if (!acc[prefix]) acc[prefix] = [];
+                                      acc[prefix].push(d);
+                                      return acc;
+                                    }, {});
+
+                                    let index = 1;
+                                    const rows = [];
+
+                                    Object.entries(grouped).forEach(([prefix, items]) => {
+                                      items.forEach((d) => {
+                                        rows.push(
+                                          <TableRow key={d.id} className="text-xs">
+                                            <TableCell>{index++}</TableCell>
+                                            <TableCell>{d.equipment_unit_id}</TableCell>
+                                            <TableCell>{d.equipment_unit?.equipment_name || "Không rõ"}</TableCell>
+                                            <TableCell>{d.equipment_unit?.status || "—"}</TableCell>
+                                            <TableCell>{Number(d.cost).toLocaleString("vi-VN")}₫</TableCell>
+                                            <TableCell>{new Date(d.created_at).toLocaleString("vi-VN")}</TableCell>
+                                          </TableRow>
+                                        );
+                                      });
+
+                                      if (items.length > 1) {
+                                        const total = items.reduce((sum, d) => sum + Number(d.cost || 0), 0);
+                                        rows.push(
+                                          <TableRow
+                                            key={`${prefix}-summary`}
+                                            className="bg-emerald-200/60 text-[13px] font-semibold italic"
+                                          >
+                                            <TableCell colSpan={2}>Mã phân loại: {prefix}</TableCell>
+                                            <TableCell colSpan={2}>Số lượng: {items.length}</TableCell>
+                                            <TableCell colSpan={2}>Tổng: {total.toLocaleString("vi-VN")}₫</TableCell>
+                                          </TableRow>
+                                        );
+                                      }
+                                    });
+
+                                    return rows;
+                                  })()}
                                 </TableBody>
                               </Table>
                             </div>
