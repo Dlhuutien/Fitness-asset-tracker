@@ -24,7 +24,6 @@ import VendorPage from "@/pages/vendor/VendorPage";
 
 // Invoice
 import InvoicePage from "@/pages/invoice/InvoicePage";
-import InvoiceAddPage from "@/pages/invoice/InvoiceAddPage";
 
 // Maintenance
 import MaintenancePage from "@/pages/maintenance/MaintenancePage";
@@ -168,14 +167,6 @@ const routes = [
         element: (
           <PageTransition>
             <InvoicePage />
-          </PageTransition>
-        ),
-      },
-      {
-        path: "/app/invoice/add",
-        element: (
-          <PageTransition>
-            <InvoiceAddPage />
           </PageTransition>
         ),
       },

@@ -31,7 +31,8 @@ export default function EquipmentListPage() {
   const navigate = useNavigate();
 
   // Gọi dữ liệu
-  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } = useEquipmentData();
+  const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
+    useEquipmentData();
   const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
   const units = eqUnits || [];
 
@@ -59,65 +60,73 @@ export default function EquipmentListPage() {
   const controller = useGlobalFilterController();
 
   // Tạo list value duy nhất
-  const uniqueValues = useMemo(() => ({
-    id: getUniqueValues(units, (u) => u.id),
-    name: getUniqueValues(units, (u) => u.equipment?.name),
-    main: getUniqueValues(units, (u) => u.equipment?.main_name),
-    type: getUniqueValues(units, (u) => u.equipment?.type_name),
-    vendor: getUniqueValues(units, (u) => u.equipment?.vendor_name),
-    status: getUniqueValues(units, (u) => getStatusVN(u.status)),
-  }), [units]);
+  const uniqueValues = useMemo(
+    () => ({
+      id: getUniqueValues(units, (u) => u.id),
+      name: getUniqueValues(units, (u) => u.equipment?.name),
+      main: getUniqueValues(units, (u) => u.equipment?.main_name),
+      type: getUniqueValues(units, (u) => u.equipment?.type_name),
+      vendor: getUniqueValues(units, (u) => u.equipment?.vendor_name),
+      status: getUniqueValues(units, (u) => getStatusVN(u.status)),
+    }),
+    [units]
+  );
 
-// 🧩 Lọc dữ liệu (chuẩn)
-const filtered = useMemo(() => {
-  const q = search.trim().toLowerCase();
+  // 🧩 Lọc dữ liệu (chuẩn)
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
 
-  return (units || []).filter((u) => {
-    const name = u.equipment?.name?.trim() || "";
-    const main = u.equipment?.main_name?.trim() || "";
-    const type = u.equipment?.type_name?.trim() || "";
-    const vendor = u.equipment?.vendor_name?.trim() || "";
-    const id = u.id?.trim() || "";
-    const statusVN = getStatusVN(u.status);
+    return (units || []).filter((u) => {
+      const name = u.equipment?.name?.trim() || "";
+      const main = u.equipment?.main_name?.trim() || "";
+      const type = u.equipment?.type_name?.trim() || "";
+      const vendor = u.equipment?.vendor_name?.trim() || "";
+      const id = u.id?.trim() || "";
+      const statusVN = getStatusVN(u.status);
 
-    // Tìm kiếm (ô search)
-    const matchSearch =
-      !q ||
-      name.toLowerCase().includes(q) ||
-      vendor.toLowerCase().includes(q) ||
-      type.toLowerCase().includes(q) ||
-      id.toLowerCase().includes(q);
+      // Tìm kiếm (ô search)
+      const matchSearch =
+        !q ||
+        name.toLowerCase().includes(q) ||
+        vendor.toLowerCase().includes(q) ||
+        type.toLowerCase().includes(q) ||
+        id.toLowerCase().includes(q);
 
-    // Lọc theo nhóm (sidebar)
-    const matchGroup = activeGroup === "all" || main === activeGroup;
+      // Lọc theo nhóm (sidebar)
+      const matchGroup = activeGroup === "all" || main === activeGroup;
 
-    // Bộ lọc từng cột (Excel)
-    const matchColumn = {
-      id: filters.id.length === 0 || filters.id.includes(id),
-      name: filters.name.length === 0 || filters.name.includes(name),
-      main: filters.main.length === 0 || filters.main.includes(main),
-      type: filters.type.length === 0 || filters.type.includes(type),
-      status: filters.status.length === 0 || filters.status.includes(statusVN),
-      vendor: filters.vendor.length === 0 || filters.vendor.includes(vendor),
-    };
+      // Bộ lọc từng cột (Excel)
+      const matchColumn = {
+        id: filters.id.length === 0 || filters.id.includes(id),
+        name: filters.name.length === 0 || filters.name.includes(name),
+        main: filters.main.length === 0 || filters.main.includes(main),
+        type: filters.type.length === 0 || filters.type.includes(type),
+        status:
+          filters.status.length === 0 || filters.status.includes(statusVN),
+        vendor: filters.vendor.length === 0 || filters.vendor.includes(vendor),
+      };
 
-    // Kết hợp tất cả điều kiện
-    return (
-      matchSearch &&
-      matchGroup &&
-      Object.values(matchColumn).every(Boolean)
-    );
-  });
-}, [units, search, activeGroup, filters]);
-
+      // Kết hợp tất cả điều kiện
+      return (
+        matchSearch && matchGroup && Object.values(matchColumn).every(Boolean)
+      );
+    });
+  }, [units, search, activeGroup, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const currentData = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const currentData = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   if (unitLoading || catLoading)
-    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
+    );
   if (eqErr || catErr)
-    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
+    return (
+      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
+    );
 
   // ==== Giao diện ====
   return (
@@ -223,7 +232,9 @@ const filtered = useMemo(() => {
             <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                  <TableHead className="text-center border dark:border-gray-600">#</TableHead>
+                  <TableHead className="text-center border dark:border-gray-600">
+                    #
+                  </TableHead>
                   {visibleColumns.id && (
                     <TableHead className="border dark:border-gray-600">
                       <HeaderFilter
@@ -237,7 +248,9 @@ const filtered = useMemo(() => {
                     </TableHead>
                   )}
                   {visibleColumns.image && (
-                    <TableHead className="border dark:border-gray-600">Hình ảnh</TableHead>
+                    <TableHead className="border dark:border-gray-600">
+                      Hình ảnh
+                    </TableHead>
                   )}
                   {visibleColumns.name && (
                     <TableHead className="border dark:border-gray-600">
@@ -282,7 +295,9 @@ const filtered = useMemo(() => {
                         label="Trạng thái"
                         values={uniqueValues.status}
                         selected={filters.status}
-                        onChange={(v) => setFilters((p) => ({ ...p, status: v }))}
+                        onChange={(v) =>
+                          setFilters((p) => ({ ...p, status: v }))
+                        }
                         controller={controller}
                       />
                     </TableHead>
@@ -294,13 +309,17 @@ const filtered = useMemo(() => {
                         label="Nhà cung cấp"
                         values={uniqueValues.vendor}
                         selected={filters.vendor}
-                        onChange={(v) => setFilters((p) => ({ ...p, vendor: v }))}
+                        onChange={(v) =>
+                          setFilters((p) => ({ ...p, vendor: v }))
+                        }
                         controller={controller}
                       />
                     </TableHead>
                   )}
                   {visibleColumns.created_at && (
-                    <TableHead className="border dark:border-gray-600">Ngày tạo</TableHead>
+                    <TableHead className="border dark:border-gray-600">
+                      Ngày tạo
+                    </TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -325,9 +344,15 @@ const filtered = useMemo(() => {
                         />
                       </TableCell>
                     )}
-                    {visibleColumns.name && <TableCell>{row.equipment?.name}</TableCell>}
-                    {visibleColumns.main && <TableCell>{row.equipment?.main_name}</TableCell>}
-                    {visibleColumns.type && <TableCell>{row.equipment?.type_name}</TableCell>}
+                    {visibleColumns.name && (
+                      <TableCell>{row.equipment?.name}</TableCell>
+                    )}
+                    {visibleColumns.main && (
+                      <TableCell>{row.equipment?.main_name}</TableCell>
+                    )}
+                    {visibleColumns.type && (
+                      <TableCell>{row.equipment?.type_name}</TableCell>
+                    )}
                     {visibleColumns.status && (
                       <TableCell className="text-center">
                         <Status status={getStatusVN(row.status)} />
@@ -337,7 +362,9 @@ const filtered = useMemo(() => {
                       <TableCell>{row.equipment?.vendor_name}</TableCell>
                     )}
                     {visibleColumns.created_at && (
-                      <TableCell>{new Date(row.created_at).toLocaleString("vi-VN")}</TableCell>
+                      <TableCell>
+                        {new Date(row.created_at).toLocaleString("vi-VN")}
+                      </TableCell>
                     )}
                   </TableRow>
                 ))}
@@ -369,6 +396,42 @@ const filtered = useMemo(() => {
                 className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
               >
                 Go
+              </Button>
+            </div>
+
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                «
+              </Button>
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <Button
+                  key={i}
+                  size="sm"
+                  variant={currentPage === i + 1 ? "default" : "outline"}
+                  className={`transition-all ${
+                    currentPage === i + 1
+                      ? "bg-emerald-500 text-white font-semibold"
+                      : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
+                  }`}
+                  onClick={() => setCurrentPage(i + 1)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
+                className="dark:border-gray-600 dark:text-gray-200"
+              >
+                »
               </Button>
             </div>
           </div>

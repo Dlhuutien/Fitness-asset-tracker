@@ -9,6 +9,9 @@ router.post("/", verifyAccessToken, invoiceController.createInvoice);
 // READ ALL
 router.get("/", invoiceController.getInvoices);
 
+//READE ALL INVOCIE DETAIL
+router.get("/details", invoiceController.getAllInvoiceDetails);
+
 // READ ONE
 router.get("/:id", invoiceController.getInvoiceById);
 
