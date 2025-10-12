@@ -299,7 +299,7 @@ export default function EquipmentProfilePage() {
                       <th className="p-2 border">Kết thúc</th>
                       <th className="p-2 border">Lý do</th>
                       <th className="p-2 border">Chi phí</th>
-                      <th className="p-2 border">Kết quả</th>
+                      {/* <th className="p-2 border">Kết quả</th> */}
                     </tr>
                   </thead>
                   <tbody>
@@ -332,9 +332,9 @@ export default function EquipmentProfilePage() {
                               )} đ`
                             : "0 đ"}
                         </td>
-                        <td className="p-2 border text-center">
+                        {/* <td className="p-2 border text-center">
                           <Status status={item.status || "—"} />
-                        </td>
+                        </td> */}
                       </tr>
                     ))}
                   </tbody>
