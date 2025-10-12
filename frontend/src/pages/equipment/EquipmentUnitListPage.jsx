@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/buttonn";
+import { Button } from "@/components/ui/buttonn"; // ✅ chữ B viết hoa
 import {
   Table,
   TableBody,
@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Grid } from "lucide-react";
+import { Grid, MapPin } from "lucide-react";
 import Status from "@/components/common/Status";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 import { useNavigate } from "react-router-dom";
@@ -20,11 +20,15 @@ import {
   useGlobalFilterController,
   getStatusVN,
 } from "@/components/common/ExcelTableTools";
+import BranchService from "@/services/branchService";
+import { toast } from "sonner";
 
 const ITEMS_PER_PAGE = 8;
 
 export default function EquipmentListPage() {
   const [activeGroup, setActiveGroup] = useState("all");
+  const [activeBranch, setActiveBranch] = useState("all"); // 🔹 chi nhánh hiện tại
+  const [branches, setBranches] = useState([]); // danh sách chi nhánh
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
@@ -35,6 +39,18 @@ export default function EquipmentListPage() {
     useEquipmentData();
   const groups = [{ id: "all", name: "Xem tất cả" }, ...(cats || [])];
   const units = eqUnits || [];
+
+  // 🧩 Lấy danh sách chi nhánh
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await BranchService.getAll();
+        setBranches(res || []);
+      } catch (err) {
+        toast.error("Không thể tải danh sách chi nhánh!");
+      }
+    })();
+  }, []);
 
   // Hiển thị cột
   const [visibleColumns, setVisibleColumns] = useState({
@@ -72,7 +88,7 @@ export default function EquipmentListPage() {
     [units]
   );
 
-  // 🧩 Lọc dữ liệu (chuẩn)
+  // 🧩 Lọc dữ liệu (chuẩn + thêm lọc chi nhánh)
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
 
@@ -83,6 +99,7 @@ export default function EquipmentListPage() {
       const vendor = u.equipment?.vendor_name?.trim() || "";
       const id = u.id?.trim() || "";
       const statusVN = getStatusVN(u.status);
+      const branchId = u.branch_id || "";
 
       // Tìm kiếm (ô search)
       const matchSearch =
@@ -92,8 +109,11 @@ export default function EquipmentListPage() {
         type.toLowerCase().includes(q) ||
         id.toLowerCase().includes(q);
 
-      // Lọc theo nhóm (sidebar)
+      // Lọc theo nhóm
       const matchGroup = activeGroup === "all" || main === activeGroup;
+
+      // 🔹 Lọc theo chi nhánh
+      const matchBranch = activeBranch === "all" || branchId === activeBranch;
 
       // Bộ lọc từng cột (Excel)
       const matchColumn = {
@@ -108,10 +128,13 @@ export default function EquipmentListPage() {
 
       // Kết hợp tất cả điều kiện
       return (
-        matchSearch && matchGroup && Object.values(matchColumn).every(Boolean)
+        matchSearch &&
+        matchGroup &&
+        matchBranch &&
+        Object.values(matchColumn).every(Boolean)
       );
     });
-  }, [units, search, activeGroup, filters]);
+  }, [units, search, activeGroup, activeBranch, filters]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const currentData = filtered.slice(
@@ -133,6 +156,29 @@ export default function EquipmentListPage() {
     <div className="grid grid-cols-12 gap-4">
       {/* Sidebar bên trái */}
       <div className="col-span-3 space-y-4">
+        {/* 🔹 Dropdown chọn chi nhánh */}
+        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow">
+          <h2 className="font-semibold text-gray-800 dark:text-gray-100 mb-2 flex items-center gap-2">
+            <MapPin size={18} className="text-emerald-500" /> Chi nhánh
+          </h2>
+          <select
+            value={activeBranch}
+            onChange={(e) => {
+              setActiveBranch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full border rounded-md px-3 py-2 text-sm dark:bg-gray-700 dark:text-gray-100 dark:border-gray-600"
+          >
+            <option value="all">Tất cả chi nhánh</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Nhóm thiết bị */}
         <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
           Danh sách nhóm thiết bị
         </h2>

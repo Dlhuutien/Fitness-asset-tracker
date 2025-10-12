@@ -366,48 +366,72 @@ export default function EquipmentProfilePage() {
                 <table className="min-w-full text-sm border dark:border-gray-700">
                   <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
                     <tr>
+                      <th className="p-2 border">Chi nhánh</th>
                       <th className="p-2 border">Bắt đầu</th>
                       <th className="p-2 border">Kết thúc</th>
                       <th className="p-2 border">Lý do</th>
+                      <th className="p-2 border">Chi tiết</th>
+                      <th className="p-2 border">Yêu cầu bởi</th>
+                      <th className="p-2 border">Kỹ thuật viên</th>
+                      <th className="p-2 border">Bảo hành</th>
                       <th className="p-2 border">Chi phí</th>
-                      {/* <th className="p-2 border">Kết quả</th> */}
+                      <th className="p-2 border">Ngày tạo hóa đơn</th>
                     </tr>
                   </thead>
+
                   <tbody>
-                    {maintenanceHistory.map((item, idx) => (
-                      <tr
-                        key={idx}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800"
-                      >
-                        <td className="p-2 border">
-                          {item.start_date
-                            ? new Date(item.start_date).toLocaleDateString(
-                                "vi-VN"
-                              )
-                            : "—"}
-                        </td>
-                        <td className="p-2 border">
-                          {item.end_date
-                            ? new Date(item.end_date).toLocaleDateString(
-                                "vi-VN"
-                              )
-                            : "—"}
-                        </td>
-                        <td className="p-2 border">
-                          {item.maintenance_reason || "—"}
-                        </td>
-                        <td className="p-2 border">
-                          {item.invoices && item.invoices.length > 0
-                            ? `${item.invoices[0].cost.toLocaleString(
-                                "vi-VN"
-                              )} đ`
-                            : "0 đ"}
-                        </td>
-                        {/* <td className="p-2 border text-center">
-                          <Status status={item.status || "—"} />
-                        </td> */}
-                      </tr>
-                    ))}
+                    {maintenanceHistory.map((item, idx) => {
+                      const invoice = item.invoices?.[0] || {};
+                      return (
+                        <tr
+                          key={idx}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          <td className="p-2 border text-center">
+                            {item.branch_id || "—"}
+                          </td>
+                          <td className="p-2 border">
+                            {item.start_date
+                              ? new Date(item.start_date).toLocaleString(
+                                  "vi-VN"
+                                )
+                              : "—"}
+                          </td>
+                          <td className="p-2 border">
+                            {item.end_date
+                              ? new Date(item.end_date).toLocaleString("vi-VN")
+                              : "—"}
+                          </td>
+                          <td className="p-2 border">
+                            {item.maintenance_reason || "—"}
+                          </td>
+                          <td className="p-2 border">
+                            {item.maintenance_detail || "—"}
+                          </td>
+                          <td className="p-2 border">
+                            {item.requested_by_name || "—"}
+                          </td>
+                          <td className="p-2 border">
+                            {item.technician_name || "—"}
+                          </td>
+                          <td className="p-2 border text-center">
+                            {item.warranty ? "Có" : "Không"}
+                          </td>
+                          <td className="p-2 border text-right">
+                            {invoice.cost !== undefined
+                              ? `${invoice.cost.toLocaleString("vi-VN")} đ`
+                              : "—"}
+                          </td>
+                          <td className="p-2 border text-center">
+                            {invoice.created_at
+                              ? new Date(invoice.created_at).toLocaleString(
+                                  "vi-VN"
+                                )
+                              : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
