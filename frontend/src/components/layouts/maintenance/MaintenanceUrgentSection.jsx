@@ -228,16 +228,31 @@ export default function MaintenanceUrgentSection() {
         maintenance_detail: note,
       };
 
+      const resultStatus = result === "Bảo trì thành công" ? "Ready" : "Failed";
       await MaintainService.complete(m.id, payload);
-      toast.success("✅ Đã gửi kết quả bảo trì");
-      setSuccessMsg("Thiết bị đã được chuyển sang 'Chờ phê duyệt'");
+
+      // ✅ Hiển thị thông báo nổi trong UI
+      setSuccessMsg(
+        resultStatus === "Ready"
+          ? "🎉 Thiết bị đã được bảo trì thành công!"
+          : "⚠️ Thiết bị bảo trì thất bại — vui lòng kiểm tra lại."
+      );
+
+      // ✅ Hiển thị toast
+      toast.success(
+        resultStatus === "Ready"
+          ? "Bảo trì thành công — Thiết bị đã cập nhật trạng thái."
+          : "Bảo trì thất bại — Đã ghi nhận kết quả."
+      );
+
       setErrorMsg("");
 
+      // Đợi 2 giây rồi mới xóa khỏi danh sách
       setTimeout(() => {
         setEquipments((prev) => prev.filter((eq) => eq.id !== selected.id));
         setSelected(null);
         setMessage("");
-      }, 1500);
+      }, 2000);
     } catch (err) {
       toast.error("Không thể hoàn tất bảo trì");
       setErrorMsg("Không thể hoàn tất bảo trì, vui lòng thử lại.");
@@ -295,10 +310,12 @@ export default function MaintenanceUrgentSection() {
             Hiển thị theo nhóm
           </h3>
           <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto">
-            {[{ id: "all", name: "Tất cả" },
+            {[
+              { id: "all", name: "Tất cả" },
               ...Array.from(
                 new Set(equipments.map((e) => e.equipment?.main_name))
-              ).map((n) => ({ id: n, name: n }))].map((g, idx) => (
+              ).map((n) => ({ id: n, name: n })),
+            ].map((g, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveGroup(g.id)}
@@ -347,7 +364,7 @@ export default function MaintenanceUrgentSection() {
                     <TableHead>
                       <HeaderFilter
                         selfKey="id"
-                        label="Mã Unit"
+                        label="Mã định danh thiết bị"
                         values={uniqueValues.id}
                         selected={filters.id}
                         onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
@@ -444,7 +461,7 @@ export default function MaintenanceUrgentSection() {
               <TableBody>
                 {currentData.map((row, idx) => {
                   const normalized = row.status?.trim().toLowerCase();
-                  const translated = STATUS_MAP[normalized] || row.status;
+                  const translated = STATUS_MAP[normalized] || "Không xác định";
                   return (
                     <TableRow
                       key={row.id}
@@ -453,10 +470,39 @@ export default function MaintenanceUrgentSection() {
                           ? "bg-blue-50 dark:bg-blue-900/30"
                           : "hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
-                      onClick={() => {
-                        setSelected(row);
+                      onClick={async () => {
                         setSuccessMsg("");
                         setErrorMsg("");
+                        setSelected(row);
+                        try {
+                          // 🔍 Lấy maintenance hiện hành theo Unit ID
+                          const maintenance = await MaintainService.getByUnit(
+                            row.id
+                          );
+
+                          if (maintenance) {
+                            setSelected((prev) => ({
+                              ...prev,
+                              maintenance_reason:
+                                maintenance.maintenance_reason,
+                              requested_by_name: maintenance.requested_by_name,
+                              technician_name: maintenance.technician_name,
+                            }));
+                          } else {
+                            console.warn(
+                              "⚠️ Không có maintenance_reason cho thiết bị:",
+                              row.id
+                            );
+                          }
+                        } catch (err) {
+                          console.error(
+                            "❌ Lỗi khi lấy maintenance_reason:",
+                            err
+                          );
+                          toast.error(
+                            "Không thể lấy lý do bảo trì thiết bị này!"
+                          );
+                        }
                       }}
                     >
                       <TableCell className="text-center">
@@ -483,7 +529,7 @@ export default function MaintenanceUrgentSection() {
                       )}
                       {visibleColumns.status && (
                         <TableCell className="text-center">
-                          <Status status={translated} />
+                          <Status status={translated} />{" "}
                         </TableCell>
                       )}
                       {visibleColumns.vendor_name && (
@@ -544,60 +590,74 @@ export default function MaintenanceUrgentSection() {
 
         {/* ====== Panel chi tiết ====== */}
         {selected && (
-          <div className="grid grid-cols-3 gap-6">
-            <div className="col-span-2 bg-white dark:bg-[#1e1e1e] shadow rounded-lg p-6 space-y-4">
-              <h2 className="text-lg font-semibold">Chi tiết thiết bị</h2>
-              <div className="flex gap-6">
-                <img
-                  src={selected.equipment?.image}
-                  alt={selected.equipment?.name}
-                  className="w-40 h-32 object-contain border rounded-lg"
-                />
-                <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
-                  <p>
-                    <strong>Tên:</strong> {selected.equipment?.name}
-                  </p>
-                  <p>
-                    <strong>Nhà cung cấp:</strong>{" "}
-                    {selected.equipment?.vendor_name}
-                  </p>
-                  <p>
-                    <strong>Nhóm:</strong> {selected.equipment?.main_name}
-                  </p>
-                  <p>
-                    <strong>Chi nhánh:</strong> {selected.branch_id}
-                  </p>
-                  <p>
-                    <strong>Bảo hành đến:</strong>{" "}
-                    {selected.warranty_end_date?.slice(0, 10)}
-                  </p>
-                  <p>
-                    <strong>Trạng thái:</strong>{" "}
-                    <Status status={selected.status} />
-                  </p>
-                  {/* 🟢 Tình trạng bảo hành */}
-                  <p className="col-span-2 mt-2">
-                    <strong>Tình trạng bảo hành:</strong>{" "}
-                    {checkWarranty(selected) ? (
-                      <span className="text-green-600 font-semibold">
-                        ✅ Còn hạn bảo trì
-                      </span>
-                    ) : (
-                      <span className="text-red-600 font-semibold">
-                        ❌ Hết hạn bảo trì
-                      </span>
-                    )}
-                  </p>
-                </div>
+          <div className="bg-white dark:bg-[#1e1e1e] shadow rounded-lg p-6 space-y-6">
+            {/* 🧾 Chi tiết thiết bị */}
+            <h2 className="text-lg font-semibold">Chi tiết thiết bị</h2>
+            <div className="flex gap-6">
+              <img
+                src={selected.equipment?.image}
+                alt={selected.equipment?.name}
+                className="w-40 h-32 object-contain border rounded-lg"
+              />
+              <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
+                <p>
+                  <strong>Tên:</strong> {selected.equipment?.name}
+                </p>
+                <p>
+                  <strong>Nhà cung cấp:</strong>{" "}
+                  {selected.equipment?.vendor_name}
+                </p>
+                <p>
+                  <strong>Nhóm:</strong> {selected.equipment?.main_name}
+                </p>
+                <p>
+                  <strong>Chi nhánh:</strong> {selected.branch_id}
+                </p>
+                <p>
+                  <strong>Bảo hành đến:</strong>{" "}
+                  {selected.warranty_end_date?.slice(0, 10)}
+                </p>
+                <p>
+                  <strong>Trạng thái:</strong>{" "}
+                  <Status
+                    status={
+                      STATUS_MAP[selected.status?.toLowerCase()] ||
+                      selected.status ||
+                      "Không xác định"
+                    }
+                  />
+                </p>
+                <p className="col-span-2 mt-2">
+                  <strong>Tình trạng bảo hành:</strong>{" "}
+                  {checkWarranty(selected) ? (
+                    <span className="text-green-600 font-semibold">
+                      ✅ Còn hạn bảo trì
+                    </span>
+                  ) : (
+                    <span className="text-red-600 font-semibold">
+                      ❌ Hết hạn bảo trì
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
 
-            {/* Phiếu bảo trì */}
-            <div className="col-span-1 bg-white dark:bg-[#1e1e1e] shadow rounded-lg p-6 space-y-4">
+            {/* 🔧 Phiếu bảo trì */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-4">
               <h2 className="text-lg font-semibold">Phiếu bảo trì</h2>
               <p>
                 <strong>Lý do:</strong> {selected.maintenance_reason || "—"}
               </p>
+              <p>
+                <strong>Người yêu cầu:</strong>{" "}
+                {selected.requested_by_name || "—"}
+              </p>
+              {selected.status?.toLowerCase() === "in progress" && (
+                <p>
+                  <strong>Người bảo trì:</strong>{" "}
+                  {selected.technician_name || "—"}
+                </p>
+              )}
 
               {(!maintenanceSteps[selected.id] ||
                 maintenanceSteps[selected.id] === 1) && (

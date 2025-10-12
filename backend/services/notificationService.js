@@ -18,7 +18,7 @@ const notificationService = {
     if (!recipients.length) return;
 
     const user = await userRepository.getUserBySub(invoice.user_id);
-    const creatorName = user?.attributes?.name || user?.username || "Không rõ";
+    const creatorName = user?.attributes?.name || user?.username || "Chưa có thông tin";
 
     const branchIds = [
       ...new Set(
@@ -34,7 +34,7 @@ const notificationService = {
     let itemsHtml = "";
     for (const d of details) {
       const unit = d.equipment_unit || {};
-      let equipmentName = "Không rõ";
+      let equipmentName = "Chưa có thông tin";
       if (unit.equipment_id) {
         const eq = await equipmentRepository.findById(unit.equipment_id);
         equipmentName = eq?.name || unit.equipment_id;
@@ -62,14 +62,14 @@ const notificationService = {
         <p style="color:#000;"><b>Tổng tiền:</b> ${invoice.total.toLocaleString()} VND</p>
         <p style="color:#000;"><b>Người tạo:</b> ${creatorName}</p>
         <p style="color:#000;"><b>Chi nhánh:</b> ${
-          branchNames.join(", ") || "Không rõ chi nhánh"
+          branchNames.join(", ") || "Chưa có thông tin chi nhánh"
         }</p>
           <div style="overflow-x:auto; margin-top:10px;">
             <table style="border-collapse:collapse; width:100%; min-width:500px;">
               <thead>
                 <tr>
                   <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
-                  <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã Unit</th>
+                  <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã định danh thiết bị</th>
                   <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Giá</th>
                 </tr>
               </thead>
@@ -119,12 +119,12 @@ const notificationService = {
       ? await userRepository.getUserBySub(maintenance.assigned_by)
       : null;
 
-    const unitName = equipment?.name || "Không rõ tên";
+    const unitName = equipment?.name || "Chưa có thông tin tên";
     const unitCode = unit.id;
-    const branchName = branch?.name || "Không rõ chi nhánh";
+    const branchName = branch?.name || "Chưa có thông tin chi nhánh";
     const assignerName =
-      assigner?.attributes?.name || assigner?.username || "Không rõ";
-    const reason = maintenance.maintenance_reason || "Không rõ";
+      assigner?.attributes?.name || assigner?.username || "Chưa có thông tin";
+    const reason = maintenance.maintenance_reason || "Chưa có thông tin";
 
     // Email
     const recipients = admins.map((u) => u.email);
@@ -175,12 +175,12 @@ const notificationService = {
       ? await userRepository.getUserBySub(maintenance.user_id)
       : null;
 
-    const unitName = equipment?.name || "Không rõ tên";
+    const unitName = equipment?.name || "Chưa có thông tin tên";
     const unitCode = unit.id;
-    const branchName = branch?.name || "Không rõ chi nhánh";
+    const branchName = branch?.name || "Chưa có thông tin chi nhánh";
     const technicianName =
-      technician?.attributes?.name || technician?.username || "Không rõ";
-    const reason = maintenance.maintenance_reason || "Không rõ";
+      technician?.attributes?.name || technician?.username || "Chưa có thông tin";
+    const reason = maintenance.maintenance_reason || "Chưa có thông tin";
 
     // Email
     const recipients = admins.map((u) => u.email);
@@ -231,11 +231,11 @@ const notificationService = {
       ? await userRepository.getUserBySub(maintenance.user_id)
       : null;
 
-    const unitName = equipment?.name || "Không rõ tên";
+    const unitName = equipment?.name || "Chưa có thông tin tên";
     const unitCode = unit.id;
-    const branchName = branch?.name || "Không rõ chi nhánh";
+    const branchName = branch?.name || "Chưa có thông tin chi nhánh";
     const technicianName =
-      technician?.attributes?.name || technician?.username || "Không rõ";
+      technician?.attributes?.name || technician?.username || "Chưa có thông tin";
     const status = maintenance.status || unit.status;
 
     // Email
@@ -289,7 +289,7 @@ const notificationService = {
     const fromBranchName = fromBranch?.name || transfer.from_branch_id;
     const toBranchName = toBranch?.name || transfer.to_branch_id;
     const assignerName =
-      assigner?.attributes?.name || assigner?.username || "Không rõ";
+      assigner?.attributes?.name || assigner?.username || "Chưa có thông tin";
 
     const moveStart = transfer.move_start_date
       ? new Date(transfer.move_start_date).toLocaleString("vi-VN")
@@ -305,11 +305,11 @@ const notificationService = {
         ? await equipmentRepository.findById(unit.equipment_id)
         : null;
 
-      const equipmentName = equipment?.name || "Không rõ";
+      const equipmentName = equipment?.name || "Chưa có thông tin";
       const unitCode = unit.id;
 
       // ✅ Ưu tiên hiển thị trạng thái cũ (old_status)
-      const status = d.old_status || unit.status || "Không rõ";
+      const status = d.old_status || unit.status || "Chưa có thông tin";
 
       itemsHtml += `
       <tr>
@@ -337,7 +337,7 @@ const notificationService = {
           <thead>
             <tr>
               <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
-              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã Unit</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã định danh thiết bị</th>
               <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Trạng thái</th>
             </tr>
           </thead>
@@ -390,9 +390,9 @@ const notificationService = {
     const fromBranchName = fromBranch?.name || transfer.from_branch_id;
     const toBranchName = toBranch?.name || transfer.to_branch_id;
     const approverName =
-      approver?.attributes?.name || approver?.username || "Không rõ";
+      approver?.attributes?.name || approver?.username || "Chưa có thông tin";
     const receiverName =
-      receiver?.attributes?.name || receiver?.username || "Không rõ";
+      receiver?.attributes?.name || receiver?.username || "Chưa có thông tin";
 
     const moveStart = transfer.move_start_date
       ? new Date(transfer.move_start_date).toLocaleString("vi-VN")
@@ -411,7 +411,7 @@ const notificationService = {
         ? await equipmentRepository.findById(unit.equipment_id)
         : null;
 
-      const equipmentName = equipment?.name || "Không rõ";
+      const equipmentName = equipment?.name || "Chưa có thông tin";
       const unitCode = unit.id;
 
       itemsHtml += `
@@ -439,7 +439,7 @@ const notificationService = {
           <thead>
             <tr>
               <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
-              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã Unit</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã định danh thiết bị</th>
             </tr>
           </thead>
           <tbody>${itemsHtml}</tbody>

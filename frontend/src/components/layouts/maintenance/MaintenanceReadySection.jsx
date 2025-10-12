@@ -193,17 +193,32 @@ export default function MaintenanceReadySection() {
     try {
       setActionLoading(true);
       await EquipmentUnitService.update(selected.id, { status });
-      toast.success(`✅ Thiết bị đã được cập nhật trạng thái "${status}"`);
-      setSuccessMsg(`Thiết bị đã được chuyển sang trạng thái "${status}"`);
+
+      // ✅ Hiển thị thông báo đẹp hơn
+      const msg =
+        status === "Active"
+          ? "✅ Thiết bị đã được đưa vào hoạt động!"
+          : "⚠️ Thiết bị đã được ngưng hoạt động!";
+      toast.success(msg);
+      setSuccessMsg(msg);
       setErrorMsg("");
 
-      setEquipments((prev) => prev.filter((eq) => eq.id !== selected.id));
-      setSelected(null);
+      // ⏳ Đợi 2 giây rồi mới xóa item và reset panel
+      setTimeout(() => {
+        setEquipments((prev) => prev.filter((eq) => eq.id !== selected.id));
+        setSelected(null);
+        setSuccessMsg("");
+      }, 2000);
     } catch (err) {
       console.error("❌ Lỗi khi phê duyệt:", err);
       toast.error("Không thể cập nhật trạng thái thiết bị");
-      setErrorMsg("Không thể cập nhật trạng thái, vui lòng thử lại.");
+      setErrorMsg("❌ Không thể cập nhật trạng thái, vui lòng thử lại.");
       setSuccessMsg("");
+
+      // ⏳ Ẩn thông báo lỗi sau 2 giây
+      setTimeout(() => {
+        setErrorMsg("");
+      }, 2000);
     } finally {
       setActionLoading(false);
     }
@@ -288,7 +303,7 @@ export default function MaintenanceReadySection() {
               visibleColumns={visibleColumns}
               setVisibleColumns={setVisibleColumns}
               labels={{
-                id: "Mã Unit",
+                id: "Mã định danh thiết bị",
                 image: "Ảnh",
                 name: "Tên thiết bị",
                 main_name: "Nhóm",
@@ -309,7 +324,7 @@ export default function MaintenanceReadySection() {
                     <TableHead>
                       <HeaderFilter
                         selfKey="id"
-                        label="Mã Unit"
+                        label="Mã định danh thiết bị"
                         values={uniqueValues.id}
                         selected={filters.id}
                         onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
@@ -508,13 +523,13 @@ export default function MaintenanceReadySection() {
         {/* Panel chi tiết */}
         {selected && (
           <div
-            className={`grid grid-cols-2 gap-6 border-t-4 rounded-xl shadow bg-white dark:bg-[#1e1e1e] p-6 transition-colors ${
+            className={`flex flex-col gap-6 border-t-4 rounded-xl shadow bg-white dark:bg-[#1e1e1e] p-6 transition-colors ${
               selected.status === "ready"
                 ? "border-green-500"
                 : "border-rose-500"
             }`}
           >
-            {/* Chi tiết */}
+            {/* 🧾 Chi tiết thiết bị */}
             <div>
               <h2 className="text-lg font-semibold mb-4">Chi tiết thiết bị</h2>
               <div className="flex gap-6">
@@ -536,16 +551,21 @@ export default function MaintenanceReadySection() {
                   </p>
                   <p>
                     <strong>Trạng thái:</strong>{" "}
-                    <Status status={selected.status} />
+                    <Status
+                      status={
+                        STATUS_MAP[selected.status?.toLowerCase()] ||
+                        selected.status ||
+                        "Không xác định"
+                      }
+                    />
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Lịch sử bảo trì */}
-            {/* Lịch sử bảo trì */}
+            {/* 🛠 Chi tiết bảo trì */}
             <div>
-              <h2 className="text-lg font-semibold mb-4">Lịch sử bảo trì</h2>
+              <h2 className="text-lg font-semibold mb-4">Chi tiết bảo trì</h2>
 
               {loadingHistory ? (
                 <div className="text-gray-500 animate-pulse">
@@ -601,7 +621,7 @@ export default function MaintenanceReadySection() {
                 </p>
               )}
 
-              {/* Nút phê duyệt */}
+              {/* 🔘 Nút phê duyệt */}
               {selected.status?.toLowerCase() === "ready" && (
                 <Button
                   onClick={() => finalizeStatus("Active")}
@@ -636,7 +656,7 @@ export default function MaintenanceReadySection() {
                 </Button>
               )}
 
-              {/* Thông báo */}
+              {/* 🧩 Thông báo */}
               {successMsg && (
                 <div className="mt-3 px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
                   {successMsg}

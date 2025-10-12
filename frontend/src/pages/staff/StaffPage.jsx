@@ -25,11 +25,18 @@ import {
 import DatePicker from "react-datepicker";
 import { vi } from "date-fns/locale";
 import "react-datepicker/dist/react-datepicker.css";
+import AuthService from "@/services/AuthService";
 
 const ITEMS_PER_PAGE = 8;
 
 /* ===== Bộ lọc ngày tạo ===== */
-function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }) {
+function DateRangeHeaderFilter({
+  label,
+  start,
+  end,
+  onChangeStart,
+  onChangeEnd,
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -42,8 +49,13 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
   }, []);
 
   return (
-    <div className="relative inline-flex items-center gap-1 select-none" ref={ref}>
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
+    <div
+      className="relative inline-flex items-center gap-1 select-none"
+      ref={ref}
+    >
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -60,13 +72,17 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
         <div
           className="fixed z-[9999] mt-2 min-w-[280px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-2xl p-3"
           style={{
-            top: ref.current?.getBoundingClientRect().bottom + window.scrollY + 8,
-            left: ref.current?.getBoundingClientRect().left + window.scrollX - 40,
+            top:
+              ref.current?.getBoundingClientRect().bottom + window.scrollY + 8,
+            left:
+              ref.current?.getBoundingClientRect().left + window.scrollX - 40,
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <style>{`.react-datepicker-popper{z-index:999999!important}`}</style>
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Khoảng ngày tạo</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Khoảng ngày tạo
+          </div>
           <div className="flex items-center gap-2">
             <DatePicker
               selected={start ? new Date(start) : null}
@@ -151,7 +167,19 @@ export default function StaffPage() {
       try {
         setLoading(true);
         const data = await UserService.getAll();
-        setUsers(data);
+
+        // 👇 Lấy thông tin người hiện hành từ localStorage
+        const auth = AuthService.getAuth();
+        const currentUsername = auth?.username;
+
+        // 👇 Lọc bỏ user hiện hành & super-admin
+        const filtered = data.filter(
+          (u) =>
+            u.username !== currentUsername && // bỏ người đang đăng nhập
+            !u.roles?.includes("super-admin") // bỏ tài khoản quản trị cấp cao
+        );
+
+        setUsers(filtered);
       } catch (err) {
         console.error("❌ Lỗi load user:", err);
       } finally {
@@ -162,7 +190,6 @@ export default function StaffPage() {
 
   const convertRoleName = (r) =>
     ({
-      "super-admin": "Người quản trị",
       admin: "Người quản lý",
       operator: "Nhân viên trực phòng",
       technician: "Nhân viên kĩ thuật",
@@ -170,7 +197,9 @@ export default function StaffPage() {
 
   const allRoles = [
     "Tất cả",
-    ...Array.from(new Set(users.flatMap((u) => u.roles || []))).map(convertRoleName),
+    ...Array.from(new Set(users.flatMap((u) => u.roles || []))).map(
+      convertRoleName
+    ),
   ];
   const statusFilters = ["Tất cả", "Đang làm", "Đã nghỉ"];
 
@@ -180,7 +209,9 @@ export default function StaffPage() {
       name: getUniqueValues(list, (u) => u.attributes?.name || u.username),
       email: getUniqueValues(list, (u) => u.attributes?.email),
       branch: getUniqueValues(list, (u) => u.attributes?.["custom:branch_id"]),
-      status: getUniqueValues(list, (u) => (u.enabled ? "Đang làm" : "Đã nghỉ")),
+      status: getUniqueValues(list, (u) =>
+        u.enabled ? "Đang làm" : "Đã nghỉ"
+      ),
     };
   }, [users]);
 
@@ -196,8 +227,10 @@ export default function StaffPage() {
       name.toLowerCase().includes(search.toLowerCase()) ||
       email.toLowerCase().includes(search.toLowerCase()) ||
       branch.toLowerCase().includes(search.toLowerCase());
-    const matchRole = selectedRole === "Tất cả" || roleVN.includes(selectedRole);
-    const matchStatus = selectedStatus === "Tất cả" || status === selectedStatus;
+    const matchRole =
+      selectedRole === "Tất cả" || roleVN.includes(selectedRole);
+    const matchStatus =
+      selectedStatus === "Tất cả" || status === selectedStatus;
     const matchDate =
       (!dateStart || created >= new Date(dateStart)) &&
       (!dateEnd || created <= new Date(dateEnd));
@@ -278,7 +311,9 @@ export default function StaffPage() {
             <span>{selectedStatus}</span>
             <ChevronDown
               size={18}
-              className={`transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+              className={`transition-transform ${
+                dropdownOpen ? "rotate-180" : ""
+              }`}
             />
           </Button>
           <AnimatePresence>
@@ -412,7 +447,9 @@ export default function StaffPage() {
                         {new Date(u.createdAt).toLocaleDateString("vi-VN")}
                       </TableCell>
                       <TableCell>
-                        <Branch branch={u.attributes?.["custom:branch_id"] || "—"} />
+                        <Branch
+                          branch={u.attributes?.["custom:branch_id"] || "—"}
+                        />
                       </TableCell>
                       <TableCell>
                         <Status status={u.enabled ? "Đang làm" : "Đã nghỉ"} />

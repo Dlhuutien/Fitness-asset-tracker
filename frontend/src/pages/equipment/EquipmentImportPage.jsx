@@ -19,6 +19,18 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+
+import {
   HeaderFilter,
   ColumnVisibilityButton,
   useGlobalFilterController,
@@ -41,6 +53,7 @@ export default function EquipmentImportPage() {
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
 
   const [search, setSearch] = useState("");
 
@@ -141,35 +154,30 @@ export default function EquipmentImportPage() {
 
   const handleConfirmImport = async () => {
     try {
+      setLoadingSubmit(true);
+
       const items = Object.values(selectedItems).map((item) => ({
         equipment_id: item.id,
-        branch_id: "GV", // set cứng demo
+        branch_id: "GV",
         quantity: parseInt(item.qty) || 0,
         cost: parseFloat(item.price) || 0,
       }));
 
-      if (items.length === 0) {
-        toast.error("Chưa chọn thiết bị nào!");
-        return;
-      }
-
-      setLoadingSubmit(true);
       const res = await InvoiceService.create({ items });
-      toast.success("Tạo invoice thành công!");
-      console.log("✅ Invoice created:", res);
-      setSuccessMsg("Tạo invoice thành công!");
+      toast.success("✅ Nhập hàng thành công. Thông tin sẽ được gửi về email hoặc nhấn vào xem thông báo!");
+      setSuccessMsg("✅ Nhập hàng thành công. Thông tin sẽ được gửi về email hoặc nhấn vào xem thông báo!");
       setErrorMsg("");
-
-      // invalidate cache
       mutate(`${API}equipmentUnit`);
-
-      // reset
       setSelectedItems({});
+      setOpenDialog(false);
+
+      setTimeout(() => setSuccessMsg(""), 5000);
     } catch (err) {
-      console.error("❌ Lỗi khi tạo invoice:", err);
-      toast.error(err.error || "Có lỗi khi tạo invoice");
-      setErrorMsg("Có lỗi khi tạo invoice!");
+      console.error("❌ Lỗi khi nhập hàng:", err);
+      toast.error("❌ Có lỗi khi tạo invoice!");
+      setErrorMsg("❌ Có lỗi khi tạo invoice!");
       setSuccessMsg("");
+      setTimeout(() => setErrorMsg(""), 5000);
     } finally {
       setLoadingSubmit(false);
     }
@@ -503,23 +511,72 @@ export default function EquipmentImportPage() {
       )}
 
       {/* Layout 4 - Tổng tiền */}
-      {Object.keys(selectedItems).length > 0 && (
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-          <h3 className="font-bold text-lg text-emerald-600">
-            Tổng cộng: {calcTotal().toLocaleString()} VNĐ
+      {/* Layout 4 - Tổng tiền */}
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+        {Object.keys(selectedItems).length > 0 ? (
+          <>
+            <h3 className="font-bold text-lg text-emerald-600">
+              Tổng cộng: {calcTotal().toLocaleString()} VNĐ
+            </h3>
+
+            <div className="flex flex-col items-start md:items-end gap-2">
+              {/* AlertDialog gắn liền nút */}
+              <AlertDialog open={openDialog} onOpenChange={setOpenDialog}>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    className="bg-emerald-500 hover:bg-emerald-600 flex items-center gap-2"
+                    disabled={loadingSubmit}
+                  >
+                    {loadingSubmit && (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    )}
+                    {loadingSubmit ? "Đang xử lý..." : "Xác nhận nhập hàng"}
+                  </Button>
+                </AlertDialogTrigger>
+
+                <AlertDialogContent className="dark:bg-gray-800">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Xác nhận nhập hàng</AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
+                      Bạn có chắc chắn muốn nhập{" "}
+                      <b>{Object.keys(selectedItems).length}</b> thiết bị này
+                      vào kho không?
+                      <br />
+                      Hành động này sẽ tạo hoá đơn nhập hàng mới.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel className="dark:border-gray-600 dark:text-gray-300">
+                      Huỷ
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleConfirmImport}
+                      disabled={loadingSubmit}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                    >
+                      {loadingSubmit ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Đang xử lý...
+                        </>
+                      ) : (
+                        "Xác nhận"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </>
+        ) : (
+          <h3 className="font-bold text-lg text-gray-400 italic">
+            Chưa chọn thiết bị nào để nhập hàng
           </h3>
+        )}
 
-          <div className="flex flex-col items-start md:items-end gap-2">
-            <Button
-              className="bg-emerald-500 hover:bg-emerald-600 flex items-center gap-2"
-              onClick={handleConfirmImport}
-              disabled={loadingSubmit}
-            >
-              {loadingSubmit && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loadingSubmit ? "Đang xử lý..." : "Xác nhận nhập hàng"}
-            </Button>
-
-            {/* Thông báo dưới nút */}
+        {/* 🔔 Thông báo (luôn hiển thị ngoài điều kiện selectedItems) */}
+        {(successMsg || errorMsg) && (
+          <div className="mt-4 w-full md:w-auto">
             {successMsg && (
               <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
                 {successMsg}
@@ -531,8 +588,8 @@ export default function EquipmentImportPage() {
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/buttonn"; 
+import { Button } from "@/components/ui/buttonn";
 import {
   Table,
   TableBody,
@@ -27,7 +27,6 @@ export default function EquipmentGroupPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
   const navigate = useNavigate();
-
 
   const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
     useEquipmentGroupData();
@@ -309,7 +308,7 @@ export default function EquipmentGroupPage() {
                   <TableRow
                     key={row.id ?? idx}
                     onClick={() => navigate(`/app/equipment/specs/${row.id}`)}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm"
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm cursor-pointer transition"
                   >
                     <TableCell className="text-center border dark:border-gray-600">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
@@ -371,7 +370,8 @@ export default function EquipmentGroupPage() {
           {/* ⚡ Thanh pagination + Go To Page */}
           <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-3 bg-gray-50 dark:bg-gray-700 text-sm">
             <div className="text-gray-700 dark:text-gray-300">
-              Trang {currentPage} / {totalPages} — Tổng: {filteredData.length} thiết bị
+              Trang {currentPage} / {totalPages} — Tổng: {filteredData.length}{" "}
+              thiết bị
             </div>
 
             <div className="flex items-center gap-2">
@@ -387,7 +387,9 @@ export default function EquipmentGroupPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 className="dark:border-gray-600 dark:text-gray-200"
               >
                 »

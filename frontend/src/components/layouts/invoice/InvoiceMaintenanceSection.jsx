@@ -34,11 +34,19 @@ import {
 const ITEMS_PER_PAGE = 5;
 
 /* ============ Bộ lọc khoảng giá ============ */
-function NumberRangeHeaderFilter({ label, min, max, onChangeMin, onChangeMax }) {
+function NumberRangeHeaderFilter({
+  label,
+  min,
+  max,
+  onChangeMin,
+  onChangeMax,
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative inline-flex items-center gap-1 select-none">
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -57,7 +65,9 @@ function NumberRangeHeaderFilter({ label, min, max, onChangeMin, onChangeMax }) 
           className="absolute z-[9999] top-[120%] left-0 min-w-[220px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-2"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Nhập khoảng giá bảo trì (VND)</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Nhập khoảng giá bảo trì (VND)
+          </div>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -98,11 +108,19 @@ function NumberRangeHeaderFilter({ label, min, max, onChangeMin, onChangeMax }) 
 }
 
 /* ============ Bộ lọc khoảng ngày ============ */
-function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }) {
+function DateRangeHeaderFilter({
+  label,
+  start,
+  end,
+  onChangeStart,
+  onChangeEnd,
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative inline-flex items-center gap-1 select-none">
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{label}</span>
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -121,11 +139,15 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
           className="absolute z-[9999] top-[120%] left-0 min-w-[280px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Khoảng ngày</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            Khoảng ngày
+          </div>
           <div className="flex items-center gap-2">
             <DatePicker
               selected={start ? new Date(start) : null}
-              onChange={(date) => onChangeStart(date ? date.toISOString().split("T")[0] : "")}
+              onChange={(date) =>
+                onChangeStart(date ? date.toISOString().split("T")[0] : "")
+              }
               dateFormat="dd/MM/yyyy"
               locale={vi}
               placeholderText="dd/mm/yyyy"
@@ -134,7 +156,9 @@ function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }
             <span className="text-gray-400">—</span>
             <DatePicker
               selected={end ? new Date(end) : null}
-              onChange={(date) => onChangeEnd(date ? date.toISOString().split("T")[0] : "")}
+              onChange={(date) =>
+                onChangeEnd(date ? date.toISOString().split("T")[0] : "")
+              }
               dateFormat="dd/MM/yyyy"
               locale={vi}
               placeholderText="dd/mm/yyyy"
@@ -196,7 +220,8 @@ export default function InvoiceMaintenanceSection() {
   const [gotoPage, setGotoPage] = useState("");
 
   const controller = useGlobalFilterController();
-  const toggleExpand = (id) => setExpandedId((prev) => (prev === id ? null : id));
+  const toggleExpand = (id) =>
+    setExpandedId((prev) => (prev === id ? null : id));
 
   useEffect(() => {
     const fetchData = async () => {
@@ -212,20 +237,23 @@ export default function InvoiceMaintenanceSection() {
     fetchData();
   }, []);
 
-  useEffect(() => setCurrentPage(1), [
-    searchTerm,
-    fBranch,
-    fUnitId,
-    fEqName,
-    fRequestedBy,
-    fTechnician,
-    priceMin,
-    priceMax,
-    startFrom,
-    startTo,
-    endFrom,
-    endTo,
-  ]);
+  useEffect(
+    () => setCurrentPage(1),
+    [
+      searchTerm,
+      fBranch,
+      fUnitId,
+      fEqName,
+      fRequestedBy,
+      fTechnician,
+      priceMin,
+      priceMax,
+      startFrom,
+      startTo,
+      endFrom,
+      endTo,
+    ]
+  );
 
   const uniqueValues = useMemo(
     () => ({
@@ -250,23 +278,40 @@ export default function InvoiceMaintenanceSection() {
           m.requested_by_name?.toLowerCase().includes(q) ||
           m.technician_name?.toLowerCase().includes(q)
       );
-    if (fBranch.length) list = list.filter((m) => fBranch.includes(m.branch_id || "—"));
-    if (fUnitId.length) list = list.filter((m) => fUnitId.includes(m.equipment_unit_id || "—"));
-    if (fEqName.length) list = list.filter((m) => fEqName.includes(m.equipment_name || "—"));
+    if (fBranch.length)
+      list = list.filter((m) => fBranch.includes(m.branch_id || "—"));
+    if (fUnitId.length)
+      list = list.filter((m) => fUnitId.includes(m.equipment_unit_id || "—"));
+    if (fEqName.length)
+      list = list.filter((m) => fEqName.includes(m.equipment_name || "—"));
     if (fRequestedBy.length)
-      list = list.filter((m) => fRequestedBy.includes(m.requested_by_name || "—"));
+      list = list.filter((m) =>
+        fRequestedBy.includes(m.requested_by_name || "—")
+      );
     if (fTechnician.length)
       list = list.filter((m) => fTechnician.includes(m.technician_name || "—"));
 
     const min = priceMin ? Number(priceMin) : null;
     const max = priceMax ? Number(priceMax) : null;
-    if (min !== null) list = list.filter((m) => Number(m.invoices?.[0]?.cost ?? 0) >= min);
-    if (max !== null) list = list.filter((m) => Number(m.invoices?.[0]?.cost ?? 0) <= max);
+    if (min !== null)
+      list = list.filter((m) => Number(m.invoices?.[0]?.cost ?? 0) >= min);
+    if (max !== null)
+      list = list.filter((m) => Number(m.invoices?.[0]?.cost ?? 0) <= max);
 
-    if (startFrom) list = list.filter((m) => new Date(m.start_date) >= new Date(startFrom));
-    if (startTo) list = list.filter((m) => new Date(m.start_date) <= new Date(startTo));
-    if (endFrom) list = list.filter((m) => new Date(m.end_date) >= new Date(endFrom));
-    if (endTo) list = list.filter((m) => new Date(m.end_date) <= new Date(endTo));
+    if (startFrom)
+      list = list.filter((m) => new Date(m.start_date) >= new Date(startFrom));
+    if (startTo)
+      list = list.filter((m) => new Date(m.start_date) <= new Date(startTo));
+    if (endFrom)
+      list = list.filter((m) => new Date(m.end_date) >= new Date(endFrom));
+    if (endTo)
+      list = list.filter((m) => new Date(m.end_date) <= new Date(endTo));
+
+    // ⚙️ Ẩn item không có giá bảo trì (nếu cost null hoặc undefined)
+    list = list.filter((m) => {
+      const cost = m.invoices?.[0]?.cost;
+      return cost !== null && cost !== undefined; // chỉ giữ khi có giá
+    });
     return list;
   }, [
     maintenances,
@@ -284,8 +329,14 @@ export default function InvoiceMaintenanceSection() {
     endTo,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
-  const paginatedData = filteredData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredData.length / ITEMS_PER_PAGE)
+  );
+  const paginatedData = filteredData.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const goTo = (page) => {
     if (!Number.isFinite(page)) return;
@@ -296,7 +347,11 @@ export default function InvoiceMaintenanceSection() {
   };
 
   if (loading)
-    return <div className="text-center py-10 text-gray-500">Đang tải danh sách bảo trì...</div>;
+    return (
+      <div className="text-center py-10 text-gray-500">
+        Đang tải danh sách bảo trì...
+      </div>
+    );
 
   return (
     <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-5">
@@ -304,7 +359,9 @@ export default function InvoiceMaintenanceSection() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <Wrench className="text-emerald-500" />
-          <h2 className="text-lg font-semibold text-emerald-600">🧾 Danh sách bảo trì thiết bị</h2>
+          <h2 className="text-lg font-semibold text-emerald-600">
+            🧾 Danh sách bảo trì thiết bị
+          </h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -335,7 +392,9 @@ export default function InvoiceMaintenanceSection() {
 
           {/* Bộ lọc nhanh Tuần / Tháng / Năm */}
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Lọc nhanh:</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Lọc nhanh:
+            </span>
             <select
               className="border rounded-md px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-100"
               onChange={(e) => {
@@ -354,7 +413,11 @@ export default function InvoiceMaintenanceSection() {
                   eTo = last.toISOString().split("T")[0];
                 } else if (value === "month") {
                   const first = new Date(now.getFullYear(), now.getMonth(), 1);
-                  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                  const last = new Date(
+                    now.getFullYear(),
+                    now.getMonth() + 1,
+                    0
+                  );
                   sFrom = first.toISOString().split("T")[0];
                   eTo = last.toISOString().split("T")[0];
                 } else if (value === "year") {
@@ -386,52 +449,108 @@ export default function InvoiceMaintenanceSection() {
               <TableHead>#</TableHead>
               {visibleColumns.branch && (
                 <TableHead>
-                  <HeaderFilter label="Chi nhánh" values={uniqueValues.branch} selected={fBranch} onChange={setFBranch} selfKey="branch" controller={controller} />
+                  <HeaderFilter
+                    label="Chi nhánh"
+                    values={uniqueValues.branch}
+                    selected={fBranch}
+                    onChange={setFBranch}
+                    selfKey="branch"
+                    controller={controller}
+                  />
                 </TableHead>
               )}
               {visibleColumns.unit_id && (
                 <TableHead>
-                  <HeaderFilter label="Mã thiết bị" values={uniqueValues.unit_id} selected={fUnitId} onChange={setFUnitId} selfKey="unit_id" controller={controller} />
+                  <HeaderFilter
+                    label="Mã thiết bị"
+                    values={uniqueValues.unit_id}
+                    selected={fUnitId}
+                    onChange={setFUnitId}
+                    selfKey="unit_id"
+                    controller={controller}
+                  />
                 </TableHead>
               )}
               {visibleColumns.eq_name && (
                 <TableHead>
-                  <HeaderFilter label="Tên thiết bị" values={uniqueValues.eq_name} selected={fEqName} onChange={setFEqName} selfKey="eq_name" controller={controller} />
+                  <HeaderFilter
+                    label="Tên thiết bị"
+                    values={uniqueValues.eq_name}
+                    selected={fEqName}
+                    onChange={setFEqName}
+                    selfKey="eq_name"
+                    controller={controller}
+                  />
                 </TableHead>
               )}
               {visibleColumns.cost && (
                 <TableHead>
-                  <NumberRangeHeaderFilter label="Giá bảo trì" min={priceMin} max={priceMax} onChangeMin={setPriceMin} onChangeMax={setPriceMax} />
+                  <NumberRangeHeaderFilter
+                    label="Giá bảo trì"
+                    min={priceMin}
+                    max={priceMax}
+                    onChangeMin={setPriceMin}
+                    onChangeMax={setPriceMax}
+                  />
                 </TableHead>
               )}
               {visibleColumns.start_date && (
                 <TableHead>
-                  <DateRangeHeaderFilter label="Ngày bắt đầu" start={startFrom} end={startTo} onChangeStart={setStartFrom} onChangeEnd={setStartTo} />
+                  <DateRangeHeaderFilter
+                    label="Ngày bắt đầu"
+                    start={startFrom}
+                    end={startTo}
+                    onChangeStart={setStartFrom}
+                    onChangeEnd={setStartTo}
+                  />
                 </TableHead>
               )}
               {visibleColumns.end_date && (
                 <TableHead>
-                  <DateRangeHeaderFilter label="Ngày kết thúc" start={endFrom} end={endTo} onChangeStart={setEndFrom} onChangeEnd={setEndTo} />
+                  <DateRangeHeaderFilter
+                    label="Ngày kết thúc"
+                    start={endFrom}
+                    end={endTo}
+                    onChangeStart={setEndFrom}
+                    onChangeEnd={setEndTo}
+                  />
                 </TableHead>
               )}
               {visibleColumns.requested_by && (
                 <TableHead>
-                  <HeaderFilter label="Người yêu cầu" values={uniqueValues.requested_by} selected={fRequestedBy} onChange={setFRequestedBy} selfKey="requested_by" controller={controller} />
+                  <HeaderFilter
+                    label="Người yêu cầu"
+                    values={uniqueValues.requested_by}
+                    selected={fRequestedBy}
+                    onChange={setFRequestedBy}
+                    selfKey="requested_by"
+                    controller={controller}
+                  />
                 </TableHead>
               )}
               {visibleColumns.technician && (
                 <TableHead>
-                  <HeaderFilter label="Kỹ thuật viên" values={uniqueValues.technician} selected={fTechnician} onChange={setFTechnician} selfKey="technician" controller={controller} />
+                  <HeaderFilter
+                    label="Kỹ thuật viên"
+                    values={uniqueValues.technician}
+                    selected={fTechnician}
+                    onChange={setFTechnician}
+                    selfKey="technician"
+                    controller={controller}
+                  />
                 </TableHead>
               )}
               <TableHead className="text-center">Chi tiết</TableHead>
             </TableRow>
-                   </TableHeader>
+          </TableHeader>
 
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-4 text-gray-500">
+                <TableCell
+                  colSpan={9}
+                  className="text-center py-4 text-gray-500"
+                >
                   Không có dữ liệu bảo trì.
                 </TableCell>
               </TableRow>
@@ -446,16 +565,26 @@ export default function InvoiceMaintenanceSection() {
                       onClick={() => toggleExpand(m.id)}
                       className="text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     >
-                      <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
+                      <TableCell>
+                        {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                      </TableCell>
 
-                      {visibleColumns.branch && <TableCell>{m.branch_id}</TableCell>}
-                      {visibleColumns.unit_id && <TableCell>{m.equipment_unit_id}</TableCell>}
+                      {visibleColumns.branch && (
+                        <TableCell>{m.branch_id}</TableCell>
+                      )}
+                      {visibleColumns.unit_id && (
+                        <TableCell>{m.equipment_unit_id}</TableCell>
+                      )}
                       {visibleColumns.eq_name && (
-                        <TableCell>{m.equipment_name || "Không rõ"}</TableCell>
+                        <TableCell>
+                          {m.equipment_name || "Chưa có thông tin"}
+                        </TableCell>
                       )}
                       {visibleColumns.cost && (
                         <TableCell>
-                          {cost === null ? "—" : `${Number(cost).toLocaleString("vi-VN")}₫`}
+                          {cost === null
+                            ? "—"
+                            : `${Number(cost).toLocaleString("vi-VN")}₫`}
                         </TableCell>
                       )}
                       {visibleColumns.start_date && (
@@ -515,9 +644,12 @@ export default function InvoiceMaintenanceSection() {
                                 <TableBody>
                                   <TableRow className="text-xs">
                                     <TableCell>1</TableCell>
-                                    <TableCell>{m.maintenance_reason}</TableCell>
+                                    <TableCell>
+                                      {m.maintenance_reason}
+                                    </TableCell>
                                     <TableCell className="max-w-[420px]">
-                                      {m.maintenance_detail || "Không có ghi chú."}
+                                      {m.maintenance_detail ||
+                                        "Không có ghi chú."}
                                     </TableCell>
                                     <TableCell>{m.requested_by_name}</TableCell>
                                     <TableCell>{m.technician_name}</TableCell>
@@ -607,4 +739,3 @@ export default function InvoiceMaintenanceSection() {
     </div>
   );
 }
-
