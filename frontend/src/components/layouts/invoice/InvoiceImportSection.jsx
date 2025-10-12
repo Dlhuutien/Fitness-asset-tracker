@@ -29,9 +29,27 @@ import {
   getUniqueValues,
   useGlobalFilterController,
 } from "@/components/common/ExcelTableTools";
+import Status from "@/components/common/Status";
+
+const STATUS_MAP = {
+  active: "Hoạt động",
+  inactive: "Ngưng sử dụng",
+  maintenance: "Đang bảo trì",
+  ready: "Bảo trì thành công",
+  failed: "Bảo trì thất bại",
+  "temporary urgent": "Ngừng tạm thời",
+  "in stock": "Thiết bị trong kho",
+};
+
 
 /* ====== Bộ lọc khoảng tổng tiền ====== */
-function NumberRangeHeaderFilter({ label, min, max, onChangeMin, onChangeMax }) {
+function NumberRangeHeaderFilter({
+  label,
+  min,
+  max,
+  onChangeMin,
+  onChangeMax,
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative inline-flex items-center gap-1 select-none">
@@ -98,7 +116,13 @@ function NumberRangeHeaderFilter({ label, min, max, onChangeMin, onChangeMax }) 
 }
 
 /* ====== Bộ lọc khoảng ngày ====== */
-function DateRangeHeaderFilter({ label, start, end, onChangeStart, onChangeEnd }) {
+function DateRangeHeaderFilter({
+  label,
+  start,
+  end,
+  onChangeStart,
+  onChangeEnd,
+}) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative inline-flex items-center gap-1 select-none">
@@ -227,12 +251,28 @@ export default function InvoiceImportSection() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterId, filterUser, filterBranch, totalMin, totalMax, dateStart, dateEnd]);
+  }, [
+    searchTerm,
+    filterId,
+    filterUser,
+    filterBranch,
+    totalMin,
+    totalMax,
+    dateStart,
+    dateEnd,
+  ]);
 
-  const allIds = useMemo(() => getUniqueValues(invoices, (i) => i.invoice.id), [invoices]);
-  const allUsers = useMemo(() => getUniqueValues(invoices, (i) => i.invoice.user_name), [invoices]);
+  const allIds = useMemo(
+    () => getUniqueValues(invoices, (i) => i.invoice.id),
+    [invoices]
+  );
+  const allUsers = useMemo(
+    () => getUniqueValues(invoices, (i) => i.invoice.user_name),
+    [invoices]
+  );
   const allBranches = useMemo(
-    () => getUniqueValues(invoices, (i) => i.details[0]?.equipment_unit?.branch_id),
+    () =>
+      getUniqueValues(invoices, (i) => i.details[0]?.equipment_unit?.branch_id),
     [invoices]
   );
 
@@ -244,18 +284,26 @@ export default function InvoiceImportSection() {
         (inv) =>
           inv.invoice.id.toLowerCase().includes(s) ||
           inv.invoice.user_name.toLowerCase().includes(s) ||
-          inv.details.some((d) => d.equipment_unit_id?.toLowerCase().includes(s))
+          inv.details.some((d) =>
+            d.equipment_unit_id?.toLowerCase().includes(s)
+          )
       );
     }
-    if (filterId.length > 0) list = list.filter((inv) => filterId.includes(inv.invoice.id));
-    if (filterUser.length > 0) list = list.filter((inv) => filterUser.includes(inv.invoice.user_name));
+    if (filterId.length > 0)
+      list = list.filter((inv) => filterId.includes(inv.invoice.id));
+    if (filterUser.length > 0)
+      list = list.filter((inv) => filterUser.includes(inv.invoice.user_name));
     if (filterBranch.length > 0)
-      list = list.filter((inv) => filterBranch.includes(inv.details[0]?.equipment_unit?.branch_id || "—"));
+      list = list.filter((inv) =>
+        filterBranch.includes(inv.details[0]?.equipment_unit?.branch_id || "—")
+      );
 
     const min = totalMin ? Number(totalMin) : null;
     const max = totalMax ? Number(totalMax) : null;
-    if (min !== null) list = list.filter((inv) => Number(inv.invoice.total) >= min);
-    if (max !== null) list = list.filter((inv) => Number(inv.invoice.total) <= max);
+    if (min !== null)
+      list = list.filter((inv) => Number(inv.invoice.total) >= min);
+    if (max !== null)
+      list = list.filter((inv) => Number(inv.invoice.total) <= max);
 
     if (dateStart) {
       const start = new Date(dateStart);
@@ -268,9 +316,22 @@ export default function InvoiceImportSection() {
     }
 
     return list;
-  }, [invoices, searchTerm, filterId, filterUser, filterBranch, totalMin, totalMax, dateStart, dateEnd]);
+  }, [
+    invoices,
+    searchTerm,
+    filterId,
+    filterUser,
+    filterBranch,
+    totalMin,
+    totalMax,
+    dateStart,
+    dateEnd,
+  ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE)
+  );
   const paginated = filteredInvoices.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -284,7 +345,12 @@ export default function InvoiceImportSection() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (loading) return <div className="text-center py-10 text-gray-500">Đang tải danh sách hóa đơn...</div>;
+  if (loading)
+    return (
+      <div className="text-center py-10 text-gray-500">
+        Đang tải danh sách hóa đơn...
+      </div>
+    );
 
   return (
     <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-5">
@@ -292,7 +358,9 @@ export default function InvoiceImportSection() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <FileText className="text-emerald-500" />
-          <h2 className="text-lg font-semibold text-emerald-600">📦 Danh sách hóa đơn nhập</h2>
+          <h2 className="text-lg font-semibold text-emerald-600">
+            📦 Danh sách hóa đơn nhập
+          </h2>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -320,13 +388,16 @@ export default function InvoiceImportSection() {
 
           {/* Bộ lọc nhanh Tuần / Tháng / Năm */}
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Lọc nhanh:</span>
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+              Lọc nhanh:
+            </span>
             <select
               className="border rounded-md px-2 py-1 text-sm dark:bg-gray-700 dark:text-gray-100"
               onChange={(e) => {
                 const now = new Date();
                 const value = e.target.value;
-                let start = "", end = "";
+                let start = "",
+                  end = "";
 
                 if (value === "week") {
                   const firstDay = new Date(now);
@@ -336,8 +407,16 @@ export default function InvoiceImportSection() {
                   start = firstDay.toISOString().split("T")[0];
                   end = lastDay.toISOString().split("T")[0];
                 } else if (value === "month") {
-                  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-                  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                  const firstDay = new Date(
+                    now.getFullYear(),
+                    now.getMonth(),
+                    1
+                  );
+                  const lastDay = new Date(
+                    now.getFullYear(),
+                    now.getMonth() + 1,
+                    0
+                  );
                   start = firstDay.toISOString().split("T")[0];
                   end = lastDay.toISOString().split("T")[0];
                 } else if (value === "year") {
@@ -434,7 +513,10 @@ export default function InvoiceImportSection() {
           <TableBody>
             {paginated.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-4 text-gray-500">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-4 text-gray-500"
+                >
                   Không tìm thấy hóa đơn nào.
                 </TableCell>
               </TableRow>
@@ -448,17 +530,29 @@ export default function InvoiceImportSection() {
                       onClick={() => toggleExpand(inv.invoice.id)}
                       className="text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     >
-                      <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + i + 1}</TableCell>
+                      <TableCell>
+                        {(currentPage - 1) * ITEMS_PER_PAGE + i + 1}
+                      </TableCell>
                       {visibleColumns.id && (
-                        <TableCell className="font-medium text-emerald-600">{inv.invoice.id}</TableCell>
+                        <TableCell className="font-medium text-emerald-600">
+                          {inv.invoice.id}
+                        </TableCell>
                       )}
-                      {visibleColumns.user && <TableCell>{inv.invoice.user_name}</TableCell>}
+                      {visibleColumns.user && (
+                        <TableCell>{inv.invoice.user_name}</TableCell>
+                      )}
                       {visibleColumns.branch && <TableCell>{branch}</TableCell>}
                       {visibleColumns.total && (
-                        <TableCell>{Number(inv.invoice.total).toLocaleString("vi-VN")}₫</TableCell>
+                        <TableCell>
+                          {Number(inv.invoice.total).toLocaleString("vi-VN")}₫
+                        </TableCell>
                       )}
                       {visibleColumns.created_at && (
-                        <TableCell>{new Date(inv.invoice.created_at).toLocaleString("vi-VN")}</TableCell>
+                        <TableCell>
+                          {new Date(inv.invoice.created_at).toLocaleString(
+                            "vi-VN"
+                          )}
+                        </TableCell>
                       )}
                       <TableCell className="text-center">
                         {expandedInvoiceId === inv.invoice.id ? (
@@ -490,7 +584,7 @@ export default function InvoiceImportSection() {
                                     <TableHead>#</TableHead>
                                     <TableHead>Mã định danh thiết bị</TableHead>
                                     <TableHead>Tên thiết bị</TableHead>
-                                    <TableHead>Trạng thái</TableHead>
+                                    <TableHead>Trạng thái hiện tại</TableHead>
                                     <TableHead>Giá nhập</TableHead>
                                     <TableHead>Ngày tạo</TableHead>
                                   </TableRow>
@@ -498,43 +592,88 @@ export default function InvoiceImportSection() {
 
                                 <TableBody>
                                   {(() => {
-                                    const grouped = inv.details.reduce((acc, d) => {
-                                      const prefix = d.equipment_unit_id.split("-")[0];
-                                      if (!acc[prefix]) acc[prefix] = [];
-                                      acc[prefix].push(d);
-                                      return acc;
-                                    }, {});
+                                    const grouped = inv.details.reduce(
+                                      (acc, d) => {
+                                        const prefix =
+                                          d.equipment_unit_id.split("-")[0];
+                                        if (!acc[prefix]) acc[prefix] = [];
+                                        acc[prefix].push(d);
+                                        return acc;
+                                      },
+                                      {}
+                                    );
 
                                     let index = 1;
                                     const rows = [];
-                                    Object.entries(grouped).forEach(([prefix, items]) => {
-                                      items.forEach((d) => {
-                                        rows.push(
-                                          <TableRow key={d.id} className="text-xs">
-                                            <TableCell>{index++}</TableCell>
-                                            <TableCell>{d.equipment_unit_id}</TableCell>
-                                            <TableCell>{d.equipment_unit?.equipment_name || "Không rõ"}</TableCell>
-                                            <TableCell>{d.equipment_unit?.status || "—"}</TableCell>
-                                            <TableCell>{Number(d.cost).toLocaleString("vi-VN")}₫</TableCell>
-                                            <TableCell>{new Date(d.created_at).toLocaleString("vi-VN")}</TableCell>
-                                          </TableRow>
-                                        );
-                                      });
+                                    Object.entries(grouped).forEach(
+                                      ([prefix, items]) => {
+                                        items.forEach((d) => {
+                                          rows.push(
+                                            <TableRow
+                                              key={d.id}
+                                              className="text-xs"
+                                            >
+                                              <TableCell>{index++}</TableCell>
+                                              <TableCell>
+                                                {d.equipment_unit_id}
+                                              </TableCell>
+                                              <TableCell>
+                                                {d.equipment_unit
+                                                  ?.equipment_name ||
+                                                  "Chưa có thông tin"}
+                                              </TableCell>
+                                              <TableCell>
+                                                <Status
+                                                  status={
+                                                    STATUS_MAP[
+                                                      d.equipment_unit?.status?.toLowerCase()
+                                                    ] ||
+                                                    d.equipment_unit?.status ||
+                                                    "Không xác định"
+                                                  }
+                                                />
+                                              </TableCell>
+                                              <TableCell>
+                                                {Number(d.cost).toLocaleString(
+                                                  "vi-VN"
+                                                )}
+                                                ₫
+                                              </TableCell>
+                                              <TableCell>
+                                                {new Date(
+                                                  d.created_at
+                                                ).toLocaleString("vi-VN")}
+                                              </TableCell>
+                                            </TableRow>
+                                          );
+                                        });
 
-                                      if (items.length > 1) {
-                                        const total = items.reduce((sum, d) => sum + Number(d.cost || 0), 0);
-                                        rows.push(
-                                          <TableRow
-                                            key={`${prefix}-summary`}
-                                            className="bg-emerald-200/60 text-[13px] font-semibold italic"
-                                          >
-                                            <TableCell colSpan={2}>Mã phân loại: {prefix}</TableCell>
-                                            <TableCell colSpan={2}>Số lượng: {items.length}</TableCell>
-                                            <TableCell colSpan={2}>Tổng: {total.toLocaleString("vi-VN")}₫</TableCell>
-                                          </TableRow>
-                                        );
+                                        if (items.length > 1) {
+                                          const total = items.reduce(
+                                            (sum, d) =>
+                                              sum + Number(d.cost || 0),
+                                            0
+                                          );
+                                          rows.push(
+                                            <TableRow
+                                              key={`${prefix}-summary`}
+                                              className="bg-emerald-200/60 text-[13px] font-semibold italic"
+                                            >
+                                              <TableCell colSpan={2}>
+                                                Mã phân loại: {prefix}
+                                              </TableCell>
+                                              <TableCell colSpan={2}>
+                                                Số lượng: {items.length}
+                                              </TableCell>
+                                              <TableCell colSpan={2}>
+                                                Tổng:{" "}
+                                                {total.toLocaleString("vi-VN")}₫
+                                              </TableCell>
+                                            </TableRow>
+                                          );
+                                        }
                                       }
-                                    });
+                                    );
                                     return rows;
                                   })()}
                                 </TableBody>
@@ -569,7 +708,11 @@ export default function InvoiceImportSection() {
             <Button
               size="sm"
               onClick={() => goTo(Number(gotoPage))}
-              disabled={!gotoPage || Number(gotoPage) < 1 || Number(gotoPage) > totalPages}
+              disabled={
+                !gotoPage ||
+                Number(gotoPage) < 1 ||
+                Number(gotoPage) > totalPages
+              }
               className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs px-3 py-1"
             >
               Go

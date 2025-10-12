@@ -24,6 +24,7 @@ export default function EquipmentProfilePage() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [equipment, setEquipment] = useState(null);
+  const [saveMessage, setSaveMessage] = useState({ type: "", text: "" });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -114,7 +115,9 @@ export default function EquipmentProfilePage() {
   const handleAddNewAttribute = async () => {
     const trimmed = newAttrName.trim();
     if (!trimmed) return toast.error("Nhập tên thông số!");
-    if (allAttributes.some((a) => a.name.toLowerCase() === trimmed.toLowerCase()))
+    if (
+      allAttributes.some((a) => a.name.toLowerCase() === trimmed.toLowerCase())
+    )
       return toast.error(`Thông số "${trimmed}" đã tồn tại!`);
     try {
       setAddingAttr(true);
@@ -131,9 +134,19 @@ export default function EquipmentProfilePage() {
   };
 
   const handleSave = async () => {
-    console.log("🧩 GỌI HANDLE SAVE!");
+    let timeoutId;
     try {
       setSaving(true);
+      setSaveMessage({ type: "", text: "" });
+
+      // Hiện "vui lòng chờ" nếu >5s
+      timeoutId = setTimeout(() => {
+        setSaveMessage({
+          type: "loading",
+          text: "⏳ Đang xử lý, vui lòng chờ thêm một chút...",
+        });
+      }, 5000);
+
       const attrArray = Object.entries(selectedAttrs)
         .map(([n, v]) => {
           const found = allAttributes.find((a) => a.name === n);
@@ -141,6 +154,7 @@ export default function EquipmentProfilePage() {
           return { attribute_id: found.id, value: v };
         })
         .filter(Boolean);
+
       await EquipmentService.update(equipment.id, {
         name: formData.name,
         description: formData.description,
@@ -148,17 +162,38 @@ export default function EquipmentProfilePage() {
         image: formData.image,
         attributes: attrArray,
       });
+
+      clearTimeout(timeoutId);
       toast.success("✅ Lưu thay đổi thành công!");
-      setEditing(false);
-      const fresh = await EquipmentService.getById(id);
-      setEquipment(fresh);
-      const next = {};
-      (fresh.attributes || []).forEach((a) => {
-        if (a?.attribute) next[a.attribute] = a.value || "";
-      });
-      setSelectedAttrs(next);
+      setSaveMessage({ type: "success", text: "Đã lưu thay đổi thành công!" });
+
+      // Tắt chế độ chỉnh sửa nhưng giữ message lại
+      setTimeout(async () => {
+        setEditing(false);
+        const fresh = await EquipmentService.getById(id);
+        setEquipment(fresh);
+        const next = {};
+        (fresh.attributes || []).forEach((a) => {
+          if (a?.attribute) next[a.attribute] = a.value || "";
+        });
+        setSelectedAttrs(next);
+      }, 1000);
+
+      // Giữ message thêm 3s nữa rồi mới xóa
+      setTimeout(() => {
+        setSaveMessage({ type: "", text: "" });
+      }, 4000);
     } catch {
+      clearTimeout(timeoutId);
       toast.error("❌ Lỗi khi lưu thiết bị!");
+      setSaveMessage({
+        type: "error",
+        text: "Lưu thay đổi thất bại, vui lòng thử lại.",
+      });
+
+      setTimeout(() => {
+        setSaveMessage({ type: "", text: "" });
+      }, 3000);
     } finally {
       setSaving(false);
     }
@@ -190,7 +225,9 @@ export default function EquipmentProfilePage() {
 
   if (!equipment)
     return (
-      <div className="text-center text-red-500 p-10">Không tìm thấy thiết bị.</div>
+      <div className="text-center text-red-500 p-10">
+        Không tìm thấy thiết bị.
+      </div>
     );
 
   return (
@@ -203,30 +240,51 @@ export default function EquipmentProfilePage() {
         >
           <ArrowLeft size={16} /> Quay lại
         </Button>
-        {!editing ? (
-          <Button
-            onClick={() => setEditing(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-          >
-            ✏️ Chỉnh sửa
-          </Button>
-        ) : (
-          <div className="flex gap-3">
-            <Button
-              onClick={handleCancel}
-              className="bg-gray-300 dark:bg-gray-700 dark:text-white hover:bg-gray-400"
-            >
-              ❌ Hủy
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} 💾 Lưu thay đổi
-            </Button>
+        <div className="flex flex-col gap-2">
+          {/* Nút hành động */}
+          <div className="flex justify-end gap-3">
+            {!editing ? (
+              <Button
+                onClick={() => setEditing(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+              >
+                ✏️ Chỉnh sửa
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={handleCancel}
+                  className="bg-gray-300 dark:bg-gray-700 dark:text-white hover:bg-gray-400"
+                >
+                  ❌ Hủy
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2"
+                >
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />} 💾
+                  Lưu thay đổi
+                </Button>
+              </>
+            )}
           </div>
-        )}
+
+          {/* 🔽 Thông báo kết quả lưu (luôn hiển thị dù đang editing hay không) */}
+          {saveMessage.text && (
+            <p
+              className={`text-sm mt-1 transition ${
+                saveMessage.type === "success"
+                  ? "text-emerald-600"
+                  : saveMessage.type === "error"
+                  ? "text-red-500"
+                  : "text-amber-500 animate-pulse"
+              }`}
+            >
+              {saveMessage.text}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* CARD 1: Thông tin cơ bản */}
@@ -324,7 +382,8 @@ export default function EquipmentProfilePage() {
               <strong>Ngày tạo:</strong> {fmtDate(equipment.created_at)}
             </p>
             <p>
-              <strong>Cập nhật gần nhất:</strong> {fmtDate(equipment.updated_at)}
+              <strong>Cập nhật gần nhất:</strong>{" "}
+              {fmtDate(equipment.updated_at)}
             </p>
           </div>
         </div>
@@ -350,7 +409,9 @@ export default function EquipmentProfilePage() {
               ))}
             </div>
           ) : (
-            <p className="italic text-gray-500">(Chưa có thông số kỹ thuật...)</p>
+            <p className="italic text-gray-500">
+              (Chưa có thông số kỹ thuật...)
+            </p>
           )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -365,7 +426,9 @@ export default function EquipmentProfilePage() {
                   className="text-xs flex items-center gap-1"
                 >
                   <RotateCcw
-                    className={`w-4 h-4 ${spinClearChecked ? "animate-spin" : ""}`}
+                    className={`w-4 h-4 ${
+                      spinClearChecked ? "animate-spin" : ""
+                    }`}
                   />
                   Clear Checked
                 </Button>
@@ -450,7 +513,9 @@ export default function EquipmentProfilePage() {
                   className="text-xs flex items-center gap-1"
                 >
                   <RotateCcw
-                    className={`w-4 h-4 ${spinClearInputs ? "animate-spin" : ""}`}
+                    className={`w-4 h-4 ${
+                      spinClearInputs ? "animate-spin" : ""
+                    }`}
                   />
                   Clear Inputs
                 </Button>

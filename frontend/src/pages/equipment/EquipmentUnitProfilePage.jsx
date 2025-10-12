@@ -98,18 +98,28 @@ export default function EquipmentProfilePage() {
       setSuccessMsg("");
       toast.info("⏳ Đang gửi yêu cầu bảo trì...");
 
+      // 1️⃣ Tạo yêu cầu bảo trì
       await MaintainService.create({
         equipment_unit_id: data.id,
         maintenance_reason: reason.trim(),
       });
 
-      setSuccessMsg("✅ Đã gửi yêu cầu bảo trì!");
+      // 2️⃣ Cập nhật trạng thái thiết bị sang "temporary urgent"
+      await EquipmentUnitService.update(data.id, {
+        status: "temporary urgent",
+      });
+
+      // 3️⃣ Cập nhật UI
+      setData((prev) => ({ ...prev, status: "temporary urgent" }));
       setReason("");
-      toast.success("✅ Đã gửi yêu cầu bảo trì!");
+      setSuccessMsg(
+        "✅ Thiết bị đã được chuyển sang trạng thái ngừng tạm thời!"
+      );
+      toast.success("✅ Đã dừng tạm thời thiết bị!");
     } catch (err) {
-      console.error("❌ Lỗi khi tạo maintenance:", err);
-      setErrorMsg("❌ Không thể tạo yêu cầu bảo trì!");
-      toast.error("❌ Không thể tạo yêu cầu bảo trì!");
+      console.error("❌ Lỗi khi dừng tạm thời:", err);
+      setErrorMsg("❌ Không thể dừng tạm thời thiết bị!");
+      toast.error("❌ Không thể dừng tạm thời thiết bị!");
     } finally {
       setLoading(false);
     }
@@ -203,17 +213,78 @@ export default function EquipmentProfilePage() {
 
             {/* Thông tin chi tiết */}
             <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <InfoItem icon={<Package size={16} />} label="Loại thiết bị" value={eq.type_name} />
-              <InfoItem icon={<Package size={16} />} label="Mã thiết bị gốc" value={eq.id} />
-              <InfoItem icon={<Factory size={16} />} label="Nhà cung cấp" value={eq.vendor_name} />
-              <InfoItem icon={<Building2 size={16} />} label="Chi nhánh" value={data.branch_id} />
-              <InfoItem icon={<CalendarDays size={16} />} label="Ngày tạo" value={new Date(data.created_at).toLocaleString("vi-VN")} />
-              <InfoItem icon={<CalendarDays size={16} />} label="Cập nhật gần nhất" value={new Date(data.updated_at).toLocaleString("vi-VN")} />
-              <InfoItem icon={<CalendarDays size={16} />} label="Bắt đầu bảo hành" value={new Date(data.warranty_start_date).toLocaleDateString("vi-VN")} />
-              <InfoItem icon={<CalendarDays size={16} />} label="Kết thúc bảo hành" value={data.warranty_end_date ? new Date(data.warranty_end_date).toLocaleDateString("vi-VN") : "—"} />
-              <InfoItem icon={<Package size={16} />} label="Thời hạn bảo hành" value={eq.warranty_duration ? `${eq.warranty_duration} năm` : "—"} />
-              <InfoItem icon={<Package size={16} />} label="Mô tả thiết bị" value={eq.description || data.description || "—"} />
-              <InfoItem icon={<Package size={16} />} label="Giá nhập thiết bị" value={data.cost ? data.cost.toLocaleString("vi-VN", { style: "currency", currency: "VND" }) : "—"} />
+              <InfoItem
+                icon={<Package size={16} />}
+                label="Loại thiết bị"
+                value={eq.type_name}
+              />
+              <InfoItem
+                icon={<Package size={16} />}
+                label="Mã thiết bị gốc"
+                value={eq.id}
+              />
+              <InfoItem
+                icon={<Factory size={16} />}
+                label="Nhà cung cấp"
+                value={eq.vendor_name}
+              />
+              <InfoItem
+                icon={<Building2 size={16} />}
+                label="Chi nhánh"
+                value={data.branch_id}
+              />
+              <InfoItem
+                icon={<CalendarDays size={16} />}
+                label="Ngày tạo"
+                value={new Date(data.created_at).toLocaleString("vi-VN")}
+              />
+              <InfoItem
+                icon={<CalendarDays size={16} />}
+                label="Cập nhật gần nhất"
+                value={new Date(data.updated_at).toLocaleString("vi-VN")}
+              />
+              <InfoItem
+                icon={<CalendarDays size={16} />}
+                label="Bắt đầu bảo hành"
+                value={new Date(data.warranty_start_date).toLocaleDateString(
+                  "vi-VN"
+                )}
+              />
+              <InfoItem
+                icon={<CalendarDays size={16} />}
+                label="Kết thúc bảo hành"
+                value={
+                  data.warranty_end_date
+                    ? new Date(data.warranty_end_date).toLocaleDateString(
+                        "vi-VN"
+                      )
+                    : "—"
+                }
+              />
+              <InfoItem
+                icon={<Package size={16} />}
+                label="Thời hạn bảo hành"
+                value={
+                  eq.warranty_duration ? `${eq.warranty_duration} năm` : "—"
+                }
+              />
+              <InfoItem
+                icon={<Package size={16} />}
+                label="Mô tả thiết bị"
+                value={eq.description || data.description || "—"}
+              />
+              <InfoItem
+                icon={<Package size={16} />}
+                label="Giá nhập thiết bị"
+                value={
+                  data.cost
+                    ? data.cost.toLocaleString("vi-VN", {
+                        style: "currency",
+                        currency: "VND",
+                      })
+                    : "—"
+                }
+              />
             </div>
           </div>
         </div>

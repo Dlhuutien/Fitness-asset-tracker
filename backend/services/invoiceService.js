@@ -38,7 +38,7 @@ const invoiceService = {
       }
 
       // Lấy warranty_duration từ equipment
-      const warranty_duration = equipment.warranty_duration;
+      const warranty_duration = Number(equipment.warranty_duration) || 0;
 
       // Đảm bảo Count record tồn tại cho equipment_id
       let countRecord = await countRepository.findById(equipment_id);
@@ -97,7 +97,7 @@ const invoiceService = {
     const result = [];
 
     for (const inv of invoices) {
-      let userName = "Không rõ";
+      let userName = "Chưa có thông tin";
 
       if (inv.user_id) {
         try {
@@ -109,7 +109,7 @@ const invoiceService = {
             )?.Value ||
             user?.username ||
             user?.Username ||
-            "Không rõ";
+            "Chưa có thông tin";
         } catch (err) {
           console.warn(`⚠️ Không lấy được user ${inv.user_id}:`, err.message);
         }
@@ -128,7 +128,7 @@ const invoiceService = {
     const invoice = await invoiceRepository.findById(id);
     if (!invoice) throw new Error("Invoice not found");
 
-    let userName = "Không rõ";
+    let userName = "Chưa có thông tin";
 
     if (invoice.user_id) {
       try {
@@ -141,7 +141,7 @@ const invoiceService = {
           )?.Value ||
           user?.username ||
           user?.Username ||
-          "Không rõ";
+          "Chưa có thông tin";
       } catch (err) {
         console.warn(`⚠️ Không lấy được user ${invoice.user_id}:`, err.message);
       }
@@ -170,7 +170,7 @@ const invoiceService = {
     if (!invoice) throw new Error("Invoice not found");
 
     // Lấy tên người tạo hóa đơn
-    let userName = "Không rõ";
+    let userName = "Chưa có thông tin";
     if (invoice.user_id) {
       try {
         const user = await userRepository.getUserBySub(invoice.user_id);
@@ -181,7 +181,7 @@ const invoiceService = {
           )?.Value ||
           user?.username ||
           user?.Username ||
-          "Không rõ";
+          "Chưa có thông tin";
       } catch (err) {
         console.warn(`⚠️ Không lấy được user ${invoice.user_id}:`, err.message);
       }
@@ -194,10 +194,10 @@ const invoiceService = {
     for (const d of details) {
       const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
 
-      let equipmentName = "Không rõ";
+      let equipmentName = "Chưa có thông tin";
       if (unit?.equipment_id) {
         const eq = await equipmentRepository.findById(unit.equipment_id);
-        equipmentName = eq?.name || "Không rõ";
+        equipmentName = eq?.name || "Chưa có thông tin";
       }
 
       detailsWithUnits.push({
@@ -229,7 +229,7 @@ const invoiceService = {
       if (!invoice) continue;
 
       // Lấy tên người tạo hóa đơn
-      let userName = "Không rõ";
+      let userName = "Chưa có thông tin";
       if (invoice.user_id) {
         try {
           const user = await userRepository.getUserBySub(invoice.user_id);
@@ -240,7 +240,7 @@ const invoiceService = {
             )?.Value ||
             user?.username ||
             user?.Username ||
-            "Không rõ";
+            "Chưa có thông tin";
         } catch (err) {
           console.warn(
             `⚠️ Không lấy được user ${invoice.user_id}:`,
@@ -254,10 +254,10 @@ const invoiceService = {
         detail.equipment_unit_id
       );
 
-      let equipmentName = "Không rõ";
+      let equipmentName = "Chưa có thông tin";
       if (unit?.equipment_id) {
         const eq = await equipmentRepository.findById(unit.equipment_id);
-        equipmentName = eq?.name || "Không rõ";
+        equipmentName = eq?.name || "Chưa có thông tin";
       }
 
       // ✅ Cấu trúc chuẩn có thêm equipment_name

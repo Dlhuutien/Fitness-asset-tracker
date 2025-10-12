@@ -119,19 +119,19 @@ const maintenanceService = {
       const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
 
       // 🧰 Lấy tên thiết bị
-      let equipmentName = "Không rõ";
+      let equipmentName = "Chưa có thông tin";
       if (m.equipment_unit_id) {
         const unit = await equipmentUnitRepository.findById(
           m.equipment_unit_id
         );
         if (unit?.equipment_id) {
           const eq = await equipmentRepository.findById(unit.equipment_id);
-          equipmentName = eq?.name || "Không rõ";
+          equipmentName = eq?.name || "Chưa có thông tin";
         }
       }
 
       // 👤 Người yêu cầu
-      let requestedByName = "Không rõ";
+      let requestedByName = "Chưa có thông tin";
       if (m.assigned_by) {
         const reqUser = await userRepository.getUserBySub(m.assigned_by);
         requestedByName =
@@ -141,11 +141,11 @@ const maintenanceService = {
           )?.Value ||
           reqUser?.username ||
           reqUser?.Username ||
-          "Không rõ";
+          "Chưa có thông tin";
       }
 
       // 👨‍🔧 Kỹ thuật viên
-      let technicianName = "Không rõ";
+      let technicianName = "Chưa có thông tin";
       if (m.user_id) {
         const techUser = await userRepository.getUserBySub(m.user_id);
         technicianName =
@@ -155,7 +155,7 @@ const maintenanceService = {
           )?.Value ||
           techUser?.username ||
           techUser?.Username ||
-          "Không rõ";
+          "Chưa có thông tin";
       }
 
       // 🧩 Push kết quả đầy đủ
@@ -183,12 +183,12 @@ const maintenanceService = {
     const m = await maintenanceRepository.findById(id);
     if (!m) throw new Error("Maintenance not found");
 
-    let equipmentName = "Không rõ";
+    let equipmentName = "Chưa có thông tin";
     if (m.equipment_unit_id) {
       const unit = await equipmentUnitRepository.findById(m.equipment_unit_id);
       if (unit?.equipment_id) {
         const eq = await equipmentRepository.findById(unit.equipment_id);
-        equipmentName = eq?.name || "Không rõ";
+        equipmentName = eq?.name || "Chưa có thông tin";
       }
     }
 
@@ -204,7 +204,41 @@ const maintenanceService = {
     const active = all.find(
       (m) => m.equipment_unit_id === equipment_unit_id && !m.end_date
     );
-    return active || null;
+    if (!active) return null;
+
+    // 👤 Lấy tên người yêu cầu
+    let requestedByName = "Chưa có thông tin";
+    if (active.assigned_by) {
+      const reqUser = await userRepository.getUserBySub(active.assigned_by);
+      requestedByName =
+        reqUser?.attributes?.name ||
+        reqUser?.UserAttributes?.find(
+          (a) => a.Name === "name" || a.Name === "custom:name"
+        )?.Value ||
+        reqUser?.username ||
+        reqUser?.Username ||
+        "Chưa có thông tin";
+    }
+
+    // 👨‍🔧 Lấy tên kỹ thuật viên
+    let technicianName = "Chưa có thông tin";
+    if (active.user_id) {
+      const techUser = await userRepository.getUserBySub(active.user_id);
+      technicianName =
+        techUser?.attributes?.name ||
+        techUser?.UserAttributes?.find(
+          (a) => a.Name === "name" || a.Name === "custom:name"
+        )?.Value ||
+        techUser?.username ||
+        techUser?.Username ||
+        "Chưa có thông tin";
+    }
+
+    return {
+      ...active,
+      requested_by_name: requestedByName,
+      technician_name: technicianName,
+    };
   },
 
   // =======================================================
@@ -222,29 +256,29 @@ const maintenanceService = {
     for (const m of history) {
       const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
 
-      let requestedByName = "Không rõ";
-      let technicianName = "Không rõ";
-      let equipmentName = "Không rõ";
+      let requestedByName = "Chưa có thông tin";
+      let technicianName = "c";
+      let equipmentName = "Chưa có thông tin";
 
       // 🧩 Lấy tên người yêu cầu
       if (m.assigned_by) {
         const reqUser = await userRepository.getUserBySub(m.assigned_by);
         requestedByName =
-          reqUser?.attributes?.name || reqUser?.username || "Không rõ";
+          reqUser?.attributes?.name || reqUser?.username || "Chưa có thông tin";
       }
 
       // 🧩 Lấy tên kỹ thuật viên
       if (m.user_id) {
         const techUser = await userRepository.getUserBySub(m.user_id);
         technicianName =
-          techUser?.attributes?.name || techUser?.username || "Không rõ";
+          techUser?.attributes?.name || techUser?.username || "Chưa có thông tin";
       }
 
       // 🧩 Lấy tên thiết bị
       const unit = await equipmentUnitRepository.findById(m.equipment_unit_id);
       if (unit?.equipment_id) {
         const eq = await equipmentRepository.findById(unit.equipment_id);
-        equipmentName = eq?.name || "Không rõ";
+        equipmentName = eq?.name || "Chưa có thông tin";
       }
 
       combined.push({
@@ -286,20 +320,20 @@ const maintenanceService = {
       (inv) => inv.maintenance_id === latest.id
     );
 
-    let requestedByName = "Không rõ";
-    let technicianName = "Không rõ";
-    let equipmentName = "Không rõ";
+    let requestedByName = "Chưa có thông tin";
+    let technicianName = "Chưa có thông tin";
+    let equipmentName = "Chưa có thông tin";
 
     if (latest.assigned_by) {
       const reqUser = await userRepository.getUserBySub(latest.assigned_by);
       requestedByName =
-        reqUser?.attributes?.name || reqUser?.username || "Không rõ";
+        reqUser?.attributes?.name || reqUser?.username || "Chưa có thông tin";
     }
 
     if (latest.user_id) {
       const techUser = await userRepository.getUserBySub(latest.user_id);
       technicianName =
-        techUser?.attributes?.name || techUser?.username || "Không rõ";
+        techUser?.attributes?.name || techUser?.username || "Chưa có thông tin";
     }
 
     const unit = await equipmentUnitRepository.findById(
@@ -307,7 +341,7 @@ const maintenanceService = {
     );
     if (unit?.equipment_id) {
       const eq = await equipmentRepository.findById(unit.equipment_id);
-      equipmentName = eq?.name || "Không rõ";
+      equipmentName = eq?.name || "Chưa có thông tin";
     }
 
     return {
