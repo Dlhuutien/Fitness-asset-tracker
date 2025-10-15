@@ -81,6 +81,22 @@ const EquipmentModel = {
     }
   },
 
+  // LẤY DANH SÁCH ID
+  getAllIds: async () => {
+    try {
+      const res = await dynamodb.send(
+        new ScanCommand({
+          TableName: tableName,
+          ProjectionExpression: "id", // chỉ lấy cột id
+        })
+      );
+      return (res.Items || []).map((item) => item.id);
+    } catch (error) {
+      console.error("Error getting equipment IDs:", error);
+      throw error;
+    }
+  },
+
   // FIND BY PREFIX (để tạo id tự động)
   findByPrefix: async (prefix) => {
     const res = await dynamodb.send(

@@ -4,77 +4,81 @@ const categoryTypeRepository = require("../repositories/categoryTypeRepository")
 const categoryMainRepository = require("../repositories/categoryMainRepository");
 const attributeValueRepository = require("../repositories/attributeValueRepository");
 const attributeRepository = require("../repositories/attributeRepository");
+const { generateEquipmentCode } = require("../utils/codeGenerator");
 
 const equipmentService = {
   createEquipment: async (data) => {
-    // 1. Validate bắt buộc
     if (!data.name || !data.vendor_id || !data.category_type_id) {
       throw new Error(
         "Equipment name, vendor_id, category_type_id are required"
       );
     }
 
-    // 2. Check vendor
+    // Lấy vendor + type + main
     const vendor = await vendorRepository.findById(data.vendor_id);
-    if (!vendor) {
-      throw new Error(`Vendor with id ${data.vendor_id} does not exist`);
-    }
+    if (!vendor) throw new Error(`Vendor ${data.vendor_id} does not exist`);
 
-    // 3. Check category_type
     const categoryType = await categoryTypeRepository.findById(
       data.category_type_id
     );
-    if (!categoryType) {
+    if (!categoryType)
+      throw new Error(`CategoryType ${data.category_type_id} does not exist`);
+
+    const categoryMain = await categoryMainRepository.findById(
+      categoryType.category_main_id
+    );
+    if (!categoryMain)
       throw new Error(
-        `CategoryType with id ${data.category_type_id} does not exist`
+        `CategoryMain ${categoryType.category_main_id} does not exist`
       );
-    }
 
-    // 4. Generate id
-    const category_main_id = categoryType.category_main_id;
-    const equipmentId = `${category_main_id}${data.category_type_id}${data.vendor_id}`;
-    data.id = equipmentId;
+    // Lấy danh sách ID hiện có
+    const existingIds = await equipmentRepository.findAllIds();
 
-    // 5. Check duplicate
-    const existing = await equipmentRepository.findById(equipmentId);
-    if (existing) {
-      throw new Error(`Equipment with id ${equipmentId} already exists`);
-    }
+    // Sinh ID: $vendor$main$type-$name
+    const newId = generateEquipmentCode(
+      {
+        vendorId: data.vendor_id,
+        mainId: categoryMain.id,
+        typeId: data.category_type_id,
+        name: data.name,
+      },
+      existingIds
+    );
 
-    // 6. Create Equipment
+    // Check trùng ID 
+    const existing = await equipmentRepository.findById(newId);
+    if (existing) throw new Error(`Equipment with id ${newId} already exists`);
+
+    // Tạo bản ghi thiết bị
     const newEquipment = {
       ...data,
-      id: equipmentId,
+      id: newId,
+      category_main_id: categoryMain.id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
     await equipmentRepository.create(newEquipment);
 
-    // 7. Nếu có attributes thì lưu AttributeValue
+    // Gắn attributes (nếu có)
     if (Array.isArray(data.attributes)) {
       for (const av of data.attributes) {
-        if (!av.attribute_id || !av.value) {
+        if (!av.attribute_id || !av.value)
           throw new Error("Each attribute must include attribute_id and value");
-        }
 
-        // check attribute tồn tại
         const attr = await attributeRepository.findById(av.attribute_id);
-        if (!attr) {
-          throw new Error(
-            `Attribute with id ${av.attribute_id} does not exist`
-          );
-        }
+        if (!attr) throw new Error(`Attribute ${av.attribute_id} not found`);
 
         await attributeValueRepository.create({
-          equipment_id: equipmentId,
+          equipment_id: newId,
           attribute_id: av.attribute_id,
           value: av.value,
         });
       }
     }
 
-    // 8. Load lại attributes với tên
-    const attrValues = await attributeValueRepository.findByEquipmentId(
-      equipmentId
-    );
+    // Load lại attributes để trả về
+    const attrValues = await attributeValueRepository.findByEquipmentId(newId);
     const attrs = [];
     for (const av of attrValues) {
       const attr = await attributeRepository.findById(av.attribute_id);
@@ -186,7 +190,6 @@ const equipmentService = {
       attributes: attrs,
     };
   },
-
 
   getEquipmentsByCategoryTypeId: async (category_type_id) => {
     const equipments = await equipmentRepository.findByCategoryTypeId(

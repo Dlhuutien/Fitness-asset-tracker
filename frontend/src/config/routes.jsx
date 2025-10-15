@@ -7,8 +7,6 @@ import DashboardPage from "@/pages/DashboardPage";
 import LoginPage from "@/pages/LoginPage";
 
 // Equipment
-import EquipmentListPage from "@/pages/equipment/EquipmentUnitListPage";
-import EquipmentGroupPage from "@/pages/equipment/EquipmentGroupPage";
 import EquipmentAddGroupPage from "@/pages/equipment/EquipmentGroupTypePage";
 import EquipmentAddCardPage from "@/components/layouts/equipment/EquipmentAddCardPage";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
@@ -36,6 +34,7 @@ import UserProfile from "@/pages/userProfile/UserProfile";
 import BranchPage from "@/pages/branch/branchListPage";
 
 import NotificationScreen from "@/pages/NotificationScreen";
+import EquipmentDirectoryPage from "@/pages/equipment/EquipmentDirectoryPage";
 
 const routes = [
   // Auth
@@ -68,10 +67,10 @@ const routes = [
 
       // Equipment
       {
-        path: "/app/equipment/list",
+        path: "/app/equipment/directory",
         element: (
           <PageTransition>
-            <EquipmentListPage />
+            <EquipmentDirectoryPage />
           </PageTransition>
         ),
       },
@@ -88,15 +87,6 @@ const routes = [
         element: (
           <PageTransition>
             <EquipmentSpecsPage />
-          </PageTransition>
-        ),
-      },
-
-      {
-        path: "/app/equipment/page",
-        element: (
-          <PageTransition>
-            <EquipmentGroupPage />
           </PageTransition>
         ),
       },
