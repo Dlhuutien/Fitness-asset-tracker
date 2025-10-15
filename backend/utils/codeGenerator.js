@@ -66,4 +66,42 @@ function generateTypeCode(name, existingCodes = []) {
   return baseCode + String.fromCharCode(65 + Math.floor(Math.random() * 26));
 }
 
-module.exports = { generateTypeCode };
+/**
+ * =============================
+ * Tạo mã code thiết bị (Equipment ID)
+ * =============================
+ * Cấu trúc: $vendor$main$type-$nameCode
+ * nameCode được sinh tự động theo tên (2–3 ký tự)
+ */
+function generateEquipmentCode({ vendorId, mainId, typeId, name }, existingIds = []) {
+  if (!vendorId || !mainId || !typeId || !name) return "UNK";
+
+  // 🔹 Sinh nameCode từ tên thiết bị
+  const cleaned = name.trim().toUpperCase().replace(/[^A-Z0-9\s]/g, "");
+  const words = cleaned.split(/\s+/);
+  let nameCode = "";
+
+  if (words.length > 1) {
+    nameCode = words.map((w) => w[0]).join("").slice(0, 3);
+  } else {
+    nameCode = cleaned.slice(0, 3);
+  }
+
+  // 🔹 Ghép ID tổng thể
+  let baseId = `${vendorId}${mainId}${typeId}-${nameCode}`;
+
+  // 🔹 Nếu bị trùng → sinh biến thể
+  if (existingIds.includes(baseId)) {
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    for (let ch of alphabet) {
+      const variant = `${vendorId}${mainId}${typeId}-${nameCode}${ch}`;
+      if (!existingIds.includes(variant)) {
+        return variant;
+      }
+    }
+  }
+
+  return baseId;
+}
+
+module.exports = { generateTypeCode, generateEquipmentCode };

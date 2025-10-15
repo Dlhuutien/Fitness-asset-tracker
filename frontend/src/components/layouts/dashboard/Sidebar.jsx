@@ -45,10 +45,8 @@ export default function Sidebar() {
       label: "Quản lý thiết bị",
       icon: Dumbbell,
       children: [
-        { label: "Danh sách từng thiết bị", path: "/app/equipment/list" },
-        { label: "Danh sách loại thiết bị", path: "/app/equipment/page" },
+        { label: "Danh mục thiết bị", path: "/app/equipment/directory" },
         { label: "Tạo thông tin thiết bị", path: "/app/equipment/add-group" },
-        // { label: "Thêm thẻ kho, thông số", path: "/app/equipment/add-card" },
         { label: "Nhập thiết bị", path: "/app/equipment/import" },
         { label: "Bảo trì thiết bị", path: "/app/maintenance" },
       ],

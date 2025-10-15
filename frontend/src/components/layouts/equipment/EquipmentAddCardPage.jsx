@@ -25,7 +25,6 @@ export default function EquipmentAddCardPage() {
   const [formData, setFormData] = useState({
     type: "",
     vendor: "",
-    code: "",
     name: "",
     description: "",
     warranty: "2",
@@ -66,21 +65,6 @@ export default function EquipmentAddCardPage() {
     };
     fetchData();
   }, []);
-
-  // ===== Sinh mã thiết bị =====
-  useEffect(() => {
-    if (formData.type && formData.vendor) {
-      const selectedType = types.find((t) => t.id === formData.type);
-      const vendorCode =
-        vendors.find((v) => v.id === formData.vendor)?.id || "";
-      if (selectedType && vendorCode) {
-        setFormData((prev) => ({
-          ...prev,
-          code: `${selectedType.category_main_id}${selectedType.id}${vendorCode}`.toUpperCase(),
-        }));
-      }
-    }
-  }, [formData.type, formData.vendor, types, vendors]);
 
   // ===== Handlers =====
   const handleChange = (e) => {
@@ -212,7 +196,6 @@ export default function EquipmentAddCardPage() {
       setFormData({
         type: "",
         vendor: "",
-        code: "",
         name: "",
         description: "",
         warranty: "2",
@@ -294,12 +277,6 @@ export default function EquipmentAddCardPage() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          {/* Mã phát sinh */}
-          <div>
-            <Label className="text-sm">Mã thiết bị tự phát sinh</Label>
-            <Input name="code" value={formData.code} readOnly className="h-9" />
           </div>
 
           {/* Tên thiết bị */}
