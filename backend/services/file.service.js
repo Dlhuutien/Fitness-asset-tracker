@@ -42,7 +42,8 @@ const uploadFile = async (file) => {
     console.log(`File uploaded successfully: ${filePath}`);
 
     // Nếu bạn dùng CloudFront thì nên trả về link qua CF
-    return `${process.env.CLOUDFRONT_URL}${filePath}`;
+    // return `${process.env.CLOUDFRONT_URL}${filePath}`;
+    return `https://${process.env.BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${filePath}`;
   } catch (err) {
     console.error("Error uploading file to AWS S3:", err);
     throw new Error("Upload file to AWS S3 failed");

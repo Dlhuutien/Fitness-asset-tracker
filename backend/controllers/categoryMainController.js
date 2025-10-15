@@ -10,7 +10,6 @@ const categoryController = {
       }
 
       const category = await categoryService.createCategory({
-        id: req.body.id,
         name: req.body.name,
         description: req.body.description,
         image: imageUrl,
