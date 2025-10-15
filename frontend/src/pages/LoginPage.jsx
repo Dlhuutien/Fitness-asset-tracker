@@ -23,7 +23,7 @@ export default function LoginPage() {
   initial={{ opacity: 0, scale: 0.9, y: 40 }}
   animate={{ opacity: 1, scale: 1, y: 0 }}
   transition={{ duration: 1, ease: "easeOut" }}
-  className="relative z-10 flex items-center justify-center gap-x-60 
+  className="relative z-10 flex items-center justify-center gap-x-40
              w-[95%] max-w-7xl 
              rounded-[2rem] 
              bg-white/20 dark:bg-black/30 
@@ -32,9 +32,15 @@ export default function LoginPage() {
              shadow-[0_0_30px_rgba(0,255,200,0.15)] 
              p-12"
 >
-  <LoginLogo />
+  <div className="pl-24"> {/* ✅ dịch logo qua phải 3rem (~48px) */}
+    <LoginLogo />
+  </div>
   <LoginForm />
 </motion.div>
+
+
+
+
 
     </div>
   )
