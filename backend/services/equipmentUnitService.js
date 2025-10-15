@@ -23,7 +23,7 @@ const equipmentUnitService = {
     const unit = await equipmentUnitRepository.findById(id);
     if (!unit) throw new Error("Equipment Unit not found");
 
-    const equipment = await equipmentService.getEquipmentById(
+    const equipment = await equipmentService.getEquipmentAttributeById(
       unit.equipment_id
     );
 
