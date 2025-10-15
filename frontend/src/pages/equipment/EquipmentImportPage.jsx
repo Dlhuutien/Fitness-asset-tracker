@@ -16,7 +16,9 @@ import EquipmentService from "@/services/equipmentService";
 import EquipmentUnitService from "@/services/equipmentUnitService";
 import InvoiceService from "@/services/invoiceService";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import VendorQuickAdd from "@/components/layouts/vendor/VendorQuickAdd";
+import { Plus, Loader2, RefreshCw } from "lucide-react";
+import EquipmentQuickAdd from "@/components/layouts/importEquipment/EquipmentQuickAdd";
 
 import {
   AlertDialog,
@@ -45,7 +47,6 @@ export default function EquipmentImportPage() {
 
   const [selectedVendor, setSelectedVendor] = useState("");
   const [selectedItems, setSelectedItems] = useState({});
-
   const [vendors, setVendors] = useState([]);
   const [equipments, setEquipments] = useState([]);
   const [equipmentUnits, setEquipmentUnits] = useState([]);
@@ -54,10 +55,11 @@ export default function EquipmentImportPage() {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
-
+  const [searchVendor, setSearchVendor] = useState("");
   const [search, setSearch] = useState("");
+  const [openQuickAdd, setOpenQuickAdd] = useState(false);
+  const [openQuickAddEquipment, setOpenQuickAddEquipment] = useState(false);
 
-  // Excel filter states
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
     id: [],
@@ -76,6 +78,7 @@ export default function EquipmentImportPage() {
     warranty_duration: true,
   });
 
+  // 🧭 Load dữ liệu ban đầu
   useEffect(() => {
     (async () => {
       try {
@@ -97,11 +100,10 @@ export default function EquipmentImportPage() {
     })();
   }, []);
 
-  // Khi đổi vendor: reset lựa chọn + bộ lọc + search
+  // 🔁 Đổi vendor
   const handleChangeVendor = (val) => {
     setSelectedVendor(val);
     setSelectedItems({});
-    setSearch("");
     setFilters({
       id: [],
       name: [],
@@ -109,28 +111,25 @@ export default function EquipmentImportPage() {
       type_name: [],
       warranty_duration: [],
     });
+    setSearch("");
   };
 
   const toggleSelectItem = (item) => {
     setSelectedItems((prev) => {
       const newItems = { ...prev };
-
-      // Chuẩn hoá attributes -> mảng {attribute, value}
       let attrs = [];
-      if (Array.isArray(item.attributes)) {
-        attrs = item.attributes;
-      } else if (item.attributes && typeof item.attributes === "object") {
+
+      if (Array.isArray(item.attributes)) attrs = item.attributes;
+      else if (item.attributes && typeof item.attributes === "object")
         attrs = Object.entries(item.attributes).map(([k, v]) => ({
           attribute: k,
           value: v,
         }));
-      }
 
-      if (newItems[item.id]) {
-        delete newItems[item.id];
-      } else {
+      if (newItems[item.id]) delete newItems[item.id];
+      else
         newItems[item.id] = { ...item, attributes: attrs, price: "", qty: "" };
-      }
+
       return newItems;
     });
   };
@@ -155,7 +154,6 @@ export default function EquipmentImportPage() {
   const handleConfirmImport = async () => {
     try {
       setLoadingSubmit(true);
-
       const items = Object.values(selectedItems).map((item) => ({
         equipment_id: item.id,
         branch_id: "GV",
@@ -163,33 +161,31 @@ export default function EquipmentImportPage() {
         cost: parseFloat(item.price) || 0,
       }));
 
-      const res = await InvoiceService.create({ items });
-      toast.success("✅ Nhập hàng thành công. Thông tin sẽ được gửi về email hoặc nhấn vào xem thông báo!");
-      setSuccessMsg("✅ Nhập hàng thành công. Thông tin sẽ được gửi về email hoặc nhấn vào xem thông báo!");
+      await InvoiceService.create({ items });
+      toast.success("✅ Nhập hàng thành công!");
+      setSuccessMsg("✅ Nhập hàng thành công!");
       setErrorMsg("");
       mutate(`${API}equipmentUnit`);
       setSelectedItems({});
       setOpenDialog(false);
-
-      setTimeout(() => setSuccessMsg(""), 5000);
+      setTimeout(() => setSuccessMsg(""), 4000);
     } catch (err) {
-      console.error("❌ Lỗi khi nhập hàng:", err);
-      toast.error("❌ Có lỗi khi tạo invoice!");
-      setErrorMsg("❌ Có lỗi khi tạo invoice!");
+      console.error("❌ Lỗi nhập hàng:", err);
+      toast.error("❌ Có lỗi khi tạo hóa đơn!");
+      setErrorMsg("❌ Có lỗi khi tạo hóa đơn!");
       setSuccessMsg("");
-      setTimeout(() => setErrorMsg(""), 5000);
+      setTimeout(() => setErrorMsg(""), 4000);
     } finally {
       setLoadingSubmit(false);
     }
   };
 
-  // Danh sách thiết bị theo vendor đã chọn
+  // 🔍 Lọc thiết bị theo vendor
   const vendorEquipments = useMemo(() => {
     if (!selectedVendor) return [];
     return (equipments || []).filter((eq) => eq.vendor_id === selectedVendor);
   }, [equipments, selectedVendor]);
 
-  // Unique values CHỈ dựa trên vendorEquipments
   const uniqueValues = useMemo(
     () => ({
       id: getUniqueValues(vendorEquipments, (e) => e.id),
@@ -204,25 +200,22 @@ export default function EquipmentImportPage() {
     [vendorEquipments]
   );
 
-  // Lọc theo search + các cột (chỉ khi có vendor)
   const filteredEquipments = useMemo(() => {
     if (!selectedVendor) return [];
 
     let list = vendorEquipments;
-
     const q = search.trim().toLowerCase();
-    if (q) {
+
+    if (q)
       list = list.filter(
         (eq) =>
           eq.name?.toLowerCase().includes(q) ||
           eq.main_name?.toLowerCase().includes(q) ||
           eq.type_name?.toLowerCase().includes(q)
       );
-    }
 
-    // Lọc theo từng cột
-    return list.filter((e) => {
-      const match = Object.keys(filters).every((key) => {
+    return list.filter((e) =>
+      Object.keys(filters).every((key) => {
         if (!filters[key] || filters[key].length === 0) return true;
         let val = "";
         switch (key) {
@@ -245,9 +238,8 @@ export default function EquipmentImportPage() {
             val = "";
         }
         return filters[key].includes(val);
-      });
-      return match;
-    });
+      })
+    );
   }, [vendorEquipments, selectedVendor, search, filters]);
 
   if (loading)
@@ -258,178 +250,243 @@ export default function EquipmentImportPage() {
     );
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Layout 1 + 2 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Vendor select */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow col-span-1">
-          <h3 className="font-semibold text-emerald-600 mb-2">
-            Chọn nhà cung cấp
-          </h3>
-          <select
-            className="w-full border rounded p-2 text-sm dark:bg-gray-700 dark:text-gray-100"
-            value={selectedVendor}
-            onChange={(e) => handleChangeVendor(e.target.value)}
+    <div className="p-6 space-y-8">
+      {/* ================== NHÀ CUNG CẤP ================== */}
+      <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">
+        <h3 className="font-semibold text-emerald-600 text-lg">
+          🏢 Chọn nhà cung cấp
+        </h3>
+
+        {/* Tìm kiếm và refresh */}
+        <div className="flex items-center gap-2">
+          <Input
+            placeholder="🔍 Tìm theo tên, mã hoặc quốc gia..."
+            value={searchVendor}
+            onChange={(e) => setSearchVendor(e.target.value)}
+            className="flex-1 h-9 text-sm dark:bg-gray-700 dark:text-white"
+          />
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={async () => {
+              const data = await VendorService.getAll();
+              setVendors(data);
+              toast.success("🔄 Danh sách nhà cung cấp đã được làm mới!");
+            }}
+            className="border-emerald-400 text-emerald-500 hover:bg-emerald-50"
           >
-            <option value="">-- Chọn --</option>
-            {vendors.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button
+            onClick={() => setOpenQuickAdd(true)}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4"
+          >
+            ➕ Thêm mới
+          </Button>
         </div>
 
-        {/* Equipment list */}
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow col-span-3 space-y-3">
-          <div className="flex justify-between items-center">
-            <h3 className="font-semibold text-emerald-600">
-              Danh sách loại thiết bị
-            </h3>
-
-            {/* Chỉ hiển thị thanh tìm + hiển thị cột khi đã chọn vendor */}
-            {selectedVendor && (
-              <div className="flex items-center gap-3">
-                <Input
-                  placeholder="Tìm kiếm thiết bị..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-60 h-8 text-sm dark:bg-gray-700 dark:text-gray-100"
-                />
-                <ColumnVisibilityButton
-                  visibleColumns={visibleColumns}
-                  setVisibleColumns={setVisibleColumns}
-                  labels={{
-                    select: "Chọn",
-                    id: "Mã thẻ kho",
-                    main_name: "Nhóm",
-                    type_name: "Loại",
-                    name: "Tên thiết bị",
-                    warranty_duration: "Bảo hành",
-                  }}
-                />
+        {/* Danh sách vendor */}
+        <div className="max-h-[260px] overflow-y-auto border rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
+          {vendors
+            .filter((v) => {
+              const q = searchVendor.toLowerCase();
+              return (
+                v.name.toLowerCase().includes(q) ||
+                v.id.toLowerCase().includes(q) ||
+                (v.origin || "").toLowerCase().includes(q)
+              );
+            })
+            .map((v) => (
+              <div
+                key={v.id}
+                onClick={() => handleChangeVendor(v.id)}
+                className={`p-3 cursor-pointer transition ${
+                  selectedVendor === v.id
+                    ? "bg-emerald-50 dark:bg-gray-700"
+                    : "hover:bg-emerald-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                <p className="font-semibold text-emerald-600 text-sm">
+                  {v.name}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Mã: {v.id} • Quốc gia: {v.origin}
+                </p>
               </div>
-            )}
-          </div>
+            ))}
+        </div>
+      </div>
 
-          {/* Nếu chưa chọn vendor -> hiển thị nhắc */}
-          {!selectedVendor ? (
-            <div className="border rounded p-6 text-center text-sm text-gray-600 dark:text-gray-300">
-              Hãy <span className="font-semibold">chọn nhà cung cấp</span> để
-              hiển thị danh sách thiết bị.
-            </div>
-          ) : (
-            <div className="overflow-y-auto max-h-64 border rounded">
-              <Table className="w-full text-sm">
-                <TableHeader>
-                  <TableRow className="bg-gray-100 dark:bg-gray-700">
-                    {visibleColumns.select && <TableHead>Chọn</TableHead>}
-                    {visibleColumns.id && (
-                      <TableHead>
-                        <HeaderFilter
-                          selfKey="id"
-                          label="Mã thẻ kho"
-                          values={uniqueValues.id}
-                          selected={filters.id}
-                          onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
-                          controller={controller}
-                        />
-                      </TableHead>
-                    )}
-                    {visibleColumns.main_name && (
-                      <TableHead>
-                        <HeaderFilter
-                          selfKey="main_name"
-                          label="Nhóm"
-                          values={uniqueValues.main_name}
-                          selected={filters.main_name}
-                          onChange={(v) =>
-                            setFilters((p) => ({ ...p, main_name: v }))
-                          }
-                          controller={controller}
-                        />
-                      </TableHead>
-                    )}
-                    {visibleColumns.type_name && (
-                      <TableHead>
-                        <HeaderFilter
-                          selfKey="type_name"
-                          label="Loại"
-                          values={uniqueValues.type_name}
-                          selected={filters.type_name}
-                          onChange={(v) =>
-                            setFilters((p) => ({ ...p, type_name: v }))
-                          }
-                          controller={controller}
-                        />
-                      </TableHead>
-                    )}
-                    {visibleColumns.name && (
-                      <TableHead>
-                        <HeaderFilter
-                          selfKey="name"
-                          label="Tên thiết bị"
-                          values={uniqueValues.name}
-                          selected={filters.name}
-                          onChange={(v) =>
-                            setFilters((p) => ({ ...p, name: v }))
-                          }
-                          controller={controller}
-                        />
-                      </TableHead>
-                    )}
-                    {visibleColumns.warranty_duration && (
-                      <TableHead>
-                        <HeaderFilter
-                          selfKey="warranty_duration"
-                          label="Bảo hành"
-                          values={uniqueValues.warranty_duration}
-                          selected={filters.warranty_duration}
-                          onChange={(v) =>
-                            setFilters((p) => ({
-                              ...p,
-                              warranty_duration: v,
-                            }))
-                          }
-                          controller={controller}
-                        />
-                      </TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
+      {/* ✅ Panel thêm nhà cung cấp */}
+      <VendorQuickAdd
+        open={openQuickAdd}
+        onClose={() => setOpenQuickAdd(false)}
+        onSuccess={(newVendor) => {
+          setVendors((prev) => [...prev, newVendor]);
+          setSelectedVendor(newVendor.id);
+        }}
+      />
+      {/* ✅ Panel thêm thiết bị mới */}
+      <EquipmentQuickAdd
+        open={openQuickAddEquipment}
+        onClose={() => setOpenQuickAddEquipment(false)}
+        vendorId={selectedVendor}
+        onSuccess={(newEquipment) => {
+          setEquipments((prev) => [...prev, newEquipment]);
+          toast.success("🎉 Thiết bị mới đã được thêm vào danh sách!");
+        }}
+      />
 
-                <TableBody>
-                  {filteredEquipments.map((item) => (
-                    <TableRow key={item.id} className="border-t">
-                      {visibleColumns.select && (
-                        <TableCell className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={!!selectedItems[item.id]}
-                            onChange={() => toggleSelectItem(item)}
-                          />
-                        </TableCell>
-                      )}
-                      {visibleColumns.id && <TableCell>{item.id}</TableCell>}
-                      {visibleColumns.main_name && (
-                        <TableCell>{item.main_name}</TableCell>
-                      )}
-                      {visibleColumns.type_name && (
-                        <TableCell>{item.type_name}</TableCell>
-                      )}
-                      {visibleColumns.name && (
-                        <TableCell>{item.name}</TableCell>
-                      )}
-                      {visibleColumns.warranty_duration && (
-                        <TableCell>{item.warranty_duration} năm</TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+      {/* ================== DANH SÁCH THIẾT BỊ ================== */}
+      <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold text-emerald-600 text-lg">
+            🧾 Danh sách loại thiết bị
+          </h3>
+
+          {selectedVendor && (
+            <div className="flex items-center gap-3">
+              <Input
+                placeholder="Tìm kiếm thiết bị..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-60 h-8 text-sm dark:bg-gray-700 dark:text-gray-100"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={() => setOpenQuickAddEquipment(true)}
+                className="border-emerald-400 text-emerald-500 hover:bg-emerald-50"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+              <ColumnVisibilityButton
+                visibleColumns={visibleColumns}
+                setVisibleColumns={setVisibleColumns}
+                labels={{
+                  select: "Chọn",
+                  id: "Mã thẻ kho",
+                  main_name: "Nhóm",
+                  type_name: "Loại",
+                  name: "Tên thiết bị",
+                  warranty_duration: "Bảo hành",
+                }}
+              />
             </div>
           )}
         </div>
+
+        {!selectedVendor ? (
+          <div className="border rounded p-6 text-center text-sm text-gray-600 dark:text-gray-300">
+            Hãy chọn một nhà cung cấp để hiển thị danh sách thiết bị.
+          </div>
+        ) : (
+          <div className="overflow-y-auto max-h-72 border rounded">
+            <Table className="w-full text-sm">
+              <TableHeader>
+                <TableRow className="bg-gray-100 dark:bg-gray-700">
+                  {visibleColumns.select && <TableHead>Chọn</TableHead>}
+                  {visibleColumns.id && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="id"
+                        label="Mã thẻ kho"
+                        values={uniqueValues.id}
+                        selected={filters.id}
+                        onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
+                        controller={controller}
+                      />
+                    </TableHead>
+                  )}
+                  {visibleColumns.main_name && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="main_name"
+                        label="Nhóm"
+                        values={uniqueValues.main_name}
+                        selected={filters.main_name}
+                        onChange={(v) =>
+                          setFilters((p) => ({ ...p, main_name: v }))
+                        }
+                        controller={controller}
+                      />
+                    </TableHead>
+                  )}
+                  {visibleColumns.type_name && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="type_name"
+                        label="Loại"
+                        values={uniqueValues.type_name}
+                        selected={filters.type_name}
+                        onChange={(v) =>
+                          setFilters((p) => ({ ...p, type_name: v }))
+                        }
+                        controller={controller}
+                      />
+                    </TableHead>
+                  )}
+                  {visibleColumns.name && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="name"
+                        label="Tên thiết bị"
+                        values={uniqueValues.name}
+                        selected={filters.name}
+                        onChange={(v) => setFilters((p) => ({ ...p, name: v }))}
+                        controller={controller}
+                      />
+                    </TableHead>
+                  )}
+                  {visibleColumns.warranty_duration && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="warranty_duration"
+                        label="Bảo hành"
+                        values={uniqueValues.warranty_duration}
+                        selected={filters.warranty_duration}
+                        onChange={(v) =>
+                          setFilters((p) => ({
+                            ...p,
+                            warranty_duration: v,
+                          }))
+                        }
+                        controller={controller}
+                      />
+                    </TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {filteredEquipments.map((item) => (
+                  <TableRow key={item.id} className="border-t">
+                    {visibleColumns.select && (
+                      <TableCell className="text-center">
+                        <input
+                          type="checkbox"
+                          checked={!!selectedItems[item.id]}
+                          onChange={() => toggleSelectItem(item)}
+                        />
+                      </TableCell>
+                    )}
+                    {visibleColumns.id && <TableCell>{item.id}</TableCell>}
+                    {visibleColumns.main_name && (
+                      <TableCell>{item.main_name}</TableCell>
+                    )}
+                    {visibleColumns.type_name && (
+                      <TableCell>{item.type_name}</TableCell>
+                    )}
+                    {visibleColumns.name && <TableCell>{item.name}</TableCell>}
+                    {visibleColumns.warranty_duration && (
+                      <TableCell>{item.warranty_duration} năm</TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
 
       {/* Layout 3 - Chi tiết nhập hàng */}
@@ -510,7 +567,6 @@ export default function EquipmentImportPage() {
         </div>
       )}
 
-      {/* Layout 4 - Tổng tiền */}
       {/* Layout 4 - Tổng tiền */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex flex-col md:flex-row md:justify-between md:items-center gap-3">
         {Object.keys(selectedItems).length > 0 ? (
