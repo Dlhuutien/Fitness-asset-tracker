@@ -23,7 +23,6 @@ const ITEMS_PER_PAGE = 4;
 
 export default function EquipmentTypeSection({ types, setTypes, groups }) {
   const [typeForm, setTypeForm] = useState({
-    code: "",
     name: "",
     desc: "",
     group: "",
@@ -52,12 +51,8 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
     updated: true,
   });
 
-  const isDuplicate = types.some(
-    (t) => t.id === typeForm.code && t.id !== editTypeId
-  );
-
   const isFormValid =
-    typeForm.code && typeForm.name && typeForm.group && typeForm.desc && !isDuplicate;
+    typeForm.name && typeForm.group && typeForm.desc;
 
   const handleSaveType = async () => {
     if (!isFormValid) return;
@@ -72,7 +67,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
         setSuccessMsg("✅ Cập nhật loại thành công!");
       } else {
         await CategoryTypeService.create({
-          id: typeForm.code,
           name: typeForm.name,
           description: typeForm.desc,
           category_main_id: typeForm.group,
@@ -82,7 +76,7 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
 
       const updated = await CategoryTypeService.getAllWithDisplayName();
       setTypes(updated);
-      setTypeForm({ code: "", name: "", desc: "", group: "" });
+      setTypeForm({ name: "", desc: "", group: "" });
       setEditTypeId(null);
       setTimeout(() => setSuccessMsg(""), 2000);
     } catch (err) {
@@ -125,10 +119,14 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
         filters.desc.length === 0 || filters.desc.includes(t.description);
       const matchCreated =
         filters.created.length === 0 ||
-        filters.created.includes(new Date(t.created_at).toLocaleDateString("vi-VN"));
+        filters.created.includes(
+          new Date(t.created_at).toLocaleDateString("vi-VN")
+        );
       const matchUpdated =
         filters.updated.length === 0 ||
-        filters.updated.includes(new Date(t.updated_at).toLocaleDateString("vi-VN"));
+        filters.updated.includes(
+          new Date(t.updated_at).toLocaleDateString("vi-VN")
+        );
 
       return (
         matchSearch &&
@@ -166,19 +164,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
             </option>
           ))}
         </select>
-
-        <div>
-          <Input
-            className={`h-12 ${isDuplicate ? "border-red-500" : ""}`}
-            placeholder="Mã loại VD: TM"
-            value={typeForm.code}
-            onChange={(e) => setTypeForm({ ...typeForm, code: e.target.value })}
-            readOnly={!!editTypeId}
-          />
-          {isDuplicate && (
-            <p className="text-red-500 text-sm mt-1">❌ Mã loại này đã tồn tại</p>
-          )}
-        </div>
 
         <Input
           className="h-12"
@@ -363,7 +348,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                     variant="outline"
                     onClick={() => {
                       setTypeForm({
-                        code: t.id,
                         name: t.name,
                         desc: t.description,
                         group: t.category_main_id,

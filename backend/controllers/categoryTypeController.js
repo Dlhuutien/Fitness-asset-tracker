@@ -4,7 +4,6 @@ const categoryTypeController = {
   createCategoryType: async (req, res) => {
     try {
       const type = await categoryTypeService.createCategoryType({
-        id: req.body.id,
         category_main_id: req.body.category_main_id,
         name: req.body.name,
         description: req.body.description,
