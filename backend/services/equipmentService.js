@@ -101,24 +101,24 @@ const equipmentService = {
         ? await categoryMainRepository.findById(type.category_main_id)
         : null;
 
-      const attrValues = await attributeValueRepository.findByEquipmentId(
-        eq.id
-      );
-      const attrs = [];
-      for (const av of attrValues) {
-        const attr = await attributeRepository.findById(av.attribute_id);
-        attrs.push({
-          attribute: attr ? attr.name : av.attribute_id,
-          value: av.value,
-        });
-      }
+      // const attrValues = await attributeValueRepository.findByEquipmentId(
+      //   eq.id
+      // );
+      // const attrs = [];
+      // for (const av of attrValues) {
+      //   const attr = await attributeRepository.findById(av.attribute_id);
+      //   attrs.push({
+      //     attribute: attr ? attr.name : av.attribute_id,
+      //     value: av.value,
+      //   });
+      // }
 
       result.push({
         ...eq,
         vendor_name: vendor ? vendor.name : null,
         type_name: type ? type.name : null,
         main_name: main ? main.name : null,
-        attributes: attrs,
+        // attributes: attrs,
       });
     }
 
@@ -126,6 +126,37 @@ const equipmentService = {
   },
 
   getEquipmentById: async (id) => {
+    const equipment = await equipmentRepository.findById(id);
+    if (!equipment) throw new Error("Equipment not found");
+
+    const vendor = await vendorRepository.findById(equipment.vendor_id);
+    const type = await categoryTypeRepository.findById(
+      equipment.category_type_id
+    );
+    const main = type
+      ? await categoryMainRepository.findById(type.category_main_id)
+      : null;
+
+    // const attrValues = await attributeValueRepository.findByEquipmentId(id);
+    // const attrs = [];
+    // for (const av of attrValues) {
+    //   const attr = await attributeRepository.findById(av.attribute_id);
+    //   attrs.push({
+    //     attribute: attr ? attr.name : av.attribute_id,
+    //     value: av.value,
+    //   });
+    // }
+
+    return {
+      ...equipment,
+      vendor_name: vendor ? vendor.name : null,
+      type_name: type ? type.name : null,
+      main_name: main ? main.name : null,
+      // attributes: attrs,
+    };
+  },
+
+  getEquipmentAttributeById: async (id) => {
     const equipment = await equipmentRepository.findById(id);
     if (!equipment) throw new Error("Equipment not found");
 
@@ -155,6 +186,7 @@ const equipmentService = {
       attributes: attrs,
     };
   },
+
 
   getEquipmentsByCategoryTypeId: async (category_type_id) => {
     const equipments = await equipmentRepository.findByCategoryTypeId(

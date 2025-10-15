@@ -26,7 +26,7 @@ const EquipmentService = {
    */
   async getById(id) {
     try {
-      const res = await axios.get(`${API}equipment/${id}`);
+      const res = await axios.get(`${API}equipment/attribute/${id}`);
       return res.data;
     } catch (err) {
       console.error(

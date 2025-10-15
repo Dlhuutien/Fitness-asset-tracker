@@ -44,6 +44,15 @@ const equipmentController = {
     }
   },
 
+  getEquipmentAttributeById: async (req, res) => {
+    try {
+      const equipment = await equipmentService.getEquipmentAttributeById(req.params.id);
+      res.json(equipment);
+    } catch (error) {
+      res.status(404).json({ error: error.message });
+    }
+  },
+
   updateEquipment: async (req, res) => {
     try {
       console.log("[UPDATE EQUIPMENT] Nhận request:");

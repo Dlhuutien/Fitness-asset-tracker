@@ -20,6 +20,8 @@ router.get("/", equipmentController.getEquipments);
 // Read one
 router.get("/:id", equipmentController.getEquipmentById);
 
+router.get("/attribute/:id", equipmentController.getEquipmentAttributeById);
+
 // Read by category_type_id
 router.get("/categoryType/:category_type_id", equipmentController.getByCategoryTypeId);
 
