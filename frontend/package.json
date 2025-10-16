@@ -37,7 +37,7 @@
     "echarts-for-react": "^3.0.2",
     "echarts-liquidfill": "^3.1.0",
     "file-saver": "^2.0.5",
-    "framer-motion": "^12.23.21",
+    "framer-motion": "^12.23.24",
     "lucide-react": "^0.544.0",
     "react": "^19.1.1",
     "react-datepicker": "^8.7.0",

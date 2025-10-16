@@ -64,6 +64,15 @@ module.exports = {
           "50%": { backgroundPosition: "100% 50%" },
         },
       },
+      keyframes: {
+        rowPulse: {
+          "0%,100%": { backgroundColor: "rgba(16,185,129,0.08)" },
+          "50%": { backgroundColor: "rgba(16,185,129,0.22)" },
+        },
+      },
+      animation: {
+        rowPulse: "rowPulse 1.6s ease-in-out infinite",
+      },
     },
   },
   plugins: [],

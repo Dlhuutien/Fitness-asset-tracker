@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import { Label } from "@/components/ui/label";
@@ -13,12 +13,11 @@ import {
 
 import VendorService from "@/services/vendorService";
 import EquipmentService from "@/services/equipmentService";
-import EquipmentUnitService from "@/services/equipmentUnitService";
 import InvoiceService from "@/services/invoiceService";
 import { toast } from "sonner";
 import VendorQuickAdd from "@/components/layouts/vendor/VendorQuickAdd";
-import { Plus, Loader2, RefreshCw } from "lucide-react";
 import EquipmentQuickAdd from "@/components/layouts/importEquipment/EquipmentQuickAdd";
+import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 
 import {
   AlertDialog,
@@ -39,26 +38,37 @@ import {
   getUniqueValues,
 } from "@/components/common/ExcelTableTools";
 
+import { Loader2, RefreshCw, CheckCircle2, ChevronRight } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { API } from "@/config/url";
+// import { useEquipmentData } from "@/hooks/useEquipmentData";
+const NO_IMG_DATA_URI =
+  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-family="Arial" font-size="14">No image</text></svg>';
 
-export default function EquipmentImportPage() {
+export default function EquipmentImportPage({
+  onRequestSwitchTab,
+  onStartImport,
+}) {
   const { mutate } = useSWRConfig();
+  const { refreshEquipmentUnits } = useEquipmentData(); // ✅ dùng hook đã fix key
 
   const [selectedVendor, setSelectedVendor] = useState("");
   const [selectedItems, setSelectedItems] = useState({});
   const [vendors, setVendors] = useState([]);
   const [equipments, setEquipments] = useState([]);
-  const [equipmentUnits, setEquipmentUnits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
   const [openDialog, setOpenDialog] = useState(false);
   const [searchVendor, setSearchVendor] = useState("");
   const [search, setSearch] = useState("");
   const [openQuickAdd, setOpenQuickAdd] = useState(false);
   const [openQuickAddEquipment, setOpenQuickAddEquipment] = useState(false);
+
+  // ===== Overlay + theo dõi NEW record =====
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [overlayMode, setOverlayMode] = useState("loading"); // "loading" | "success"
+  const newFromUnitListRef = useRef(new Set());
+  const expectedAtLeastRef = useRef(1);
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -68,7 +78,6 @@ export default function EquipmentImportPage() {
     type_name: [],
     warranty_duration: [],
   });
-
   const [visibleColumns, setVisibleColumns] = useState({
     select: true,
     id: true,
@@ -82,15 +91,12 @@ export default function EquipmentImportPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [vendorRes, equipRes, unitRes] = await Promise.all([
+        const [vendorRes, equipRes] = await Promise.all([
           VendorService.getAll(),
           EquipmentService.getAll(),
-          EquipmentUnitService.getAll(),
         ]);
-
-        setVendors(vendorRes);
-        setEquipments(equipRes);
-        setEquipmentUnits(unitRes);
+        setVendors(vendorRes || []);
+        setEquipments(equipRes || []);
       } catch (err) {
         console.error("❌ Lỗi khi load dữ liệu:", err);
         toast.error("Không thể tải dữ liệu từ server!");
@@ -99,6 +105,45 @@ export default function EquipmentImportPage() {
       }
     })();
   }, []);
+
+  // 🎯 Lắng nghe event từ UnitList khi có NEW record
+  useEffect(() => {
+    const handler = (e) => {
+      const payload = e.detail;
+      let ids = [];
+
+      if (Array.isArray(payload)) ids = payload;
+      else if (payload?.newIds && Array.isArray(payload.newIds))
+        ids = payload.newIds;
+      else if (payload?.id) ids = [payload.id];
+
+      if (ids.length > 0) {
+        let changed = false;
+        ids.forEach((id) => {
+          if (!newFromUnitListRef.current.has(id)) {
+            newFromUnitListRef.current.add(id);
+            changed = true;
+          }
+        });
+
+        if (
+          changed &&
+          overlayOpen &&
+          overlayMode === "loading" &&
+          newFromUnitListRef.current.size >= expectedAtLeastRef.current
+        ) {
+          console.log("✅ Đủ thiết bị mới, chuyển sang success overlay");
+          setOverlayMode("success");
+          toast.success(
+            "🎉 Đã phát hiện thiết bị mới hiển thị trong danh sách!"
+          );
+        }
+      }
+    };
+
+    window.addEventListener("fitx-units-updated", handler);
+    return () => window.removeEventListener("fitx-units-updated", handler);
+  }, [overlayOpen, overlayMode]);
 
   // 🔁 Đổi vendor
   const handleChangeVendor = (val) => {
@@ -114,76 +159,68 @@ export default function EquipmentImportPage() {
     setSearch("");
   };
 
-  const toggleSelectItem = (item) => {
-    setSelectedItems((prev) => {
-      const newItems = { ...prev };
-      let attrs = [];
-
-      if (Array.isArray(item.attributes)) attrs = item.attributes;
-      else if (item.attributes && typeof item.attributes === "object")
-        attrs = Object.entries(item.attributes).map(([k, v]) => ({
-          attribute: k,
-          value: v,
-        }));
-
-      if (newItems[item.id]) delete newItems[item.id];
-      else
-        newItems[item.id] = { ...item, attributes: attrs, price: "", qty: "" };
-
-      return newItems;
-    });
-  };
-
-  const updateField = (code, field, value) => {
-    setSelectedItems((prev) => ({
-      ...prev,
-      [code]: {
-        ...prev[code],
-        [field]: value,
-      },
-    }));
-  };
-
-  const calcTotal = () =>
-    Object.values(selectedItems).reduce((sum, item) => {
-      const price = parseFloat(item.price) || 0;
-      const qty = parseInt(item.qty) || 0;
-      return sum + price * qty;
-    }, 0);
-
+  // ✅ Xác nhận nhập hàng
+  // ✅ Xác nhận nhập hàng
   const handleConfirmImport = async () => {
     try {
       setLoadingSubmit(true);
+      if (onStartImport) onStartImport();
+
+      // ✅ bật overlay Loading
+      setOverlayOpen(true);
+      setOverlayMode("loading");
+
       const items = Object.values(selectedItems).map((item) => ({
         equipment_id: item.id,
         branch_id: "GV",
-        quantity: parseInt(item.qty) || 0,
-        cost: parseFloat(item.price) || 0,
+        quantity: Number.parseInt(item.qty) || 0,
+        cost: Number.parseFloat(item.price) || 0,
       }));
 
+      // 🧾 Gọi API tạo hóa đơn nhập hàng
       await InvoiceService.create({ items });
-      toast.success("✅ Nhập hàng thành công!");
-      setSuccessMsg("✅ Nhập hàng thành công!");
-      setErrorMsg("");
-      mutate(`${API}equipmentUnit`);
-      setSelectedItems({});
-      setOpenDialog(false);
-      setTimeout(() => setSuccessMsg(""), 4000);
+      toast.info("🧾 Đang chờ cập nhật danh sách thiết bị...");
+
+      // 🌀 Refresh SWR đúng key (đã fix trong useEquipmentData)
+      await refreshEquipmentUnits();
+
+      // 🔁 Revalidate lần 2 sau 2s để chắc chắn SWR có data mới
+      setTimeout(() => {
+        console.log("⏳ Force refresh lần 2 equipmentUnit...");
+        refreshEquipmentUnits();
+      }, 2000);
+
+      // Fallback event nếu vẫn chưa thấy NEW
+      setTimeout(() => {
+        if (overlayOpen && overlayMode === "loading") {
+          console.log("⚙️ Fallback manual fitx-units-updated fired");
+          window.dispatchEvent(
+            new CustomEvent("fitx-units-updated", {
+              detail: { newIds: ["manual-fallback"] },
+            })
+          );
+        }
+      }, 4000);
+
+      // Khi nhận event thật thì clear fallback
+      window.addEventListener(
+        "fitx-units-updated",
+        () => clearTimeout(fallbackTimer),
+        { once: true }
+      );
     } catch (err) {
       console.error("❌ Lỗi nhập hàng:", err);
       toast.error("❌ Có lỗi khi tạo hóa đơn!");
-      setErrorMsg("❌ Có lỗi khi tạo hóa đơn!");
-      setSuccessMsg("");
-      setTimeout(() => setErrorMsg(""), 4000);
+      setOverlayOpen(false);
     } finally {
       setLoadingSubmit(false);
+      setSelectedItems({});
     }
   };
 
-  // 🔍 Lọc thiết bị theo vendor
+  // ===== Lọc và hiển thị =====
   const vendorEquipments = useMemo(() => {
-    if (!selectedVendor) return [];
-    return (equipments || []).filter((eq) => eq.vendor_id === selectedVendor);
+    return equipments.filter((eq) => eq.vendor_id === selectedVendor);
   }, [equipments, selectedVendor]);
 
   const uniqueValues = useMemo(
@@ -201,46 +238,65 @@ export default function EquipmentImportPage() {
   );
 
   const filteredEquipments = useMemo(() => {
-    if (!selectedVendor) return [];
+    const q = search.toLowerCase().trim();
+    return vendorEquipments.filter((e) => {
+      const matchSearch =
+        !q ||
+        e.name.toLowerCase().includes(q) ||
+        e.main_name.toLowerCase().includes(q) ||
+        e.type_name.toLowerCase().includes(q);
 
-    let list = vendorEquipments;
-    const q = search.trim().toLowerCase();
-
-    if (q)
-      list = list.filter(
-        (eq) =>
-          eq.name?.toLowerCase().includes(q) ||
-          eq.main_name?.toLowerCase().includes(q) ||
-          eq.type_name?.toLowerCase().includes(q)
-      );
-
-    return list.filter((e) =>
-      Object.keys(filters).every((key) => {
-        if (!filters[key] || filters[key].length === 0) return true;
-        let val = "";
+      const matchFilters = Object.entries(filters).every(([key, vals]) => {
+        if (!vals.length) return true;
+        let v = "";
         switch (key) {
           case "id":
-            val = e.id;
+            v = e.id;
             break;
           case "name":
-            val = e.name;
+            v = e.name;
             break;
           case "main_name":
-            val = e.main_name;
+            v = e.main_name;
             break;
           case "type_name":
-            val = e.type_name;
+            v = e.type_name;
             break;
           case "warranty_duration":
-            val = `${e.warranty_duration} năm`;
+            v = `${e.warranty_duration} năm`;
             break;
           default:
-            val = "";
+            v = "";
         }
-        return filters[key].includes(val);
-      })
-    );
-  }, [vendorEquipments, selectedVendor, search, filters]);
+        return vals.includes(v);
+      });
+
+      return matchSearch && matchFilters;
+    });
+  }, [vendorEquipments, search, filters]);
+
+  const toggleSelectItem = (item) => {
+    setSelectedItems((prev) => {
+      const next = { ...prev };
+      if (next[item.id]) delete next[item.id];
+      else next[item.id] = { ...item, price: "", qty: "" };
+      return next;
+    });
+  };
+
+  const updateField = (id, field, value) => {
+    setSelectedItems((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
+  };
+
+  const calcTotal = () =>
+    Object.values(selectedItems).reduce((sum, i) => {
+      const price = Number(i.price) || 0;
+      const qty = Number(i.qty) || 0;
+      return sum + price * qty;
+    }, 0);
 
   if (loading)
     return (
@@ -249,44 +305,101 @@ export default function EquipmentImportPage() {
       </div>
     );
 
+  // ===== Overlay =====
+  const Overlay = () =>
+    overlayOpen && (
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-emerald-300 shadow-xl p-6 max-w-md w-full text-center">
+          {overlayMode === "loading" ? (
+            <>
+              <div className="w-12 h-12 mx-auto mb-3 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              <h3 className="text-lg font-semibold text-emerald-600">
+                Đang nhập hàng
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Hệ thống đang cập nhật danh sách thiết bị…
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto w-12 h-12 mb-3 rounded-full bg-emerald-100 flex items-center justify-center">
+                <CheckCircle2 className="text-emerald-600" size={28} />
+              </div>
+              <h3 className="text-lg font-semibold text-emerald-600">
+                Nhập hàng thành công
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Các thiết bị mới đã hiển thị trong danh sách với nhãn <b>NEW</b>
+                .
+              </p>
+              <div className="flex justify-center gap-3 mt-5">
+                <Button
+                  onClick={() => {
+                    setOverlayOpen(false);
+                    setOverlayMode("loading");
+                    newFromUnitListRef.current.clear();
+                  }}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800"
+                >
+                  Đồng ý
+                </Button>
+                <Button
+                  onClick={() => {
+                    setOverlayOpen(false);
+                    setOverlayMode("loading");
+                    newFromUnitListRef.current.clear();
+                    if (onRequestSwitchTab) onRequestSwitchTab("unit");
+                    try {
+                      window.dispatchEvent(new CustomEvent("fitx-go-to-unit"));
+                    } catch {}
+                  }}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-1"
+                >
+                  Chuyển đến trang thiết bị <ChevronRight size={16} />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+
   return (
-    <div className="p-6 space-y-8">
-      {/* ================== NHÀ CUNG CẤP ================== */}
+    <div className="p-6 space-y-8 relative">
+      <Overlay />
+
+      {/* Nhà cung cấp */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">
         <h3 className="font-semibold text-emerald-600 text-lg">
           🏢 Chọn nhà cung cấp
         </h3>
-
-        {/* Tìm kiếm và refresh */}
         <div className="flex items-center gap-2">
           <Input
             placeholder="🔍 Tìm theo tên, mã hoặc quốc gia..."
             value={searchVendor}
             onChange={(e) => setSearchVendor(e.target.value)}
-            className="flex-1 h-9 text-sm dark:bg-gray-700 dark:text-white"
+            className="flex-1 h-9 text-sm"
           />
           <Button
             size="icon"
             variant="outline"
             onClick={async () => {
               const data = await VendorService.getAll();
-              setVendors(data);
-              toast.success("🔄 Danh sách nhà cung cấp đã được làm mới!");
+              setVendors(data || []);
+              toast.success("🔄 Danh sách nhà cung cấp đã làm mới!");
             }}
-            className="border-emerald-400 text-emerald-500 hover:bg-emerald-50"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw size={16} />
           </Button>
           <Button
             onClick={() => setOpenQuickAdd(true)}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white px-4"
+            className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4"
           >
             ➕ Thêm mới
           </Button>
         </div>
 
-        {/* Danh sách vendor */}
-        <div className="max-h-[260px] overflow-y-auto border rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="max-h-[260px] overflow-y-auto border rounded-lg divide-y">
           {vendors
             .filter((v) => {
               const q = searchVendor.toLowerCase();
@@ -317,7 +430,7 @@ export default function EquipmentImportPage() {
         </div>
       </div>
 
-      {/* ✅ Panel thêm nhà cung cấp */}
+      {/* QuickAdd */}
       <VendorQuickAdd
         open={openQuickAdd}
         onClose={() => setOpenQuickAdd(false)}
@@ -326,39 +439,36 @@ export default function EquipmentImportPage() {
           setSelectedVendor(newVendor.id);
         }}
       />
-      {/* ✅ Panel thêm thiết bị mới */}
       <EquipmentQuickAdd
         open={openQuickAddEquipment}
         onClose={() => setOpenQuickAddEquipment(false)}
         vendorId={selectedVendor}
-        onSuccess={(newEquipment) => {
-          setEquipments((prev) => [...prev, newEquipment]);
-          toast.success("🎉 Thiết bị mới đã được thêm vào danh sách!");
+        onSuccess={(newEq) => {
+          setEquipments((prev) => [...prev, newEq]);
+          toast.success("🎉 Thiết bị mới đã được thêm!");
         }}
       />
 
-      {/* ================== DANH SÁCH THIẾT BỊ ================== */}
+      {/* Danh sách thiết bị */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">
         <div className="flex justify-between items-center">
           <h3 className="font-semibold text-emerald-600 text-lg">
             🧾 Danh sách loại thiết bị
           </h3>
-
           {selectedVendor && (
             <div className="flex items-center gap-3">
               <Input
                 placeholder="Tìm kiếm thiết bị..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-60 h-8 text-sm dark:bg-gray-700 dark:text-gray-100"
+                className="w-60 h-8 text-sm"
               />
               <Button
                 size="icon"
                 variant="outline"
                 onClick={() => setOpenQuickAddEquipment(true)}
-                className="border-emerald-400 text-emerald-500 hover:bg-emerald-50"
               >
-                <Plus className="w-4 h-4" />
+                +
               </Button>
               <ColumnVisibilityButton
                 visibleColumns={visibleColumns}
@@ -377,12 +487,12 @@ export default function EquipmentImportPage() {
         </div>
 
         {!selectedVendor ? (
-          <div className="border rounded p-6 text-center text-sm text-gray-600 dark:text-gray-300">
+          <div className="p-6 text-center text-sm text-gray-500 border rounded">
             Hãy chọn một nhà cung cấp để hiển thị danh sách thiết bị.
           </div>
         ) : (
           <div className="overflow-y-auto max-h-72 border rounded">
-            <Table className="w-full text-sm">
+            <Table className="text-sm">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700">
                   {visibleColumns.select && <TableHead>Chọn</TableHead>}
@@ -446,10 +556,7 @@ export default function EquipmentImportPage() {
                         values={uniqueValues.warranty_duration}
                         selected={filters.warranty_duration}
                         onChange={(v) =>
-                          setFilters((p) => ({
-                            ...p,
-                            warranty_duration: v,
-                          }))
+                          setFilters((p) => ({ ...p, warranty_duration: v }))
                         }
                         controller={controller}
                       />
@@ -457,7 +564,6 @@ export default function EquipmentImportPage() {
                   )}
                 </TableRow>
               </TableHeader>
-
               <TableBody>
                 {filteredEquipments.map((item) => (
                   <TableRow key={item.id} className="border-t">
@@ -477,7 +583,16 @@ export default function EquipmentImportPage() {
                     {visibleColumns.type_name && (
                       <TableCell>{item.type_name}</TableCell>
                     )}
-                    {visibleColumns.name && <TableCell>{item.name}</TableCell>}
+                    {visibleColumns.name && (
+                      <TableCell className="flex items-center gap-2">
+                        <img
+                          src={item.image || NO_IMG_DATA_URI}
+                          alt={item.name}
+                          className="w-10 h-8 object-contain rounded border"
+                        />
+                        <span>{item.name}</span>
+                      </TableCell>
+                    )}
                     {visibleColumns.warranty_duration && (
                       <TableCell>{item.warranty_duration} năm</TableCell>
                     )}
@@ -489,48 +604,30 @@ export default function EquipmentImportPage() {
         )}
       </div>
 
-      {/* Layout 3 - Chi tiết nhập hàng */}
+      {/* Chi tiết nhập hàng */}
       {Object.keys(selectedItems).length > 0 && (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow space-y-4">
-          <h3 className="font-semibold text-emerald-600 mb-2">
-            Chi tiết nhập hàng
-          </h3>
+          <h3 className="font-semibold text-emerald-600">Chi tiết nhập hàng</h3>
           <div className="space-y-4 max-h-[500px] overflow-y-auto">
             {Object.values(selectedItems).map((item) => {
-              const total =
-                (parseFloat(item.price) || 0) * (parseInt(item.qty) || 0);
+              const total = (Number(item.price) || 0) * (Number(item.qty) || 0);
               return (
                 <div
                   key={item.id}
                   className="flex flex-col md:flex-row gap-4 border rounded-lg p-4 bg-gray-50 dark:bg-gray-700"
                 >
-                  <div className="flex-shrink-0">
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-48 h-36 object-contain rounded border"
-                    />
-                  </div>
+                  <img
+                    src={item.image || NO_IMG_DATA_URI}
+                    alt={item.name}
+                    className="w-48 h-36 object-contain rounded border"
+                  />
                   <div className="flex-1 flex flex-col">
                     <div>
                       <p className="font-semibold">{item.name}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-300 mb-2">
+                      <p className="text-xs text-gray-500 mb-2">
                         Mã: {item.id} | Bảo hành: {item.warranty_duration} năm
                       </p>
                     </div>
-
-                    <div className="max-h-24 overflow-y-auto grid grid-cols-2 md:grid-cols-3 gap-2 text-xs p-2">
-                      {(item.attributes || []).map((attr, idx) => (
-                        <div
-                          key={idx}
-                          className="text-gray-700 dark:text-gray-200"
-                        >
-                          <span className="font-medium">{attr.attribute}:</span>{" "}
-                          {attr.value}
-                        </div>
-                      ))}
-                    </div>
-
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
                         <Label className="text-xs">Giá (VNĐ)</Label>
@@ -540,7 +637,7 @@ export default function EquipmentImportPage() {
                           onChange={(e) =>
                             updateField(item.id, "price", e.target.value)
                           }
-                          className="h-8 text-sm dark:bg-gray-600"
+                          className="h-8 text-sm"
                         />
                       </div>
                       <div>
@@ -551,11 +648,10 @@ export default function EquipmentImportPage() {
                           onChange={(e) =>
                             updateField(item.id, "qty", e.target.value)
                           }
-                          className="h-8 text-sm dark:bg-gray-600"
+                          className="h-8 text-sm"
                         />
                       </div>
                     </div>
-
                     <div className="text-red-600 font-semibold text-sm mt-2">
                       Tổng: {total.toLocaleString()} VNĐ
                     </div>
@@ -567,83 +663,50 @@ export default function EquipmentImportPage() {
         </div>
       )}
 
-      {/* Layout 4 - Tổng tiền */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex flex-col md:flex-row md:justify-between md:items-center gap-3">
-        {Object.keys(selectedItems).length > 0 ? (
+      {/* Tổng cộng + xác nhận */}
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex justify-between items-center">
+        {Object.keys(selectedItems).length ? (
           <>
             <h3 className="font-bold text-lg text-emerald-600">
               Tổng cộng: {calcTotal().toLocaleString()} VNĐ
             </h3>
-
-            <div className="flex flex-col items-start md:items-end gap-2">
-              {/* AlertDialog gắn liền nút */}
-              <AlertDialog open={openDialog} onOpenChange={setOpenDialog}>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    className="bg-emerald-500 hover:bg-emerald-600 flex items-center gap-2"
-                    disabled={loadingSubmit}
-                  >
-                    {loadingSubmit && (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    )}
-                    {loadingSubmit ? "Đang xử lý..." : "Xác nhận nhập hàng"}
-                  </Button>
-                </AlertDialogTrigger>
-
-                <AlertDialogContent className="dark:bg-gray-800">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Xác nhận nhập hàng</AlertDialogTitle>
-                    <AlertDialogDescription className="text-gray-500 dark:text-gray-400">
-                      Bạn có chắc chắn muốn nhập{" "}
-                      <b>{Object.keys(selectedItems).length}</b> thiết bị này
-                      vào kho không?
-                      <br />
-                      Hành động này sẽ tạo hoá đơn nhập hàng mới.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="dark:border-gray-600 dark:text-gray-300">
-                      Huỷ
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleConfirmImport}
-                      disabled={loadingSubmit}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                    >
-                      {loadingSubmit ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Đang xử lý...
-                        </>
-                      ) : (
-                        "Xác nhận"
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            <AlertDialog open={openDialog} onOpenChange={setOpenDialog}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                  disabled={loadingSubmit}
+                >
+                  {loadingSubmit ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Đang xử
+                      lý...
+                    </>
+                  ) : (
+                    "Xác nhận nhập hàng"
+                  )}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Xác nhận nhập hàng</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Bạn có chắc chắn muốn nhập{" "}
+                    <b>{Object.keys(selectedItems).length}</b> thiết bị vào kho?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleConfirmImport}>
+                    Xác nhận
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         ) : (
           <h3 className="font-bold text-lg text-gray-400 italic">
             Chưa chọn thiết bị nào để nhập hàng
           </h3>
-        )}
-
-        {/* 🔔 Thông báo (luôn hiển thị ngoài điều kiện selectedItems) */}
-        {(successMsg || errorMsg) && (
-          <div className="mt-4 w-full md:w-auto">
-            {successMsg && (
-              <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
-                {successMsg}
-              </div>
-            )}
-            {errorMsg && (
-              <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
-                {errorMsg}
-              </div>
-            )}
-          </div>
         )}
       </div>
     </div>
