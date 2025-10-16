@@ -1,6 +1,5 @@
-import axios from "axios";
+import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
-import AuthService from "./AuthService";
 
 const EquipmentService = {
   /**
@@ -12,10 +11,7 @@ const EquipmentService = {
       const res = await axios.get(`${API}equipment`);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi lấy danh sách equipment:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi lấy danh sách equipment:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -29,10 +25,7 @@ const EquipmentService = {
       const res = await axios.get(`${API}equipment/attribute/${id}`);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi lấy chi tiết equipment:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi lấy chi tiết equipment:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -42,42 +35,39 @@ const EquipmentService = {
    * POST /equipment
    */
   async create(data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
+    try {
+      // Nếu có ảnh file => gửi bằng FormData
+      const isFile = data.image instanceof File;
+      let payload = data;
+      let headers = {};
 
-    // Nếu có ảnh file => gửi bằng FormData
-    const isFile = data.image instanceof File;
-    let payload = data;
-    let headers = {
-      Authorization: `Bearer ${auth.accessToken}`,
-    };
+      if (isFile) {
+        const formData = new FormData();
+        formData.append("name", String(data.name || ""));
+        formData.append("vendor_id", String(data.vendor_id || ""));
+        formData.append("category_type_id", String(data.category_type_id || ""));
+        formData.append("description", String(data.description || ""));
+        formData.append("warranty_duration", String(data.warranty_duration || "2"));
 
-    if (isFile) {
-      const formData = new FormData();
-      formData.append("name", String(data.name || ""));
-      formData.append("vendor_id", String(data.vendor_id || ""));
-      formData.append("category_type_id", String(data.category_type_id || ""));
-      formData.append("description", String(data.description || ""));
-      formData.append(
-        "warranty_duration",
-        String(data.warranty_duration || "2")
-      );
+        if (data.image instanceof File) {
+          formData.append("image", data.image);
+        }
 
-      if (data.image instanceof File) {
-        formData.append("image", data.image);
+        // Gửi attributes dạng JSON string
+        if (Array.isArray(data.attributes) && data.attributes.length > 0) {
+          formData.append("attributes", JSON.stringify(data.attributes));
+        }
+
+        payload = formData;
+        headers["Content-Type"] = "multipart/form-data";
       }
 
-      //  Gửi attributes dạng JSON string
-      if (Array.isArray(data.attributes) && data.attributes.length > 0) {
-        formData.append("attributes", JSON.stringify(data.attributes));
-      }
-
-      payload = formData;
-      headers["Content-Type"] = "multipart/form-data";
+      const res = await axios.post(`${API}equipment`, payload, { headers });
+      return res.data;
+    } catch (err) {
+      console.error("❌ Lỗi khi tạo equipment:", err.response?.data || err.message);
+      throw err.response?.data || err;
     }
-
-    const res = await axios.post(`${API}equipment`, payload, { headers });
-    return res.data;
   },
 
   /**
@@ -85,9 +75,6 @@ const EquipmentService = {
    * PUT /equipment/:id
    */
   async update(id, data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
       const formData = new FormData();
 
@@ -111,17 +98,11 @@ const EquipmentService = {
       }
 
       const res = await axios.put(`${API}equipment/${id}`, formData, {
-        headers: {
-          Authorization: `Bearer ${auth.accessToken}`,
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       });
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi cập nhật equipment:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi cập nhật equipment:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -131,19 +112,11 @@ const EquipmentService = {
    * DELETE /equipment/:id
    */
   async delete(id) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.delete(`${API}equipment/${id}`, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.delete(`${API}equipment/${id}`);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi xóa equipment:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi xóa equipment:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },

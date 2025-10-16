@@ -17,7 +17,6 @@ import InvoiceService from "@/services/invoiceService";
 import { toast } from "sonner";
 import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
 import EquipmentQuickAdd from "@/components/panel/importEquipment/EquipmentQuickAdd";
-import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 
 import {
   AlertDialog,
@@ -41,7 +40,7 @@ import {
 import { Loader2, RefreshCw, CheckCircle2, ChevronRight } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { API } from "@/config/url";
-// import { useEquipmentData } from "@/hooks/useEquipmentData";
+import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 const NO_IMG_DATA_URI =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-family="Arial" font-size="14">No image</text></svg>';
 
@@ -126,13 +125,8 @@ export default function EquipmentImportPage({
           }
         });
 
-        if (
-          changed &&
-          overlayOpen &&
-          overlayMode === "loading" &&
-          newFromUnitListRef.current.size >= expectedAtLeastRef.current
-        ) {
-          console.log("✅ Đủ thiết bị mới, chuyển sang success overlay");
+        if (changed && overlayMode === "loading") {
+          console.log("✅ Phát hiện thiết bị mới, chuyển sang success overlay");
           setOverlayMode("success");
           toast.success(
             "🎉 Đã phát hiện thiết bị mới hiển thị trong danh sách!"
@@ -160,7 +154,6 @@ export default function EquipmentImportPage({
   };
 
   // ✅ Xác nhận nhập hàng
-  // ✅ Xác nhận nhập hàng
   const handleConfirmImport = async () => {
     try {
       setLoadingSubmit(true);
@@ -181,7 +174,7 @@ export default function EquipmentImportPage({
       await InvoiceService.create({ items });
       toast.info("🧾 Đang chờ cập nhật danh sách thiết bị...");
 
-      // 🌀 Refresh SWR đúng key (đã fix trong useEquipmentData)
+      // 🌀 Refresh SWR
       await refreshEquipmentUnits();
 
       // 🔁 Revalidate lần 2 sau 2s để chắc chắn SWR có data mới
@@ -190,22 +183,26 @@ export default function EquipmentImportPage({
         refreshEquipmentUnits();
       }, 2000);
 
-      // Fallback event nếu vẫn chưa thấy NEW
-      setTimeout(() => {
-        if (overlayOpen && overlayMode === "loading") {
-          console.log("⚙️ Fallback manual fitx-units-updated fired");
-          window.dispatchEvent(
-            new CustomEvent("fitx-units-updated", {
-              detail: { newIds: ["manual-fallback"] },
-            })
-          );
+      // ✅ Auto success fallback (frontend-only)
+      // Nếu sau 3s không có event fitx-units-updated → auto chuyển success
+      const autoSuccessTimer = setTimeout(() => {
+        if (overlayMode === "loading") {
+          console.log("⚙️ Auto success fallback triggered");
+          setOverlayMode("success");
+          toast.success("🎉 Nhập hàng thành công (auto fallback)");
+          // tự tắt sau 2.5s
+          setTimeout(() => {
+            setOverlayOpen(false);
+            setOverlayMode("loading");
+            newFromUnitListRef.current.clear();
+          }, 2500);
         }
-      }, 4000);
+      }, 3000);
 
-      // Khi nhận event thật thì clear fallback
+      // ✅ Nếu event thật đến thì clear fallback
       window.addEventListener(
         "fitx-units-updated",
-        () => clearTimeout(fallbackTimer),
+        () => clearTimeout(autoSuccessTimer),
         { once: true }
       );
     } catch (err) {

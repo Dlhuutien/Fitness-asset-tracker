@@ -1,6 +1,5 @@
-import axios from "axios";
+import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
-import AuthService from "./AuthService";
 
 const BranchService = {
   /**
@@ -36,13 +35,8 @@ const BranchService = {
    * PUT /branch/:id
    */
   async update(id, data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.put(`${API}branch/${id}`, data, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.put(`${API}branch/${id}`, data);
       return res.data;
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật branch:", err.response?.data || err.message);

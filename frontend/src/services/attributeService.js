@@ -1,6 +1,5 @@
-import axios from "axios";
+import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
-import AuthService from "./AuthService";
 
 const AttributeService = {
   /**
@@ -36,13 +35,8 @@ const AttributeService = {
    * POST /attribute
    */
   async create(data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.post(`${API}attribute`, data, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.post(`${API}attribute`, data);
       return res.data;
     } catch (err) {
       console.error("Lỗi khi tạo attribute:", err.response?.data || err.message);
@@ -55,13 +49,8 @@ const AttributeService = {
    * PUT /attribute/:id
    */
   async update(id, data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.put(`${API}attribute/${id}`, data, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.put(`${API}attribute/${id}`, data);
       return res.data;
     } catch (err) {
       console.error("Lỗi khi cập nhật attribute:", err.response?.data || err.message);
@@ -74,13 +63,8 @@ const AttributeService = {
    * DELETE /attribute/:id
    */
   async delete(id) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.delete(`${API}attribute/${id}`, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.delete(`${API}attribute/${id}`);
       return res.data;
     } catch (err) {
       console.error("Lỗi khi xóa attribute:", err.response?.data || err.message);

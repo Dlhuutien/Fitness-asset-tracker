@@ -9,8 +9,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, ImagePlus, CheckCircle2, Loader2, Search } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  Pencil,
+  ImagePlus,
+  CheckCircle2,
+  Loader2,
+  Search,
+  Plus,
+  XCircle,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import CategoryMainService from "@/services/categoryMainService";
 import {
   HeaderFilter,
@@ -20,6 +28,7 @@ import {
 } from "@/components/common/ExcelTableTools";
 
 export default function EquipmentGroupSection({ groups, setGroups }) {
+  const [showForm, setShowForm] = useState(false);
   const [groupForm, setGroupForm] = useState({
     name: "",
     desc: "",
@@ -31,6 +40,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedId, setHighlightedId] = useState(null);
 
   // Excel-style filter
   const controller = useGlobalFilterController();
@@ -41,7 +51,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
     created: [],
     updated: [],
   });
-
   const [visibleColumns, setVisibleColumns] = useState({
     image: true,
     code: true,
@@ -51,7 +60,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
     updated: true,
   });
 
-  // ===== Load Category Main từ API =====
+  // 🧭 Load nhóm thiết bị
   useEffect(() => {
     (async () => {
       try {
@@ -63,7 +72,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
     })();
   }, [setGroups]);
 
-  // ===== Upload ảnh (preview + file) =====
+  // 🖼 Upload ảnh
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -71,34 +80,45 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
     setGroupForm((prev) => ({ ...prev, img: file, preview: previewURL }));
   };
 
-  // ===== Tạo / Cập nhật nhóm =====
+  // 💾 Lưu hoặc cập nhật nhóm
   const handleSaveGroup = async () => {
     if (!groupForm.name || !groupForm.desc) return;
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
-
     try {
+      let newId = null;
+
       if (editGroupId) {
         await CategoryMainService.update(editGroupId, {
           name: groupForm.name,
           description: groupForm.desc,
           image: groupForm.img || null,
         });
+        newId = editGroupId; // cập nhật
       } else {
-        await CategoryMainService.create({
+        const created = await CategoryMainService.create({
           name: groupForm.name,
           description: groupForm.desc,
           image: groupForm.img || null,
         });
+        newId = created.id; // lấy id từ API create trả về
       }
 
       const updated = await CategoryMainService.getAll();
       setGroups(updated);
+
+      // 🟢 Lưu id nhóm vừa được thêm hoặc cập nhật để highlight
+      setHighlightedId(newId);
+
       setGroupForm({ name: "", desc: "", img: null, preview: "" });
       setEditGroupId(null);
       setSuccessMsg("✅ Lưu nhóm thành công!");
       setTimeout(() => setSuccessMsg(""), 2000);
+      setShowForm(false);
+
+      // 🕒 Sau 30 giây tự bỏ highlight
+      setTimeout(() => setHighlightedId(null), 30000);
     } catch (err) {
       console.error(err);
       setErrorMsg("❌ Có lỗi khi lưu nhóm!");
@@ -109,7 +129,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
 
   const isFormValid = groupForm.name && groupForm.desc;
 
-  // ===== Excel-style filter logic =====
+  // Bộ lọc Excel-style
   const uniqueValues = useMemo(
     () => ({
       code: getUniqueValues(groups, (g) => g.id),
@@ -162,106 +182,142 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 space-y-6">
-      {/* Form nhóm */}
-      <div className="grid grid-cols-2 gap-10 items-start">
-        {/* Cột trái */}
-        <div className="space-y-6 w-full">
-          <div className="grid grid-cols-1 gap-6">
-            <Input
-              placeholder="Tên nhóm VD: Cardio"
-              value={groupForm.name}
-              onChange={(e) =>
-                setGroupForm({ ...groupForm, name: e.target.value })
-              }
-              className="h-12"
-            />
-          </div>
-
-          <div className="col-span-2">
-            <Input
-              placeholder="Mô tả nhóm"
-              value={groupForm.desc}
-              onChange={(e) =>
-                setGroupForm({ ...groupForm, desc: e.target.value })
-              }
-              className="h-12"
-            />
-          </div>
-
-          <div className="flex justify-center">
-            <Button
-              onClick={handleSaveGroup}
-              disabled={!isFormValid || loading}
-              className={`h-12 w-1/2 text-base font-semibold rounded-lg flex items-center justify-center gap-2 transition-all duration-300 ${
-                isFormValid && !loading
-                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90 shadow-lg"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Đang xử lý...
-                </>
-              ) : editGroupId ? (
-                "💾 Cập nhật"
-              ) : (
-                "+ Lưu"
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Cột phải: Upload ảnh */}
-        <label
-          htmlFor="group-upload"
-          className="ml-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl w-72 h-72 cursor-pointer overflow-hidden hover:border-emerald-500 hover:shadow-xl transition group"
+      {/* 🔘 Nút toggle form */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold text-emerald-600">
+          Danh sách nhóm thiết bị
+        </h2>
+        <Button
+          onClick={() => {
+            setShowForm((prev) => !prev);
+            setGroupForm({ name: "", desc: "", img: null, preview: "" });
+            setEditGroupId(null);
+          }}
+          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          {groupForm.preview ? (
-            <motion.img
-              key={groupForm.preview}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.4 }}
-              src={groupForm.preview}
-              alt="preview"
-              className="w-full h-full object-cover"
-            />
+          {showForm ? (
+            <>
+              <XCircle size={18} /> {editGroupId ? "Hủy cập nhật" : "Hủy thêm"}
+            </>
           ) : (
-            <div className="flex flex-col items-center text-gray-500">
-              <ImagePlus
-                size={48}
-                className="text-emerald-500 mb-1 group-hover:scale-110 transition"
-              />
-              <p className="text-sm font-medium group-hover:text-emerald-500">
-                Ảnh nhóm
-              </p>
-            </div>
+            <>
+              <Plus size={18} /> Thêm nhóm mới
+            </>
           )}
-          <input
-            id="group-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageUpload}
-          />
-        </label>
+        </Button>
       </div>
 
-      {errorMsg && <p className="text-red-500 font-medium">{errorMsg}</p>}
-      {successMsg && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className="flex items-center text-emerald-600 gap-2 font-medium"
-        >
-          <CheckCircle2 size={18} /> {successMsg}
-        </motion.div>
-      )}
+      {/* 🧾 Form thêm nhóm - ẩn/hiện bằng AnimatePresence */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            key="group-form"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+            className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mt-2"
+          >
+            <div className="grid grid-cols-2 gap-10 items-start">
+              {/* Cột trái */}
+              <div className="space-y-6 w-full">
+                <Input
+                  placeholder="Tên nhóm VD: Cardio"
+                  value={groupForm.name}
+                  onChange={(e) =>
+                    setGroupForm({ ...groupForm, name: e.target.value })
+                  }
+                  className="h-12"
+                />
 
-      {/* Filter controls + Search */}
-      <div className="flex justify-between items-center mb-2 gap-3">
+                <Input
+                  placeholder="Mô tả nhóm"
+                  value={groupForm.desc}
+                  onChange={(e) =>
+                    setGroupForm({ ...groupForm, desc: e.target.value })
+                  }
+                  className="h-12"
+                />
+
+                <div className="flex justify-center">
+                  <Button
+                    onClick={handleSaveGroup}
+                    disabled={!isFormValid || loading}
+                    className={`h-12 w-1/2 text-base font-semibold rounded-lg flex items-center justify-center gap-2 transition-all duration-300 ${
+                      isFormValid && !loading
+                        ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90 shadow-lg"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Đang xử lý...
+                      </>
+                    ) : editGroupId ? (
+                      "💾 Cập nhật"
+                    ) : (
+                      "+ Lưu nhóm"
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Cột phải - Upload ảnh */}
+              <label
+                htmlFor="group-upload"
+                className="ml-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl w-72 h-72 cursor-pointer overflow-hidden hover:border-emerald-500 hover:shadow-xl transition group"
+              >
+                {groupForm.preview ? (
+                  <motion.img
+                    key={groupForm.preview}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.4 }}
+                    src={groupForm.preview}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center text-gray-500">
+                    <ImagePlus
+                      size={48}
+                      className="text-emerald-500 mb-1 group-hover:scale-110 transition"
+                    />
+                    <p className="text-sm font-medium group-hover:text-emerald-500">
+                      Ảnh nhóm
+                    </p>
+                  </div>
+                )}
+                <input
+                  id="group-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+              </label>
+            </div>
+
+            {errorMsg && (
+              <p className="text-red-500 font-medium mt-2">{errorMsg}</p>
+            )}
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center text-emerald-600 gap-2 font-medium mt-2"
+              >
+                <CheckCircle2 size={18} /> {successMsg}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Bộ lọc & bảng danh sách */}
+      <div className="flex justify-between items-center mb-2 gap-3 mt-4">
         <div className="relative w-80">
           <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
           <Input
@@ -286,13 +342,11 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         />
       </div>
 
-      {/* Bảng nhóm */}
       <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
         <Table>
           <TableHeader className="bg-emerald-50 dark:bg-gray-800">
             <TableRow className="text-sm font-semibold text-gray-700 dark:text-gray-200 [&>th]:py-3 [&>th]:px-2">
               <TableHead className="text-center">#</TableHead>
-
               {visibleColumns.image && <TableHead>Ảnh</TableHead>}
               {visibleColumns.code && (
                 <TableHead>
@@ -362,7 +416,18 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
             {filteredGroups.map((g, idx) => (
               <TableRow
                 key={g.id}
-                className="hover:bg-emerald-50 dark:hover:bg-gray-800 transition"
+                className={`transition-all duration-500 hover:bg-emerald-50 dark:hover:bg-gray-800 
+                ${highlightedId === g.id ? "bg-emerald-100 dark:bg-emerald-700/40" : ""}`}
+                as={motion.tr}
+                initial={{
+                  backgroundColor:
+                    highlightedId === g.id ? "#A7F3D0" : "transparent",
+                }}
+                animate={{
+                  backgroundColor:
+                    highlightedId === g.id ? "#A7F3D0" : "transparent",
+                }}
+                transition={{ duration: 0.6 }}
               >
                 <TableCell className="text-center">{idx + 1}</TableCell>
                 {visibleColumns.image && (
@@ -403,6 +468,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                         preview: g.image || "",
                       });
                       setEditGroupId(g.id);
+                      setShowForm(true);
                     }}
                   >
                     <Pencil size={16} />

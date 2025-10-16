@@ -9,8 +9,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, CheckCircle2, Search } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  Pencil,
+  CheckCircle2,
+  Search,
+  Plus,
+  XCircle,
+  Loader2,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import CategoryTypeService from "@/services/categoryTypeService";
 import {
   HeaderFilter,
@@ -22,6 +29,7 @@ import {
 const ITEMS_PER_PAGE = 4;
 
 export default function EquipmentTypeSection({ types, setTypes, groups }) {
+  const [showForm, setShowForm] = useState(false);
   const [typeForm, setTypeForm] = useState({
     name: "",
     desc: "",
@@ -31,6 +39,8 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [successMsg, setSuccessMsg] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [highlightedId, setHighlightedId] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -51,36 +61,51 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
     updated: true,
   });
 
-  const isFormValid =
-    typeForm.name && typeForm.group && typeForm.desc;
+  const isFormValid = typeForm.name && typeForm.group && typeForm.desc;
 
+  // 💾 Lưu hoặc cập nhật loại
   const handleSaveType = async () => {
     if (!isFormValid) return;
-
+    setLoading(true);
     try {
+      let newId = null;
+
       if (editTypeId) {
         await CategoryTypeService.update(editTypeId, {
           name: typeForm.name,
           description: typeForm.desc,
           category_main_id: typeForm.group,
         });
+        newId = editTypeId;
         setSuccessMsg("✅ Cập nhật loại thành công!");
       } else {
-        await CategoryTypeService.create({
+        const newItem = await CategoryTypeService.create({
           name: typeForm.name,
           description: typeForm.desc,
           category_main_id: typeForm.group,
         });
+        newId = newItem.id;
         setSuccessMsg("✅ Tạo loại thành công!");
       }
 
       const updated = await CategoryTypeService.getAllWithDisplayName();
       setTypes(updated);
+
+      // 🟢 Bôi đen dòng vừa thêm hoặc sửa
+      setHighlightedId(newId);
+
+      // 🧹 Reset form
       setTypeForm({ name: "", desc: "", group: "" });
       setEditTypeId(null);
+      setShowForm(false);
       setTimeout(() => setSuccessMsg(""), 2000);
+
+      // ⏳ Tự bỏ bôi đen sau 30 giây
+      setTimeout(() => setHighlightedId(null), 30000);
     } catch (err) {
       console.error("❌ Lỗi khi lưu categoryType:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -110,7 +135,8 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.main_name.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchCode = filters.code.length === 0 || filters.code.includes(t.id);
+      const matchCode =
+        filters.code.length === 0 || filters.code.includes(t.id);
       const matchGroup =
         filters.group.length === 0 || filters.group.includes(t.main_name);
       const matchName =
@@ -148,66 +174,118 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 space-y-6">
-      {/* Form loại */}
-      <div className="grid grid-cols-2 gap-6">
-        <select
-          className="h-12 w-full border rounded-lg px-3 text-sm 
-                     bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200
-                     border-gray-300 dark:border-gray-700"
-          value={typeForm.group}
-          onChange={(e) => setTypeForm({ ...typeForm, group: e.target.value })}
+      {/* 🔘 Nút toggle form */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold text-emerald-600">
+          Danh sách loại thiết bị
+        </h2>
+        <Button
+          onClick={() => {
+            setShowForm((prev) => !prev);
+            setTypeForm({ name: "", desc: "", group: "" });
+            setEditTypeId(null);
+          }}
+          className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white"
         >
-          <option value="">-- Chọn nhóm --</option>
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-
-        <Input
-          className="h-12"
-          placeholder="Tên loại VD: Treadmill"
-          value={typeForm.name}
-          onChange={(e) => setTypeForm({ ...typeForm, name: e.target.value })}
-        />
-
-        <Input
-          className="h-12"
-          placeholder="Mô tả loại"
-          value={typeForm.desc}
-          onChange={(e) => setTypeForm({ ...typeForm, desc: e.target.value })}
-        />
-
-        <div className="col-span-2 flex justify-end">
-          <Button
-            onClick={handleSaveType}
-            disabled={!isFormValid}
-            className={`h-12 px-8 font-semibold rounded-lg transition-all duration-300 ${
-              isFormValid
-                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:opacity-90 shadow-md"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            {editTypeId ? "💾 Cập nhật" : "+ Lưu"}
-          </Button>
-        </div>
+          {showForm ? (
+            <>
+              <XCircle size={18} /> {editTypeId ? "Hủy cập nhật" : "Hủy thêm"}
+            </>
+          ) : (
+            <>
+              <Plus size={18} /> Thêm loại
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Success message */}
-      {successMsg && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          className="flex items-center text-emerald-600 gap-2 font-medium"
-        >
-          <CheckCircle2 size={18} /> {successMsg}
-        </motion.div>
-      )}
+      {/* 🧾 Form thêm loại - ẩn/hiện bằng AnimatePresence */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            key="type-form"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+            className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 mt-2 space-y-6"
+          >
+            <div className="grid grid-cols-2 gap-6">
+              <select
+                className="h-12 w-full border rounded-lg px-3 text-sm 
+                     bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200
+                     border-gray-300 dark:border-gray-700"
+                value={typeForm.group}
+                onChange={(e) =>
+                  setTypeForm({ ...typeForm, group: e.target.value })
+                }
+              >
+                <option value="">-- Chọn nhóm --</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+
+              <Input
+                className="h-12"
+                placeholder="Tên loại VD: Treadmill"
+                value={typeForm.name}
+                onChange={(e) =>
+                  setTypeForm({ ...typeForm, name: e.target.value })
+                }
+              />
+
+              <Input
+                className="h-12"
+                placeholder="Mô tả loại"
+                value={typeForm.desc}
+                onChange={(e) =>
+                  setTypeForm({ ...typeForm, desc: e.target.value })
+                }
+              />
+
+              <div className="col-span-2 flex justify-center">
+                <Button
+                  onClick={handleSaveType}
+                  disabled={!isFormValid || loading}
+                  className={`h-12 w-1/2 text-base font-semibold rounded-lg flex items-center justify-center gap-2 transition-all duration-300 ${
+                    isFormValid && !loading
+                      ? "bg-gradient-to-r from-emerald-500 to-purple-500 text-white hover:opacity-90 shadow-lg"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Đang xử lý...
+                    </>
+                  ) : editTypeId ? (
+                    "💾 Cập nhật"
+                  ) : (
+                    "+ Lưu loại"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center text-emerald-600 gap-2 font-medium mt-2"
+              >
+                <CheckCircle2 size={18} /> {successMsg}
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Search + Hiển thị cột */}
-      <div className="flex justify-between items-center mb-2 gap-3">
+      <div className="flex justify-between items-center mb-2 gap-3 mt-4">
         <div className="relative w-80">
           <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
           <Input
@@ -233,12 +311,11 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
       </div>
 
       {/* Table loại */}
-      <div className="overflow-x-auto rounded-lg border dark:border-gray-700">
+      <div className="overflow-x-auto rounded-lg border dark:border-gray-700 shadow-inner">
         <Table className="min-w-full">
           <TableHeader className="bg-gray-50 dark:bg-gray-800">
             <TableRow className="[&>th]:py-3 [&>th]:px-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
               <TableHead>#</TableHead>
-
               {visibleColumns.code && (
                 <TableHead>
                   <HeaderFilter
@@ -251,7 +328,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.group && (
                 <TableHead>
                   <HeaderFilter
@@ -264,7 +340,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.name && (
                 <TableHead>
                   <HeaderFilter
@@ -277,7 +352,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.desc && (
                 <TableHead>
                   <HeaderFilter
@@ -290,7 +364,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.created && (
                 <TableHead>
                   <HeaderFilter
@@ -303,7 +376,6 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                   />
                 </TableHead>
               )}
-
               {visibleColumns.updated && (
                 <TableHead>
                   <HeaderFilter
@@ -316,10 +388,10 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                   />
                 </TableHead>
               )}
-
               <TableHead className="text-center">Hành động</TableHead>
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {currentData.map((t, idx) => (
               <motion.tr
@@ -327,21 +399,26 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="hover:bg-indigo-50 dark:hover:bg-gray-800 transition"
+                className={`transition-all duration-500 hover:bg-emerald-50 dark:hover:bg-gray-800 
+                ${highlightedId === t.id ? "bg-emerald-100 dark:bg-emerald-800/40" : ""}`}
               >
-                <TableCell>{(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}</TableCell>
-
+                <TableCell>
+                  {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                </TableCell>
                 {visibleColumns.code && <TableCell>{t.id}</TableCell>}
                 {visibleColumns.group && <TableCell>{t.main_name}</TableCell>}
                 {visibleColumns.name && <TableCell>{t.name}</TableCell>}
                 {visibleColumns.desc && <TableCell>{t.description}</TableCell>}
                 {visibleColumns.created && (
-                  <TableCell>{new Date(t.created_at).toLocaleDateString("vi-VN")}</TableCell>
+                  <TableCell>
+                    {new Date(t.created_at).toLocaleDateString("vi-VN")}
+                  </TableCell>
                 )}
                 {visibleColumns.updated && (
-                  <TableCell>{new Date(t.updated_at).toLocaleDateString("vi-VN")}</TableCell>
+                  <TableCell>
+                    {new Date(t.updated_at).toLocaleDateString("vi-VN")}
+                  </TableCell>
                 )}
-
                 <TableCell className="text-center">
                   <Button
                     size="icon"
@@ -353,6 +430,7 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                         group: t.category_main_id,
                       });
                       setEditTypeId(t.id);
+                      setShowForm(true);
                     }}
                   >
                     <Pencil size={16} />

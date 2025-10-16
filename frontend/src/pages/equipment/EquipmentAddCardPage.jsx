@@ -163,7 +163,7 @@ export default function EquipmentAddCardPage() {
         category_type_id: formData.type,
         description: formData.description,
         warranty_duration: Number(formData.warranty),
-        image: formData.image, // Có thể là File hoặc null
+        image: formData.image instanceof File ? formData.image : null,
         attributes: attrArray,
       };
 
