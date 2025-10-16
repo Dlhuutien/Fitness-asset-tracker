@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -9,348 +9,409 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDownUp } from "lucide-react";
-import { useEquipmentGroupData } from "@/hooks/useEquipmentGroupData";
+import { Pencil, ImagePlus, CheckCircle2, Loader2, Search } from "lucide-react";
+import { motion } from "framer-motion";
+import CategoryMainService from "@/services/categoryMainService";
 import {
   HeaderFilter,
   ColumnVisibilityButton,
   useGlobalFilterController,
   getUniqueValues,
 } from "@/components/common/ExcelTableTools";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { useNavigate } from "react-router-dom";
 
-const ITEMS_PER_PAGE = 7;
+export default function EquipmentGroupSection({ groups, setGroups }) {
+  const [groupForm, setGroupForm] = useState({
+    name: "",
+    desc: "",
+    img: null,
+    preview: "",
+  });
+  const [editGroupId, setEditGroupId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
-export default function EquipmentGroupPage() {
-  const [activeGroup, setActiveGroup] = useState("all");
-  const [search, setSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [goToPage, setGoToPage] = useState("");
-  const [sortNewestFirst, setSortNewestFirst] = useState(true);
-  const navigate = useNavigate();
-
-  const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
-    useEquipmentGroupData();
-
-  const groupList = [{ id: "all", name: "Tất cả nhóm" }, ...(groups || [])];
+  // Excel-style filter
   const controller = useGlobalFilterController();
+  const [filters, setFilters] = useState({
+    code: [],
+    name: [],
+    desc: [],
+    created: [],
+    updated: [],
+  });
 
   const [visibleColumns, setVisibleColumns] = useState({
-    id: true,
     image: true,
+    code: true,
     name: true,
-    main: true,
-    type: true,
-    vendor: true,
-    created_at: true,
+    desc: true,
+    created: true,
+    updated: true,
   });
 
-  const [filters, setFilters] = useState({
-    id: [],
-    name: [],
-    main: [],
-    type: [],
-    vendor: [],
-  });
+  // ===== Load Category Main từ API =====
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await CategoryMainService.getAll();
+        setGroups(data);
+      } catch (err) {
+        console.error("Không lấy được CategoryMain:", err);
+      }
+    })();
+  }, [setGroups]);
 
+  // ===== Upload ảnh (preview + file) =====
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const previewURL = URL.createObjectURL(file);
+    setGroupForm((prev) => ({ ...prev, img: file, preview: previewURL }));
+  };
+
+  // ===== Tạo / Cập nhật nhóm =====
+  const handleSaveGroup = async () => {
+    if (!groupForm.name || !groupForm.desc) return;
+    setErrorMsg("");
+    setSuccessMsg("");
+    setLoading(true);
+
+    try {
+      if (editGroupId) {
+        await CategoryMainService.update(editGroupId, {
+          name: groupForm.name,
+          description: groupForm.desc,
+          image: groupForm.img || null,
+        });
+      } else {
+        await CategoryMainService.create({
+          name: groupForm.name,
+          description: groupForm.desc,
+          image: groupForm.img || null,
+        });
+      }
+
+      const updated = await CategoryMainService.getAll();
+      setGroups(updated);
+      setGroupForm({ name: "", desc: "", img: null, preview: "" });
+      setEditGroupId(null);
+      setSuccessMsg("✅ Lưu nhóm thành công!");
+      setTimeout(() => setSuccessMsg(""), 2000);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("❌ Có lỗi khi lưu nhóm!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isFormValid = groupForm.name && groupForm.desc;
+
+  // ===== Excel-style filter logic =====
   const uniqueValues = useMemo(
     () => ({
-      id: getUniqueValues(equipments, (u) => u.id),
-      name: getUniqueValues(equipments, (u) => u.name),
-      main: getUniqueValues(equipments, (u) => u.main_name),
-      type: getUniqueValues(equipments, (u) => u.type_name),
-      vendor: getUniqueValues(equipments, (u) => u.vendor_name),
+      code: getUniqueValues(groups, (g) => g.id),
+      name: getUniqueValues(groups, (g) => g.name),
+      desc: getUniqueValues(groups, (g) => g.description),
+      created: getUniqueValues(groups, (g) =>
+        new Date(g.created_at).toLocaleDateString("vi-VN")
+      ),
+      updated: getUniqueValues(groups, (g) =>
+        new Date(g.updated_at).toLocaleDateString("vi-VN")
+      ),
     }),
-    [equipments]
+    [groups]
   );
 
-  const filteredData = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (equipments || [])
-      .filter((d) => {
-        const name = d.name?.toLowerCase() || "";
-        const main = d.main_name?.toLowerCase() || "";
-        const type = d.type_name?.toLowerCase() || "";
-        const vendor = d.vendor_name?.toLowerCase() || "";
-        const id = d.id?.toLowerCase() || "";
+  const filteredGroups = useMemo(() => {
+    return (groups || []).filter((g) => {
+      const matchSearch =
+        g.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        g.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-        const matchSearch =
-          !q ||
-          name.includes(q) ||
-          type.includes(q) ||
-          vendor.includes(q) ||
-          id.includes(q);
+      const matchCode =
+        filters.code.length === 0 || filters.code.includes(g.id);
+      const matchName =
+        filters.name.length === 0 || filters.name.includes(g.name);
+      const matchDesc =
+        filters.desc.length === 0 || filters.desc.includes(g.description);
+      const matchCreated =
+        filters.created.length === 0 ||
+        filters.created.includes(
+          new Date(g.created_at).toLocaleDateString("vi-VN")
+        );
+      const matchUpdated =
+        filters.updated.length === 0 ||
+        filters.updated.includes(
+          new Date(g.updated_at).toLocaleDateString("vi-VN")
+        );
 
-        const matchGroup = activeGroup === "all" || d.main_name === activeGroup;
-
-        const matchColumn = {
-          id: filters.id.length === 0 || filters.id.includes(d.id),
-          name: filters.name.length === 0 || filters.name.includes(d.name),
-          main: filters.main.length === 0 || filters.main.includes(d.main_name),
-          type: filters.type.length === 0 || filters.type.includes(d.type_name),
-          vendor:
-            filters.vendor.length === 0 || filters.vendor.includes(d.vendor_name),
-        };
-
-        return matchSearch && matchGroup && Object.values(matchColumn).every(Boolean);
-      })
-      .sort((a, b) =>
-        sortNewestFirst
-          ? new Date(b.created_at) - new Date(a.created_at)
-          : new Date(a.created_at) - new Date(b.created_at)
+      return (
+        matchSearch &&
+        matchCode &&
+        matchName &&
+        matchDesc &&
+        matchCreated &&
+        matchUpdated
       );
-  }, [equipments, search, activeGroup, filters, sortNewestFirst]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
-  const currentData = filteredData.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
-
-  if (groupLoading || eqLoading)
-    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
-  if (groupErr || eqErr)
-    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
+    });
+  }, [groups, filters, searchTerm]);
 
   return (
-    <div className="p-4 space-y-4 font-jakarta">
-      {/* ==== Thanh Toolbar trên ==== */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="🔍 Tìm kiếm thiết bị"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-9 w-52 border-gray-300 dark:border-gray-700 text-sm"
-          />
+    <div className="bg-white dark:bg-gray-900 rounded-xl shadow p-6 space-y-6">
+      {/* Form nhóm */}
+      <div className="grid grid-cols-2 gap-10 items-start">
+        {/* Cột trái */}
+        <div className="space-y-6 w-full">
+          <div className="grid grid-cols-1 gap-6">
+            <Input
+              placeholder="Tên nhóm VD: Cardio"
+              value={groupForm.name}
+              onChange={(e) =>
+                setGroupForm({ ...groupForm, name: e.target.value })
+              }
+              className="h-12"
+            />
+          </div>
 
-          <Select
-            onValueChange={(v) => {
-              setActiveGroup(v);
-              setCurrentPage(1);
-            }}
-            defaultValue="all"
-          >
-            <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-              <SelectValue placeholder="Tất cả nhóm" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-              {groupList.map((g) => (
-                <SelectItem
-                  key={g.id}
-                  value={g.id === "all" ? "all" : g.name}
-                  className="text-sm"
-                >
-                  {g.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="col-span-2">
+            <Input
+              placeholder="Mô tả nhóm"
+              value={groupForm.desc}
+              onChange={(e) =>
+                setGroupForm({ ...groupForm, desc: e.target.value })
+              }
+              className="h-12"
+            />
+          </div>
 
-          <Button
-            variant="outline"
-            onClick={() => setSortNewestFirst((p) => !p)}
-            className="flex items-center gap-1 border-emerald-400 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-gray-800"
-            title="Sắp xếp theo ngày tạo"
-          >
-            <ArrowDownUp size={16} />
-            {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
-          </Button>
+          <div className="flex justify-center">
+            <Button
+              onClick={handleSaveGroup}
+              disabled={!isFormValid || loading}
+              className={`h-12 w-1/2 text-base font-semibold rounded-lg flex items-center justify-center gap-2 transition-all duration-300 ${
+                isFormValid && !loading
+                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white hover:opacity-90 shadow-lg"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : editGroupId ? (
+                "💾 Cập nhật"
+              ) : (
+                "+ Lưu"
+              )}
+            </Button>
+          </div>
         </div>
 
-        {/* Hiển thị cột */}
+        {/* Cột phải: Upload ảnh */}
+        <label
+          htmlFor="group-upload"
+          className="ml-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl w-72 h-72 cursor-pointer overflow-hidden hover:border-emerald-500 hover:shadow-xl transition group"
+        >
+          {groupForm.preview ? (
+            <motion.img
+              key={groupForm.preview}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              src={groupForm.preview}
+              alt="preview"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="flex flex-col items-center text-gray-500">
+              <ImagePlus
+                size={48}
+                className="text-emerald-500 mb-1 group-hover:scale-110 transition"
+              />
+              <p className="text-sm font-medium group-hover:text-emerald-500">
+                Ảnh nhóm
+              </p>
+            </div>
+          )}
+          <input
+            id="group-upload"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+          />
+        </label>
+      </div>
+
+      {errorMsg && <p className="text-red-500 font-medium">{errorMsg}</p>}
+      {successMsg && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          className="flex items-center text-emerald-600 gap-2 font-medium"
+        >
+          <CheckCircle2 size={18} /> {successMsg}
+        </motion.div>
+      )}
+
+      {/* Filter controls + Search */}
+      <div className="flex justify-between items-center mb-2 gap-3">
+        <div className="relative w-80">
+          <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Tìm nhóm theo mã, tên hoặc mô tả..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8 h-10 text-sm"
+          />
+        </div>
+
         <ColumnVisibilityButton
           visibleColumns={visibleColumns}
           setVisibleColumns={setVisibleColumns}
           labels={{
-            id: "Mã phân loại thiết bị",
-            image: "Hình ảnh",
-            name: "Tên thiết bị",
-            main: "Nhóm",
-            type: "Tên loại",
-            vendor: "Nhà cung cấp",
-            created_at: "Ngày tạo",
+            image: "Ảnh",
+            code: "Mã nhóm",
+            name: "Tên nhóm",
+            desc: "Mô tả",
+            created: "Ngày nhập",
+            updated: "Ngày sửa",
           }}
         />
       </div>
 
-      {/* ==== Bảng dữ liệu ==== */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-700">
-            <TableHeader>
-              <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                <TableHead className="text-center border dark:border-gray-600">#</TableHead>
-                {visibleColumns.id && (
-                  <TableHead>
-                    <HeaderFilter
-                      selfKey="id"
-                      label="Mã phân loại thiết bị"
-                      values={uniqueValues.id}
-                      selected={filters.id}
-                      onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
-                      controller={controller}
-                    />
-                  </TableHead>
-                )}
-                {visibleColumns.image && <TableHead>Hình ảnh</TableHead>}
-                {visibleColumns.name && (
-                  <TableHead>
-                    <HeaderFilter
-                      selfKey="name"
-                      label="Tên thiết bị"
-                      values={uniqueValues.name}
-                      selected={filters.name}
-                      onChange={(v) => setFilters((p) => ({ ...p, name: v }))}
-                      controller={controller}
-                    />
-                  </TableHead>
-                )}
-                {visibleColumns.main && (
-                  <TableHead>
-                    <HeaderFilter
-                      selfKey="main"
-                      label="Nhóm"
-                      values={uniqueValues.main}
-                      selected={filters.main}
-                      onChange={(v) => setFilters((p) => ({ ...p, main: v }))}
-                      controller={controller}
-                    />
-                  </TableHead>
-                )}
-                {visibleColumns.type && (
-                  <TableHead>
-                    <HeaderFilter
-                      selfKey="type"
-                      label="Tên loại"
-                      values={uniqueValues.type}
-                      selected={filters.type}
-                      onChange={(v) => setFilters((p) => ({ ...p, type: v }))}
-                      controller={controller}
-                    />
-                  </TableHead>
-                )}
-                {visibleColumns.vendor && (
-                  <TableHead>
-                    <HeaderFilter
-                      selfKey="vendor"
-                      label="Nhà cung cấp"
-                      values={uniqueValues.vendor}
-                      selected={filters.vendor}
-                      onChange={(v) => setFilters((p) => ({ ...p, vendor: v }))}
-                      controller={controller}
-                    />
-                  </TableHead>
-                )}
-                {visibleColumns.created_at && <TableHead>Ngày tạo</TableHead>}
-              </TableRow>
-            </TableHeader>
+      {/* Bảng nhóm */}
+      <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
+        <Table>
+          <TableHeader className="bg-emerald-50 dark:bg-gray-800">
+            <TableRow className="text-sm font-semibold text-gray-700 dark:text-gray-200 [&>th]:py-3 [&>th]:px-2">
+              <TableHead className="text-center">#</TableHead>
 
-            <TableBody>
-              {currentData.map((row, idx) => (
-                <TableRow
-                  key={row.id ?? idx}
-                  onClick={() => navigate(`/app/equipment/specs/${row.id}`)}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm cursor-pointer transition"
-                >
-                  <TableCell className="text-center border dark:border-gray-600">
-                    {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
-                  </TableCell>
-                  {visibleColumns.id && <TableCell>{row.id}</TableCell>}
-                  {visibleColumns.image && (
-                    <TableCell className="text-center">
-                      <img
-                        src={row.image}
-                        alt={row.name}
-                        className="inline-block w-12 h-10 object-contain rounded"
-                      />
-                    </TableCell>
-                  )}
-                  {visibleColumns.name && <TableCell>{row.name}</TableCell>}
-                  {visibleColumns.main && <TableCell>{row.main_name}</TableCell>}
-                  {visibleColumns.type && (
-                    <TableCell className="italic text-gray-600 dark:text-gray-300">
-                      {row.type_name}
-                    </TableCell>
-                  )}
-                  {visibleColumns.vendor && <TableCell>{row.vendor_name}</TableCell>}
-                  {visibleColumns.created_at && (
-                    <TableCell className="text-center">
-                      {row.created_at
-                        ? new Date(row.created_at).toLocaleString("vi-VN")
-                        : "-"}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              {visibleColumns.image && <TableHead>Ảnh</TableHead>}
+              {visibleColumns.code && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="code"
+                    label="Mã nhóm"
+                    values={uniqueValues.code}
+                    selected={filters.code}
+                    onChange={(v) => setFilters((p) => ({ ...p, code: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+              {visibleColumns.name && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="name"
+                    label="Tên nhóm"
+                    values={uniqueValues.name}
+                    selected={filters.name}
+                    onChange={(v) => setFilters((p) => ({ ...p, name: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+              {visibleColumns.desc && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="desc"
+                    label="Mô tả"
+                    values={uniqueValues.desc}
+                    selected={filters.desc}
+                    onChange={(v) => setFilters((p) => ({ ...p, desc: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+              {visibleColumns.created && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="created"
+                    label="Ngày nhập"
+                    values={uniqueValues.created}
+                    selected={filters.created}
+                    onChange={(v) => setFilters((p) => ({ ...p, created: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+              {visibleColumns.updated && (
+                <TableHead>
+                  <HeaderFilter
+                    selfKey="updated"
+                    label="Ngày sửa"
+                    values={uniqueValues.updated}
+                    selected={filters.updated}
+                    onChange={(v) => setFilters((p) => ({ ...p, updated: v }))}
+                    controller={controller}
+                  />
+                </TableHead>
+              )}
+              <TableHead className="text-center">Hành động</TableHead>
+            </TableRow>
+          </TableHeader>
 
-        {/* Pagination */}
-        <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-3 bg-gray-50 dark:bg-gray-700 text-sm">
-          <div className="text-gray-700 dark:text-gray-300">
-            Trang {currentPage} / {totalPages} — Tổng: {filteredData.length} thiết bị
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="dark:border-gray-600 dark:text-gray-200"
-            >
-              «
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="dark:border-gray-600 dark:text-gray-200"
-            >
-              »
-            </Button>
-
-            <div className="flex items-center gap-2">
-              <span className="dark:text-gray-200">Đi đến:</span>
-              <Input
-                value={goToPage}
-                onChange={(e) => setGoToPage(e.target.value)}
-                className="w-16 h-8 text-center dark:bg-gray-600 dark:text-white"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const page = parseInt(goToPage);
-                    if (!isNaN(page) && page >= 1 && page <= totalPages) {
-                      setCurrentPage(page);
-                    }
-                  }
-                }}
-              />
-              <Button
-                size="sm"
-                className="bg-emerald-500 text-white hover:bg-emerald-600"
-                onClick={() => {
-                  const page = parseInt(goToPage);
-                  if (!isNaN(page) && page >= 1 && page <= totalPages) {
-                    setCurrentPage(page);
-                  }
-                }}
+          <TableBody>
+            {filteredGroups.map((g, idx) => (
+              <TableRow
+                key={g.id}
+                className="hover:bg-emerald-50 dark:hover:bg-gray-800 transition"
               >
-                Go
-              </Button>
-            </div>
-          </div>
-        </div>
+                <TableCell className="text-center">{idx + 1}</TableCell>
+                {visibleColumns.image && (
+                  <TableCell>
+                    {g.image ? (
+                      <img
+                        src={g.image}
+                        alt={g.name}
+                        className="w-10 h-10 object-cover rounded"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">No img</span>
+                    )}
+                  </TableCell>
+                )}
+                {visibleColumns.code && <TableCell>{g.id}</TableCell>}
+                {visibleColumns.name && <TableCell>{g.name}</TableCell>}
+                {visibleColumns.desc && <TableCell>{g.description}</TableCell>}
+                {visibleColumns.created && (
+                  <TableCell>
+                    {new Date(g.created_at).toLocaleDateString("vi-VN")}
+                  </TableCell>
+                )}
+                {visibleColumns.updated && (
+                  <TableCell>
+                    {new Date(g.updated_at).toLocaleDateString("vi-VN")}
+                  </TableCell>
+                )}
+                <TableCell className="text-center">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => {
+                      setGroupForm({
+                        name: g.name,
+                        desc: g.description,
+                        img: g.image,
+                        preview: g.image || "",
+                      });
+                      setEditGroupId(g.id);
+                    }}
+                  >
+                    <Pencil size={16} />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
