@@ -46,7 +46,7 @@ export default function Sidebar() {
       icon: Dumbbell,
       children: [
         { label: "Danh mục thiết bị", path: "/app/equipment/directory" },
-        { label: "Tạo thông tin thiết bị", path: "/app/equipment/add-group" },
+        // { label: "Tạo thông tin thiết bị", path: "/app/equipment/add-group" },
         { label: "Nhập thiết bị", path: "/app/equipment/import" },
         { label: "Bảo trì thiết bị", path: "/app/maintenance" },
       ],

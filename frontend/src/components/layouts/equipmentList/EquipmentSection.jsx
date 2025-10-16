@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowDownUp } from "lucide-react";
-import { useEquipmentGroupData } from "@/hooks/useEquipmentGroupData";
+import { useEquipmentData } from "@/hooks/useEquipmentData";
 import {
   HeaderFilter,
   ColumnVisibilityButton,
@@ -25,6 +25,9 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
+import { PlusCircle, XCircle } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const ITEMS_PER_PAGE = 7;
 
@@ -35,9 +38,10 @@ export default function EquipmentGroupPage() {
   const [goToPage, setGoToPage] = useState("");
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
   const navigate = useNavigate();
+  const [showAddCard, setShowAddCard] = useState(false);
 
   const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
-    useEquipmentGroupData();
+    useEquipmentData();
 
   const groupList = [{ id: "all", name: "Tất cả nhóm" }, ...(groups || [])];
   const controller = useGlobalFilterController();
@@ -96,10 +100,13 @@ export default function EquipmentGroupPage() {
           main: filters.main.length === 0 || filters.main.includes(d.main_name),
           type: filters.type.length === 0 || filters.type.includes(d.type_name),
           vendor:
-            filters.vendor.length === 0 || filters.vendor.includes(d.vendor_name),
+            filters.vendor.length === 0 ||
+            filters.vendor.includes(d.vendor_name),
         };
 
-        return matchSearch && matchGroup && Object.values(matchColumn).every(Boolean);
+        return (
+          matchSearch && matchGroup && Object.values(matchColumn).every(Boolean)
+        );
       })
       .sort((a, b) =>
         sortNewestFirst
@@ -108,19 +115,58 @@ export default function EquipmentGroupPage() {
       );
   }, [equipments, search, activeGroup, filters, sortNewestFirst]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredData.length / ITEMS_PER_PAGE)
+  );
   const currentData = filteredData.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
   if (groupLoading || eqLoading)
-    return <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>;
+    return (
+      <div className="p-4 animate-pulse text-gray-500">Đang tải dữ liệu...</div>
+    );
   if (groupErr || eqErr)
-    return <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>;
+    return (
+      <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
+    );
 
   return (
     <div className="p-4 space-y-4 font-jakarta">
+      <Button
+        onClick={() => setShowAddCard((prev) => !prev)}
+        className={`flex items-center gap-2 ${
+          showAddCard
+            ? "bg-red-500 hover:bg-red-600"
+            : "bg-emerald-500 hover:bg-emerald-600"
+        } text-white transition-all`}
+      >
+        {showAddCard ? (
+          <>
+            <XCircle size={18} /> Hủy thêm
+          </>
+        ) : (
+          <>
+            <PlusCircle size={18} /> Thêm thiết bị
+          </>
+        )}
+      </Button>
+      <AnimatePresence>
+        {showAddCard && (
+          <motion.div
+            key="add-equipment-card"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="bg-gray-50 dark:bg-gray-900 rounded-xl border border-emerald-300 dark:border-emerald-700 shadow-inner p-4"
+          >
+            <EquipmentAddCardPage />
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* ==== Thanh Toolbar trên ==== */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
@@ -190,7 +236,9 @@ export default function EquipmentGroupPage() {
           <Table className="min-w-[1100px] border border-gray-200 dark:border-gray-700">
             <TableHeader>
               <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                <TableHead className="text-center border dark:border-gray-600">#</TableHead>
+                <TableHead className="text-center border dark:border-gray-600">
+                  #
+                </TableHead>
                 {visibleColumns.id && (
                   <TableHead>
                     <HeaderFilter
@@ -277,13 +325,17 @@ export default function EquipmentGroupPage() {
                     </TableCell>
                   )}
                   {visibleColumns.name && <TableCell>{row.name}</TableCell>}
-                  {visibleColumns.main && <TableCell>{row.main_name}</TableCell>}
+                  {visibleColumns.main && (
+                    <TableCell>{row.main_name}</TableCell>
+                  )}
                   {visibleColumns.type && (
                     <TableCell className="italic text-gray-600 dark:text-gray-300">
                       {row.type_name}
                     </TableCell>
                   )}
-                  {visibleColumns.vendor && <TableCell>{row.vendor_name}</TableCell>}
+                  {visibleColumns.vendor && (
+                    <TableCell>{row.vendor_name}</TableCell>
+                  )}
                   {visibleColumns.created_at && (
                     <TableCell className="text-center">
                       {row.created_at
@@ -300,7 +352,8 @@ export default function EquipmentGroupPage() {
         {/* Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-3 bg-gray-50 dark:bg-gray-700 text-sm">
           <div className="text-gray-700 dark:text-gray-300">
-            Trang {currentPage} / {totalPages} — Tổng: {filteredData.length} thiết bị
+            Trang {currentPage} / {totalPages} — Tổng: {filteredData.length}{" "}
+            thiết bị
           </div>
 
           <div className="flex items-center gap-2">

@@ -1,6 +1,5 @@
-import axios from "axios";
+import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
-import AuthService from "./AuthService";
 
 // Tránh sai chính tả status
 export const UNIT_STATUS = {
@@ -15,106 +14,73 @@ export const UNIT_STATUS = {
 const EquipmentUnitService = {
   /**
    * Lấy tất cả equipment units
+   * GET /equipmentUnit
    */
   async getAll() {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.get(`${API}equipmentUnit`, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.get(`${API}equipmentUnit`);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi lấy equipment units:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi lấy equipment units:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
 
   /**
    * Lấy chi tiết unit theo id
+   * GET /equipmentUnit/:id
    */
   async getById(id) {
     try {
       const res = await axios.get(`${API}equipmentUnit/${id}`);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi lấy equipment unit:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi lấy equipment unit:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
 
   /**
    * Lấy tất cả unit theo equipment_id (model gốc)
+   * GET /equipmentUnit/equipment/:equipmentId
    */
   async getByEquipmentId(equipmentId) {
     try {
-      const res = await axios.get(
-        `${API}equipmentUnit/equipment/${equipmentId}`
-      );
+      const res = await axios.get(`${API}equipmentUnit/equipment/${equipmentId}`);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi lấy units theo equipment_id:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi lấy units theo equipment_id:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
 
   /**
    * Lọc theo 1 trạng thái duy nhất
-   * VD: In Progress
+   * GET /equipmentUnit/status/:status
    */
   async getByStatus(status) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.get(
-        `${API}equipmentUnit/status/${encodeURIComponent(status)}`,
-        {
-          headers: { Authorization: `Bearer ${auth.accessToken}` },
-        }
-      );
+      const res = await axios.get(`${API}equipmentUnit/status/${encodeURIComponent(status)}`);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi lọc theo status:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi lọc theo status:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
 
   /**
    * Lọc theo nhiều trạng thái (status-group)
-   * VD: ["Temporary Urgent","In Progress"] hoặc ["Ready","Failed"]
+   * GET /equipmentUnit/status-group?statuses=a,b,c
    */
   async getByStatusGroup(statuses = []) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
-    // Mã hoá từng phần tử để tránh lỗi dấu cách, dấu phẩy
     const qs = statuses.map(encodeURIComponent).join(",");
     const url = `${API}equipmentUnit/status-group?statuses=${qs}`;
 
     try {
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.get(url);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi lọc theo status-group:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi lọc theo status-group:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -140,23 +106,14 @@ const EquipmentUnitService = {
 
   /**
    * Cập nhật equipment unit (chỉ admin, super-admin)
+   * PUT /equipmentUnit/:id
    */
   async update(id, data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.put(`${API}equipmentUnit/${id}`, data, {
-        headers: {
-          Authorization: `Bearer ${auth.accessToken}`,
-        },
-      });
+      const res = await axios.put(`${API}equipmentUnit/${id}`, data);
       return res.data;
     } catch (err) {
-      console.error(
-        "Lỗi khi cập nhật equipment unit:",
-        err.response?.data || err.message
-      );
+      console.error("❌ Lỗi khi cập nhật equipment unit:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },

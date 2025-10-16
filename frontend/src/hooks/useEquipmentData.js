@@ -1,18 +1,22 @@
 import useSWR, { mutate } from "swr";
-import axios from "axios";
+import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
 
 /**
- * Fetcher mặc định
+ * 🧠 Fetcher mặc định
+ * Dùng axios interceptor → tự gắn token, refresh, retry khi 401
  */
-const fetcher = (url) => axios.get(url).then((res) => res.data);
+const fetcher = async (url) => {
+  const res = await axios.get(url);
+  return res.data;
+};
 
 /**
- * Hook: useEquipmentGroupData
- * Lấy dữ liệu CategoryMain và Equipment, có cache + refresh linh hoạt
+ * ⚙️ Hook: useEquipmentGroupData
+ * Lấy dữ liệu CategoryMain (nhóm thiết bị) & Equipment có cache + refresh linh hoạt
  */
-export function useEquipmentGroupData() {
-  // ⚡ Fetch Category Main (nhóm thiết bị)
+export function useEquipmentData() {
+  // --- Category Main ---
   const {
     data: groups,
     error: groupErr,
@@ -22,7 +26,7 @@ export function useEquipmentGroupData() {
     dedupingInterval: 300000, // cache 5 phút
   });
 
-  // ⚡ Fetch Equipment
+  // --- Equipment ---
   const {
     data: equipments,
     error: eqErr,
@@ -32,22 +36,19 @@ export function useEquipmentGroupData() {
     dedupingInterval: 300000,
   });
 
-  /**
-   * Hàm refresh thủ công (nếu cần revalidate ngay sau khi update)
-   * dùng trong màn hình khác: mutate(`${API}equipment`) hoặc mutate(`${API}categoryMain`)
-   */
+  // --- Refresh thủ công ---
   const refreshGroups = () => mutate(`${API}categoryMain`);
   const refreshEquipments = () => mutate(`${API}equipment`);
 
   return {
-    // Dữ liệu
+    // 📦 Dữ liệu
     groups,
     groupErr,
     groupLoading,
     equipments,
     eqErr,
     eqLoading,
-    // Hàm tiện ích
+    // ⚡ Tiện ích
     refreshGroups,
     refreshEquipments,
   };

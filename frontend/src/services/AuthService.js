@@ -92,7 +92,10 @@ const AuthService = {
 
       return res.data;
     } catch (err) {
-      console.error("Lỗi đổi mật khẩu lần đầu:", err.response?.data || err.message);
+      console.error(
+        "Lỗi đổi mật khẩu lần đầu:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -103,7 +106,7 @@ const AuthService = {
    */
   async refreshToken(username, refreshToken) {
     try {
-      console.log("Đang làm mới token cho:", username);
+      console.log("♻️ Đang làm mới token cho:", username);
       const res = await axios.post(`${API}auth/refresh`, {
         username,
         refreshToken,
@@ -117,11 +120,13 @@ const AuthService = {
         refreshToken,
         user: me,
       });
-      console.log("Làm mới token thành công");
+
+      toast.success("🔄 Token đã được làm mới thành công!");
+      console.log("✅ Làm mới token thành công");
 
       return res.data;
     } catch (err) {
-      console.error("Lỗi làm mới token:", err.response?.data || err.message);
+      console.error("❌ Lỗi làm mới token:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -156,7 +161,10 @@ const AuthService = {
       console.log("Lấy thông tin người dùng thành công");
       return res.data;
     } catch (err) {
-      console.error("Lỗi lấy thông tin user:", err.response?.data || err.message);
+      console.error(
+        "Lỗi lấy thông tin user:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },

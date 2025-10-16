@@ -1,6 +1,5 @@
-import axios from "axios";
+import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
-import AuthService from "./AuthService";
 
 const CategoryTypeService = {
   /**
@@ -10,9 +9,9 @@ const CategoryTypeService = {
   async getAll() {
     try {
       const res = await axios.get(`${API}categoryType`);
-      return res.data; // giữ nguyên response
+      return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy danh sách categoryType:", err.response?.data || err.message);
+      console.error("❌ Lỗi khi lấy danh sách categoryType:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -36,9 +35,9 @@ const CategoryTypeService = {
   async getById(id) {
     try {
       const res = await axios.get(`${API}categoryType/${id}`);
-      return res.data; // giữ nguyên
+      return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy chi tiết categoryType:", err.response?.data || err.message);
+      console.error("❌ Lỗi khi lấy chi tiết categoryType:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -50,9 +49,9 @@ const CategoryTypeService = {
   async getByMainId(mainId) {
     try {
       const res = await axios.get(`${API}categoryType/main/${mainId}`);
-      return res.data; // giữ nguyên
+      return res.data;
     } catch (err) {
-      console.error("Lỗi khi lấy categoryType theo main:", err.response?.data || err.message);
+      console.error("❌ Lỗi khi lấy categoryType theo main:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -62,16 +61,11 @@ const CategoryTypeService = {
    * POST /categoryType
    */
   async create(data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.post(`${API}categoryType`, data, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.post(`${API}categoryType`, data);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi tạo categoryType:", err.response?.data || err.message);
+      console.error("❌ Lỗi khi tạo categoryType:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -81,16 +75,11 @@ const CategoryTypeService = {
    * PUT /categoryType/:id
    */
   async update(id, data) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.put(`${API}categoryType/${id}`, data, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.put(`${API}categoryType/${id}`, data);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi cập nhật categoryType:", err.response?.data || err.message);
+      console.error("❌ Lỗi khi cập nhật categoryType:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -100,16 +89,11 @@ const CategoryTypeService = {
    * DELETE /categoryType/:id
    */
   async delete(id) {
-    const auth = AuthService.getAuth();
-    if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
-
     try {
-      const res = await axios.delete(`${API}categoryType/${id}`, {
-        headers: { Authorization: `Bearer ${auth.accessToken}` },
-      });
+      const res = await axios.delete(`${API}categoryType/${id}`);
       return res.data;
     } catch (err) {
-      console.error("Lỗi khi xóa categoryType:", err.response?.data || err.message);
+      console.error("❌ Lỗi khi xóa categoryType:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },

@@ -67,7 +67,7 @@ export default function EquipmentDirectoryPage() {
           { key: "group", label: "📂 Danh sách Nhóm" },
           { key: "type", label: "🏷️ Danh sách Loại" },
           { key: "equipment", label: "📦 Danh sách Dòng thiết bị" },
-          { key: "unit", label: "🧾 Danh sách từng thiết bị" },
+          { key: "unit", label: "🧾 Danh sách Từng thiết bị" },
         ].map((t) => (
           <button
             key={t.key}
