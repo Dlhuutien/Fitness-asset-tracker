@@ -15,8 +15,8 @@ import VendorService from "@/services/vendorService";
 import EquipmentService from "@/services/equipmentService";
 import InvoiceService from "@/services/invoiceService";
 import { toast } from "sonner";
-import VendorQuickAdd from "@/components/layouts/vendor/VendorQuickAdd";
-import EquipmentQuickAdd from "@/components/layouts/importEquipment/EquipmentQuickAdd";
+import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
+import EquipmentQuickAdd from "@/components/panel/importEquipment/EquipmentQuickAdd";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 
 import {

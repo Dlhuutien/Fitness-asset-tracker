@@ -7,7 +7,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import LoginPage from "@/pages/LoginPage";
 
 // Equipment
-import EquipmentAddGroupPage from "@/pages/equipment/EquipmentGroupTypePage";
+import EquipmentAddGroupPage from "@/pages/equipment/EquipmentAddCardPage";
 import EquipmentAddCardPage from "@/components/layouts/equipment/EquipmentAddCardPage";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
 import EquipmentProfilePage from "@/pages/equipment/EquipmentUnitProfilePage";
