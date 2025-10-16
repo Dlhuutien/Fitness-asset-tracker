@@ -15,7 +15,9 @@ export default function useAuthRefresh() {
         AuthService.clearAuth();
         window.location.href = "/login"; // chuyển về login nếu fail
       }
-    }, 59 * 60 * 1000); // 59 phút
+    // }, 59 * 60 * 1000); // 59 phút
+    }, 45 * 60 * 1000);
+
 
     return () => clearInterval(interval);
   }, []);

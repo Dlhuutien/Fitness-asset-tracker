@@ -21,7 +21,6 @@ import {
 
 export default function EquipmentGroupSection({ groups, setGroups }) {
   const [groupForm, setGroupForm] = useState({
-    code: "",
     name: "",
     desc: "",
     img: null,
@@ -74,7 +73,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
 
   // ===== Tạo / Cập nhật nhóm =====
   const handleSaveGroup = async () => {
-    if (!groupForm.code || !groupForm.name || !groupForm.desc) return;
+    if (!groupForm.name || !groupForm.desc) return;
     setErrorMsg("");
     setSuccessMsg("");
     setLoading(true);
@@ -88,7 +87,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         });
       } else {
         await CategoryMainService.create({
-          id: groupForm.code,
           name: groupForm.name,
           description: groupForm.desc,
           image: groupForm.img || null,
@@ -97,7 +95,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
 
       const updated = await CategoryMainService.getAll();
       setGroups(updated);
-      setGroupForm({ code: "", name: "", desc: "", img: null, preview: "" });
+      setGroupForm({ name: "", desc: "", img: null, preview: "" });
       setEditGroupId(null);
       setSuccessMsg("✅ Lưu nhóm thành công!");
       setTimeout(() => setSuccessMsg(""), 2000);
@@ -109,7 +107,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
     }
   };
 
-  const isFormValid = groupForm.code && groupForm.name && groupForm.desc;
+  const isFormValid = groupForm.name && groupForm.desc;
 
   // ===== Excel-style filter logic =====
   const uniqueValues = useMemo(
@@ -134,16 +132,22 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         g.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchCode = filters.code.length === 0 || filters.code.includes(g.id);
-      const matchName = filters.name.length === 0 || filters.name.includes(g.name);
+      const matchCode =
+        filters.code.length === 0 || filters.code.includes(g.id);
+      const matchName =
+        filters.name.length === 0 || filters.name.includes(g.name);
       const matchDesc =
         filters.desc.length === 0 || filters.desc.includes(g.description);
       const matchCreated =
         filters.created.length === 0 ||
-        filters.created.includes(new Date(g.created_at).toLocaleDateString("vi-VN"));
+        filters.created.includes(
+          new Date(g.created_at).toLocaleDateString("vi-VN")
+        );
       const matchUpdated =
         filters.updated.length === 0 ||
-        filters.updated.includes(new Date(g.updated_at).toLocaleDateString("vi-VN"));
+        filters.updated.includes(
+          new Date(g.updated_at).toLocaleDateString("vi-VN")
+        );
 
       return (
         matchSearch &&
@@ -162,18 +166,13 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
       <div className="grid grid-cols-2 gap-10 items-start">
         {/* Cột trái */}
         <div className="space-y-6 w-full">
-          <div className="grid grid-cols-2 gap-6">
-            <Input
-              placeholder="Mã nhóm VD: CAO"
-              value={groupForm.code}
-              onChange={(e) => setGroupForm({ ...groupForm, code: e.target.value })}
-              className="h-12"
-              readOnly={!!editGroupId}
-            />
+          <div className="grid grid-cols-1 gap-6">
             <Input
               placeholder="Tên nhóm VD: Cardio"
               value={groupForm.name}
-              onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })}
+              onChange={(e) =>
+                setGroupForm({ ...groupForm, name: e.target.value })
+              }
               className="h-12"
             />
           </div>
@@ -182,7 +181,9 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
             <Input
               placeholder="Mô tả nhóm"
               value={groupForm.desc}
-              onChange={(e) => setGroupForm({ ...groupForm, desc: e.target.value })}
+              onChange={(e) =>
+                setGroupForm({ ...groupForm, desc: e.target.value })
+              }
               className="h-12"
             />
           </div>
@@ -232,7 +233,9 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                 size={48}
                 className="text-emerald-500 mb-1 group-hover:scale-110 transition"
               />
-              <p className="text-sm font-medium group-hover:text-emerald-500">Ảnh nhóm</p>
+              <p className="text-sm font-medium group-hover:text-emerald-500">
+                Ảnh nhóm
+              </p>
             </div>
           )}
           <input
@@ -379,10 +382,14 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                 {visibleColumns.name && <TableCell>{g.name}</TableCell>}
                 {visibleColumns.desc && <TableCell>{g.description}</TableCell>}
                 {visibleColumns.created && (
-                  <TableCell>{new Date(g.created_at).toLocaleDateString("vi-VN")}</TableCell>
+                  <TableCell>
+                    {new Date(g.created_at).toLocaleDateString("vi-VN")}
+                  </TableCell>
                 )}
                 {visibleColumns.updated && (
-                  <TableCell>{new Date(g.updated_at).toLocaleDateString("vi-VN")}</TableCell>
+                  <TableCell>
+                    {new Date(g.updated_at).toLocaleDateString("vi-VN")}
+                  </TableCell>
                 )}
                 <TableCell className="text-center">
                   <Button
@@ -390,7 +397,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
                     variant="outline"
                     onClick={() => {
                       setGroupForm({
-                        code: g.id,
                         name: g.name,
                         desc: g.description,
                         img: g.image,

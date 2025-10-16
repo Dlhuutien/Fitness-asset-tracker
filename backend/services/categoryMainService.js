@@ -1,16 +1,34 @@
 const categoryRepository = require("../repositories/categoryMainRepository");
 const categoryTypeRepository = require("../repositories/categoryTypeRepository");
+const { generateTypeCode } = require("../utils/codeGenerator");
 
 const categoryService = {
   createCategory: async (data) => {
-    if (!data.id || !data.name) {
-      throw new Error("Category id and name are required");
+    if (!data.name) {
+      throw new Error("Category name is required");
     }
-    const existing = await categoryRepository.findById(data.id);
-    if (existing) {
-      throw new Error(`CategoryMain with id ${data.id} already exists`);
+
+    // Kiểm tra tên trùng (không phân biệt hoa thường)
+    const existingCategories = await categoryRepository.findAll();
+    const nameExists = existingCategories.some(
+      (c) => c.name.trim().toLowerCase() === data.name.trim().toLowerCase()
+    );
+    if (nameExists) {
+      throw new Error(`Category name "${data.name}" already exists`);
     }
-    return await categoryRepository.create(data);
+
+    // Sinh mã code mới (vd: Cardio → CA)
+    const existingCodes = existingCategories.map((c) => c.id);
+    const newId = generateTypeCode(data.name, existingCodes);
+
+    // Tạo mới CategoryMain
+    const newCategory = await categoryRepository.create({
+      id: newId,
+      name: data.name.trim(),
+      description: data.description || null,
+    });
+
+    return newCategory;
   },
 
   getCategories: async () => {
@@ -29,7 +47,7 @@ const categoryService = {
     return await categoryRepository.update(id, data);
   },
 
-   deleteCategory: async (id) => {
+  deleteCategory: async (id) => {
     const existing = await categoryRepository.findById(id);
     if (!existing) throw new Error("Category not found");
 

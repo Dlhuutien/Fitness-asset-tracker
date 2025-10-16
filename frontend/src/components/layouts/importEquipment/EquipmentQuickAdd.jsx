@@ -25,7 +25,12 @@ import EquipmentService from "@/services/equipmentService";
 import VendorService from "@/services/vendorService";
 import CategoryTypeService from "@/services/categoryTypeService";
 
-export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
+export default function EquipmentQuickAdd({
+  open,
+  onClose,
+  onSuccess,
+  vendorId,
+}) {
   const { mutate } = useSWRConfig();
 
   const [form, setForm] = useState({
@@ -61,19 +66,12 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
     if (open) fetchData();
   }, [open]);
 
-  // 🧮 Tự sinh mã thiết bị
+  // ✅ Khi mở popup và có vendorId → tự set vào form
   useEffect(() => {
-    if (form.category_type_id && form.vendor_id) {
-      const selectedType = types.find((t) => t.id === form.category_type_id);
-      const vendorCode = vendors.find((v) => v.id === form.vendor_id)?.id || "";
-      if (selectedType && vendorCode) {
-        setForm((prev) => ({
-          ...prev,
-          code: `${selectedType.category_main_id}${selectedType.id}${vendorCode}`.toUpperCase(),
-        }));
-      }
+    if (open && vendorId) {
+      setForm((prev) => ({ ...prev, vendor_id: vendorId }));
     }
-  }, [form.category_type_id, form.vendor_id, types, vendors]);
+  }, [open, vendorId]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -89,10 +87,10 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
 
   // 🧾 Gửi API
   const handleSubmit = async () => {
-    if (!form.name || !form.vendor_id || !form.category_type_id) {
-      toast.warning("⚠️ Vui lòng nhập tên và chọn loại + nhà cung cấp!");
-      return;
-    }
+    if (!form.name) return toast.warning("⚠️ Nhập tên thiết bị!");
+    if (!form.vendor_id) return toast.warning("⚠️ Chưa có nhà cung cấp!");
+    if (!form.category_type_id)
+      return toast.warning("⚠️ Chưa chọn loại thiết bị!");
 
     try {
       setLoading(true);
@@ -104,18 +102,20 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
         warranty_duration: Number(form.warranty_duration),
         description: form.description,
         image: form.image || null,
-        attributes: [], // ❌ bỏ attribute
+        attributes: [], // Giữ nguyên
       };
 
       const newEquipment = await EquipmentService.create(payload);
 
       toast.success(`✅ Đã thêm thiết bị "${form.name}" thành công!`);
-      mutate(`${API}equipment`);
+      mutate(`${API}equipment/all`); // refresh đúng key SWR
       onSuccess?.(newEquipment);
       onClose();
     } catch (err) {
       console.error("❌ Lỗi khi thêm thiết bị:", err);
-      toast.error("Không thể thêm thiết bị mới!");
+      const msg =
+        err?.response?.data?.message || "Không thể thêm thiết bị mới!";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -149,9 +149,8 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
             <div>
               <Label className="text-sm">Loại thiết bị</Label>
               <Select
-                onValueChange={(val) =>
-                  setForm((prev) => ({ ...prev, category_type_id: val, code: "" }))
-                }
+                value={form.category_type_id}
+                onValueChange={(val) => handleChange("category_type_id", val)}
               >
                 <SelectTrigger className="h-9 text-sm dark:bg-gray-700 dark:text-white">
                   <SelectValue placeholder="Chọn loại thiết bị" />
@@ -169,9 +168,9 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
             <div>
               <Label className="text-sm">Nhà cung cấp</Label>
               <Select
-                onValueChange={(val) =>
-                  setForm((prev) => ({ ...prev, vendor_id: val, code: "" }))
-                }
+                value={form.vendor_id}
+                disabled={!!vendorId}
+                onValueChange={(val) => handleChange("vendor_id", val)}
               >
                 <SelectTrigger className="h-9 text-sm dark:bg-gray-700 dark:text-white">
                   <SelectValue placeholder="Chọn nhà cung cấp" />
@@ -184,11 +183,11 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label className="text-sm">Mã thiết bị (tự sinh)</Label>
-              <Input value={form.code} readOnly className="h-9 dark:bg-gray-700" />
+              {vendorId && (
+                <p className="text-xs text-emerald-500 mt-1 italic">
+                  (Lấy từ nhà cung cấp đang nhập hàng)
+                </p>
+              )}
             </div>
 
             <div>
@@ -197,7 +196,9 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
                 type="number"
                 min="1"
                 value={form.warranty_duration}
-                onChange={(e) => handleChange("warranty_duration", e.target.value)}
+                onChange={(e) =>
+                  handleChange("warranty_duration", e.target.value)
+                }
                 className="h-9 dark:bg-gray-700 dark:text-white"
               />
             </div>

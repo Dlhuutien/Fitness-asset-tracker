@@ -10,6 +10,7 @@ const equipmentRepository = {
     EquipmentModel.getByCategoryTypeId(category_type_id),
   findByVendorId: async (vendor_id) =>
     EquipmentModel.getByVendorId(vendor_id),
+  findAllIds: async () => await EquipmentModel.getAllIds(),
 };
 
 module.exports = equipmentRepository;
