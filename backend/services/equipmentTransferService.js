@@ -2,6 +2,7 @@ const equipmentTransferRepository = require("../repositories/equipmentTransferRe
 const equipmentTransferDetailRepository = require("../repositories/equipmentTransferDetailRepository");
 const branchRepository = require("../repositories/branchRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
+const userRepository = require("../repositories/userRepository");
 
 const equipmentTransferService = {
   // ===================================================
@@ -118,25 +119,132 @@ const equipmentTransferService = {
         t.id
       );
 
+      const detailsWithUnits = [];
+      for (const d of details) {
+        const unit = await equipmentUnitRepository.findById(
+          d.equipment_unit_id
+        );
+        detailsWithUnits.push({ ...d, equipment_unit: unit });
+      }
+
+      // 🔹 Lấy tên người yêu cầu & người nhận (nếu có)
+      let approvedByName = null;
+      let receiverName = null;
+
+      if (t.approved_by) {
+        const approvedUser = await userRepository.getUserBySub(t.approved_by);
+        approvedByName =
+          approvedUser?.attributes?.name || approvedUser?.username || null;
+      }
+
+      if (t.receiver_id) {
+        const receiverUser = await userRepository.getUserBySub(t.receiver_id);
+        receiverName =
+          receiverUser?.attributes?.name || receiverUser?.username || null;
+      }
+
+      results.push({
+        ...t,
+        approved_by_name: approvedByName,
+        receiver_name: receiverName,
+        details: detailsWithUnits,
+      });
+    }
+
+    return results;
+  },
+
+  getTransfersByStatus: async (status) => {
+    const transfers = await equipmentTransferRepository.findAllByStatus(status);
+    const results = [];
+
+    for (const t of transfers) {
+      const details = await equipmentTransferDetailRepository.findByTransferId(
+        t.id
+      );
+
       // Join với EquipmentUnit để lấy thông tin đầy đủ
       const detailsWithUnits = [];
       for (const d of details) {
         const unit = await equipmentUnitRepository.findById(
           d.equipment_unit_id
         );
-        detailsWithUnits.push({
-          ...d,
-          equipment_unit: unit,
-        });
+        detailsWithUnits.push({ ...d, equipment_unit: unit });
+      }
+
+      // 🔹 Lấy tên người yêu cầu và người nhận
+      let approvedByName = null;
+      let receiverName = null;
+
+      if (t.approved_by) {
+        const approvedUser = await userRepository.getUserBySub(t.approved_by);
+        approvedByName =
+          approvedUser?.attributes?.name || approvedUser?.username || null;
+      }
+
+      if (t.receiver_id) {
+        const receiverUser = await userRepository.getUserBySub(t.receiver_id);
+        receiverName =
+          receiverUser?.attributes?.name || receiverUser?.username || null;
       }
 
       results.push({
         ...t,
+        approved_by_name: approvedByName,
+        receiver_name: receiverName,
         details: detailsWithUnits,
       });
     }
 
     return results;
+  },
+
+  // ===================================================
+  // 🔎 GET ONE TRANSFER BY ID (kèm details + unit info)
+  // ===================================================
+  getTransferById: async (id) => {
+    const transfer = await equipmentTransferRepository.findById(id);
+    if (!transfer) throw new Error("EquipmentTransfer not found");
+
+    const details = await equipmentTransferDetailRepository.findByTransferId(
+      id
+    );
+
+    // Join với EquipmentUnit để lấy thông tin đầy đủ
+    const detailsWithUnits = [];
+    for (const d of details) {
+      const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+      detailsWithUnits.push({
+        ...d,
+        equipment_unit: unit,
+      });
+    }
+
+    let approvedByName = null;
+    let receiverName = null;
+
+    if (transfer.approved_by) {
+      const approvedUser = await userRepository.getUserBySub(
+        transfer.approved_by
+      );
+      approvedByName =
+        approvedUser?.attributes?.name || approvedUser?.username || null;
+    }
+
+    if (transfer.receiver_id) {
+      const receiverUser = await userRepository.getUserBySub(
+        transfer.receiver_id
+      );
+      receiverName =
+        receiverUser?.attributes?.name || receiverUser?.username || null;
+    }
+
+    return {
+      ...transfer,
+      approved_by_name: approvedByName,
+      receiver_name: receiverName,
+      details: detailsWithUnits,
+    };
   },
 
   // ===================================================

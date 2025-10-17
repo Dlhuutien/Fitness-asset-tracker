@@ -9,9 +9,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import Status from "@/components/common/Status";
 import { Grid, Loader2 } from "lucide-react";
 import EquipmentUnitService from "@/services/equipmentUnitService";
+import BranchService from "@/services/branchService";
 import MaintainService from "@/services/MaintainService";
 import { toast } from "sonner";
 import {
@@ -41,6 +49,8 @@ export default function MaintenanceReadySection() {
   const [search, setSearch] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [branches, setBranches] = useState([]);
+  const [activeBranch, setActiveBranch] = useState("all");
 
   const [loading, setLoading] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -90,6 +100,16 @@ export default function MaintenanceReadySection() {
       }
     })();
   }, []);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await BranchService.getAll();
+        setBranches(res || []);
+      } catch {
+        toast.error("Không thể tải danh sách chi nhánh!");
+      }
+    })();
+  }, []);
 
   // Lọc & tìm kiếm
   useEffect(() => {
@@ -102,13 +122,18 @@ export default function MaintenanceReadySection() {
         u.equipment?.vendor_name?.toLowerCase().includes(q) ||
         u.equipment?.type_name?.toLowerCase().includes(q);
 
-      if (activeGroup === "all") return matchSearch;
-      return u.equipment?.main_name === activeGroup && matchSearch;
+      const matchGroup =
+        activeGroup === "all" || u.equipment?.main_name === activeGroup;
+
+      const matchBranch =
+        activeBranch === "all" || u.branch_id === activeBranch;
+
+      return matchSearch && matchGroup && matchBranch;
     });
 
     setFiltered(f);
     setCurrentPage(1);
-  }, [search, activeGroup, equipments]);
+  }, [search, activeGroup, activeBranch, equipments]);
 
   // Excel-style unique values
   const uniqueValues = useMemo(
@@ -232,89 +257,91 @@ export default function MaintenanceReadySection() {
     );
 
   return (
-    <div className="grid grid-cols-12 gap-4">
-      {/* Sidebar bộ lọc */}
-      <div className="col-span-3 space-y-4">
-        <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-          Bộ lọc thiết bị
-        </h2>
-
-        {/* Ô tìm kiếm */}
-        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow space-y-2">
-          <h3 className="font-semibold text-sm dark:text-gray-200">Tìm kiếm</h3>
+    <div className="space-y-4">
+      {/* ====== Toolbar ====== */}
+      <div className="flex flex-wrap justify-between items-center gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Ô tìm kiếm */}
           <Input
-            placeholder="Tìm tên, loại, nhà cung cấp..."
+            placeholder="🔍 Tìm tên, loại, nhà cung cấp..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="dark:bg-gray-700 dark:text-gray-100"
+            className="h-9 w-64 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-emerald-400 text-sm"
           />
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSearch("")}
-              className="dark:border-gray-600 dark:text-gray-200"
-            >
-              Reset
-            </Button>
-            <Button
-              size="sm"
-              className="bg-emerald-500 text-white hover:bg-emerald-600"
-            >
-              Tìm
-            </Button>
-          </div>
+
+          {/* Nhóm thiết bị */}
+          <Select
+            onValueChange={(v) => {
+              setActiveGroup(v);
+              setCurrentPage(1);
+            }}
+            defaultValue="all"
+          >
+            <SelectTrigger className="h-9 w-44 border-gray-300 dark:border-gray-700 text-sm bg-gray-50 dark:bg-gray-800 focus:ring-emerald-400 transition">
+              <SelectValue placeholder="Nhóm thiết bị" />
+            </SelectTrigger>
+            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md rounded-md">
+              {[
+                { id: "all", name: "Tất cả nhóm" },
+                ...Array.from(
+                  new Set(equipments.map((e) => e.equipment?.main_name))
+                ).map((n) => ({ id: n, name: n })),
+              ].map((g) => (
+                <SelectItem
+                  key={g.id}
+                  value={g.id}
+                  className="text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Chi nhánh */}
+          <Select
+            onValueChange={(v) => {
+              setActiveBranch(v);
+              setCurrentPage(1);
+            }}
+            defaultValue="all"
+          >
+            <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+              <SelectValue placeholder="Chi nhánh" />
+            </SelectTrigger>
+            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+              <SelectItem value="all" className="text-sm">
+                Tất cả chi nhánh
+              </SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id} className="text-sm">
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* Nhóm thiết bị */}
-        <div className="p-3 bg-white dark:bg-gray-800 rounded-lg shadow">
-          <h3 className="font-semibold text-sm mb-2 dark:text-gray-200">
-            Hiển thị theo nhóm
-          </h3>
-          <div className="flex flex-col gap-2 max-h-[340px] overflow-y-auto">
-            {[
-              { id: "all", name: "Tất cả" },
-              ...Array.from(
-                new Set(equipments.map((e) => e.equipment?.main_name))
-              ).map((n) => ({ id: n, name: n })),
-            ].map((g, idx) => (
-              <button
-                key={idx}
-                onClick={() => setActiveGroup(g.id)}
-                className={`flex items-center gap-3 px-2 py-2 rounded-md border text-sm transition ${
-                  activeGroup === g.id
-                    ? "bg-emerald-100 border-emerald-500 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200"
-                    : "bg-white border-gray-200 hover:bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200"
-                }`}
-              >
-                <Grid size={16} />
-                <span className="flex-1 truncate">{g.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Hiển thị cột */}
+        <ColumnVisibilityButton
+          visibleColumns={visibleColumns}
+          setVisibleColumns={setVisibleColumns}
+          labels={{
+            id: "Mã định danh",
+            image: "Ảnh",
+            name: "Tên thiết bị",
+            main_name: "Nhóm",
+            type_name: "Loại",
+            status: "Trạng thái",
+            vendor_name: "Nhà cung cấp",
+            branch_id: "Chi nhánh",
+          }}
+        />
       </div>
 
       {/* Main content */}
       <div className="col-span-9 space-y-3">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-          <div className="flex justify-end px-4 py-2">
-            <ColumnVisibilityButton
-              visibleColumns={visibleColumns}
-              setVisibleColumns={setVisibleColumns}
-              labels={{
-                id: "Mã định danh thiết bị",
-                image: "Ảnh",
-                name: "Tên thiết bị",
-                main_name: "Nhóm",
-                type_name: "Loại",
-                status: "Kết quả bảo trì",
-                vendor_name: "Nhà cung cấp",
-                branch_id: "Chi nhánh",
-              }}
-            />
-          </div>
-
           <div className="overflow-x-auto">
             <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-600">
               <TableHeader>

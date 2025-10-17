@@ -28,6 +28,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import BranchService from "@/services/branchService";
 
 const STATUS_MAP = {
   active: "Hoạt động",
@@ -59,6 +60,9 @@ export default function MaintenanceUrgentSection() {
   const [search, setSearch] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [activeBranch, setActiveBranch] = useState("all");
+  const [branches, setBranches] = useState([]);
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -103,6 +107,7 @@ export default function MaintenanceUrgentSection() {
   }, []);
 
   // ====== Tìm kiếm + Lọc nhóm ======
+  // ====== Tìm kiếm + Lọc nhóm + Chi nhánh ======
   useEffect(() => {
     const q = search.trim().toLowerCase();
 
@@ -113,13 +118,29 @@ export default function MaintenanceUrgentSection() {
         u.equipment?.vendor_name?.toLowerCase().includes(q) ||
         u.equipment?.type_name?.toLowerCase().includes(q);
 
-      if (activeGroup === "all") return matchSearch;
-      return u.equipment?.main_name === activeGroup && matchSearch;
+      const matchGroup =
+        activeGroup === "all" || u.equipment?.main_name === activeGroup;
+
+      const matchBranch =
+        activeBranch === "all" || u.branch_id === activeBranch;
+
+      return matchSearch && matchGroup && matchBranch;
     });
 
     setFiltered(f);
     setCurrentPage(1);
-  }, [search, activeGroup, equipments]);
+  }, [search, activeGroup, activeBranch, equipments]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await BranchService.getAll();
+        setBranches(res || []);
+      } catch {
+        toast.error("Không thể tải danh sách chi nhánh!");
+      }
+    })();
+  }, []);
 
   // ====== Excel-style lọc theo cột ======
   const uniqueValues = useMemo(
@@ -281,7 +302,8 @@ export default function MaintenanceUrgentSection() {
               <SelectValue placeholder="Nhóm thiết bị" />
             </SelectTrigger>
             <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md rounded-md">
-              {[{ id: "all", name: "Tất cả nhóm" },
+              {[
+                { id: "all", name: "Tất cả nhóm" },
                 ...Array.from(
                   new Set(equipments.map((e) => e.equipment?.main_name))
                 ).map((n) => ({ id: n, name: n })),
@@ -292,6 +314,28 @@ export default function MaintenanceUrgentSection() {
                   className="text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
                   {g.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Chi nhánh */}
+          <Select
+            onValueChange={(v) => {
+              setActiveBranch(v);
+              setCurrentPage(1);
+            }}
+            defaultValue="all"
+          >
+            <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+              <SelectValue placeholder="Chi nhánh" />
+            </SelectTrigger>
+            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+              <SelectItem value="all" className="text-sm">
+                Tất cả chi nhánh
+              </SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id} className="text-sm">
+                  {b.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -368,6 +412,14 @@ export default function MaintenanceUrgentSection() {
                           technician_name: m.technician_name,
                         }));
                       }
+
+                      // Nếu thiết bị đang bảo trì → hiển thị luôn Step 2
+                      if (row.status?.toLowerCase() === "in progress") {
+                        setMaintenanceSteps((prev) => ({
+                          ...prev,
+                          [row.id]: 2,
+                        }));
+                      }
                     }}
                   >
                     <TableCell className="text-center">
@@ -413,8 +465,8 @@ export default function MaintenanceUrgentSection() {
         {/* Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700 text-sm">
           <div className="text-gray-700 dark:text-gray-300">
-            Trang {currentPage} / {totalPages} — Tổng:{" "}
-            {filteredByColumn.length} thiết bị
+            Trang {currentPage} / {totalPages} — Tổng: {filteredByColumn.length}{" "}
+            thiết bị
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -487,8 +539,7 @@ export default function MaintenanceUrgentSection() {
                 <strong>Tên:</strong> {selected.equipment?.name}
               </p>
               <p>
-                <strong>Nhà cung cấp:</strong>{" "}
-                {selected.equipment?.vendor_name}
+                <strong>Nhà cung cấp:</strong> {selected.equipment?.vendor_name}
               </p>
               <p>
                 <strong>Nhóm:</strong> {selected.equipment?.main_name}

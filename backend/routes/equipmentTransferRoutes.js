@@ -10,13 +10,24 @@ router.post("/", verifyAccessToken, equipmentTransferController.createTransfer);
 // READ ALL
 router.get("/", equipmentTransferController.getTransfers);
 
+// GET transfers by status (e.g., Completed)
+router.get("/status/:status", equipmentTransferController.getTransfersByStatus);
+
 // READ ONE
 router.get("/:id", equipmentTransferController.getTransferById);
 
 // COMPLETE transfer (chỉ update receive date + status)
-router.put("/:id/complete", verifyAccessToken, equipmentTransferController.completeTransfer);
+router.put(
+  "/:id/complete",
+  verifyAccessToken,
+  equipmentTransferController.completeTransfer
+);
 
 // DELETE
-router.delete("/:id", verifyAccessToken, equipmentTransferController.deleteTransfer);
+router.delete(
+  "/:id",
+  verifyAccessToken,
+  equipmentTransferController.deleteTransfer
+);
 
 module.exports = router;
