@@ -174,9 +174,9 @@ export default function TransferPendingSection() {
   const handleComplete = async (transfer) => {
     try {
       setCompleting(true);
-      await EquipmentTransferService.complete(transfer.id, {
-        move_receive_date: new Date().toISOString(),
-      });
+      const dateValue = transfer.move_receive_date || new Date().toISOString();
+
+      await EquipmentTransferService.complete(transfer.id, dateValue);
       toast.success("✅ Đã xác nhận hoàn tất vận chuyển!");
       setSelected(null);
       await loadData();
@@ -520,7 +520,7 @@ export default function TransferPendingSection() {
             <Button
               onClick={() =>
                 handleComplete({
-                  ...selected,
+                  id: selected.id,
                   move_receive_date:
                     selected.move_receive_date || new Date().toISOString(),
                 })
