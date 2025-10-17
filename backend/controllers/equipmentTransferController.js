@@ -39,6 +39,18 @@ const equipmentTransferController = {
     }
   },
 
+  getTransfersByStatus: async (req, res) => {
+    try {
+      const { status } = req.params;
+      const transfers = await equipmentTransferService.getTransfersByStatus(
+        status
+      );
+      res.json(transfers);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   getTransferById: async (req, res) => {
     try {
       const transfer = await equipmentTransferService.getTransferById(
@@ -56,7 +68,7 @@ const equipmentTransferController = {
         await equipmentTransferService.completeTransfer(
           req.params.id,
           req.body.move_receive_date,
-          req.user.sub  
+          req.user.sub
         );
 
       const admins = await userService.getUsersByRoles([
