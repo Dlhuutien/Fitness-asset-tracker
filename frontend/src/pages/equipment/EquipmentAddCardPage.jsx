@@ -12,15 +12,19 @@ import {
 } from "@/components/ui/select";
 import { Upload, RotateCcw, PlusCircle } from "lucide-react";
 
+import CategoryMainService from "@/services/categoryMainService";
+import EquipmentGroupQuickAdd from "@/components/panel/addCardEquipment/EquipmentGroupQuickAdd";
 import CategoryTypeService from "@/services/categoryTypeService";
+import EquipmentTypeQuickAdd from "@/components/panel/addCardEquipment/EquipmentTypeQuickAdd";
 import VendorService from "@/services/vendorService";
+import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
 import AttributeService from "@/services/attributeService";
 import EquipmentService from "@/services/equipmentService";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 import { API } from "@/config/url";
 
-export default function EquipmentAddCardPage() {
+export default function EquipmentAddCardPage({ onSuccessAdd }) {
   const { mutate } = useSWRConfig(); // Lấy mutate toàn cục
   const [formData, setFormData] = useState({
     type: "",
@@ -32,12 +36,22 @@ export default function EquipmentAddCardPage() {
     preview: "",
   });
 
+  const [searchVendor, setSearchVendor] = useState("");
+  const [openQuickAdd, setOpenQuickAdd] = useState(false);
+
+  const [searchGroup, setSearchGroup] = useState("");
+  const [openQuickAddGroup, setOpenQuickAddGroup] = useState(false);
+
+  const [searchType, setSearchType] = useState("");
+  const [openQuickAddType, setOpenQuickAddType] = useState(false);
+
   const [selectedAttrs, setSelectedAttrs] = useState({});
   const [newAttr, setNewAttr] = useState("");
   const [showAddAttr, setShowAddAttr] = useState(false);
   const [spinClearChecked, setSpinClearChecked] = useState(false);
   const [spinClearInputs, setSpinClearInputs] = useState(false);
 
+  const [groups, setGroups] = useState([]);
   const [types, setTypes] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [attributes, setAttributes] = useState([]);
@@ -51,11 +65,13 @@ export default function EquipmentAddCardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [typeList, vendorList, attrList] = await Promise.all([
+        const [groupList, typeList, vendorList, attrList] = await Promise.all([
+          CategoryMainService.getAll(),
           CategoryTypeService.getAllWithDisplayName(),
           VendorService.getAll(),
           AttributeService.getAll(),
         ]);
+        setGroups(groupList);
         setTypes(typeList);
         setVendors(vendorList);
         setAttributes(attrList);
@@ -193,7 +209,11 @@ export default function EquipmentAddCardPage() {
       // 🔄 Cập nhật cache ngay lập tức cho tất cả các trang liên quan
       mutate(`${API}equipment`);
 
+      // 📢 Gọi callback báo về parent
+      if (onSuccessAdd) onSuccessAdd(res);
+
       setFormData({
+        group: "",
         type: "",
         vendor: "",
         name: "",
@@ -237,46 +257,288 @@ export default function EquipmentAddCardPage() {
             Thêm loại thiết bị cụ thể
           </h3>
 
-          {/* Loại */}
-          <div>
-            <Label className="text-sm">Loại thiết bị cụ thể</Label>
-            <Select
-              onValueChange={(val) =>
-                setFormData((prev) => ({ ...prev, type: val, code: "" }))
-              }
-            >
-              <SelectTrigger className="h-9 text-sm bg-white dark:bg-gray-700 dark:text-gray-100">
-                <SelectValue placeholder="Chọn loại thiết bị" />
-              </SelectTrigger>
-              <SelectContent className="z-[9999] bg-white dark:bg-gray-800 border rounded-md">
-                {types.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.displayName}
-                  </SelectItem>
+          {/* ========== SECTION: NHÀ CUNG CẤP ========== */}
+          <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-emerald-600 text-base flex items-center gap-1">
+                🏢 Nhà cung cấp
+              </h4>
+              {formData.vendor && (
+                <span className="text-xs text-gray-500">
+                  Đã chọn:{" "}
+                  <b>
+                    {vendors.find((v) => v.id === formData.vendor)?.name ||
+                      formData.vendor}
+                  </b>
+                </span>
+              )}
+            </div>
+
+            {/* Thanh tìm kiếm + nút hành động */}
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="🔍 Tìm theo tên, mã hoặc quốc gia..."
+                value={searchVendor}
+                onChange={(e) => setSearchVendor(e.target.value)}
+                className="flex-1 h-9 text-sm"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={async () => {
+                  const data = await VendorService.getAll();
+                  setVendors(data || []);
+                  toast.success("🔄 Danh sách nhà cung cấp đã làm mới!");
+                }}
+              >
+                <RotateCcw size={16} />
+              </Button>
+              <Button
+                onClick={() => setOpenQuickAdd(true)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4"
+              >
+                ➕ Thêm mới
+              </Button>
+            </div>
+
+            {/* Danh sách vendor dạng list cuộn */}
+            <div className="max-h-[200px] overflow-y-auto border rounded-md divide-y dark:divide-gray-700">
+              {vendors
+                .filter((v) => {
+                  const q = searchVendor.toLowerCase();
+                  return (
+                    v.name.toLowerCase().includes(q) ||
+                    v.id.toLowerCase().includes(q) ||
+                    (v.origin || "").toLowerCase().includes(q)
+                  );
+                })
+                .map((v) => (
+                  <div
+                    key={v.id}
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, vendor: v.id }))
+                    }
+                    className={`p-3 cursor-pointer transition ${
+                      formData.vendor === v.id
+                        ? "bg-emerald-50 dark:bg-gray-700"
+                        : "hover:bg-emerald-50 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    <p className="font-semibold text-emerald-600 text-sm">
+                      {v.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Mã: {v.id} • Quốc gia: {v.origin}
+                    </p>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
+            </div>
           </div>
 
-          {/* Vendor */}
-          <div>
-            <Label className="text-sm">Nhà cung cấp</Label>
-            <Select
-              onValueChange={(val) =>
-                setFormData((prev) => ({ ...prev, vendor: val }))
-              }
-            >
-              <SelectTrigger className="h-9 text-sm bg-white dark:bg-gray-700 dark:text-gray-100">
-                <SelectValue placeholder="Chọn nhà cung cấp" />
-              </SelectTrigger>
-              <SelectContent className="z-[9999] bg-white dark:bg-gray-800 border rounded-md">
-                {vendors.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.name}
-                  </SelectItem>
+          {/* ========== SECTION: NHÓM THIẾT BỊ ========== */}
+          <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-emerald-600 text-base flex items-center gap-1">
+                🧩 Nhóm thiết bị
+              </h4>
+              {formData.group && (
+                <span className="text-xs text-gray-500">
+                  Đã chọn:{" "}
+                  <b>
+                    {groups.find((g) => g.id === formData.group)?.name ||
+                      formData.group}
+                  </b>
+                </span>
+              )}
+            </div>
+
+            {/* Thanh tìm kiếm + nút hành động */}
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="🔍 Tìm theo tên hoặc mã nhóm..."
+                value={searchGroup}
+                onChange={(e) => setSearchGroup(e.target.value)}
+                className="flex-1 h-9 text-sm"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={async () => {
+                  const data = await CategoryMainService.getAll();
+                  setGroups(data || []);
+                  toast.success("🔄 Danh sách nhóm thiết bị đã làm mới!");
+                }}
+              >
+                <RotateCcw size={16} />
+              </Button>
+              <Button
+                onClick={() => setOpenQuickAddGroup(true)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4"
+              >
+                ➕ Thêm mới
+              </Button>
+            </div>
+
+            {/* Danh sách nhóm dạng card (hình + tên + mã) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[220px] overflow-y-auto mt-2 pt-5">
+              {groups
+                .filter((g) => {
+                  const q = searchGroup.toLowerCase();
+                  return (
+                    g.name.toLowerCase().includes(q) ||
+                    g.id.toLowerCase().includes(q) ||
+                    (g.description || "").toLowerCase().includes(q)
+                  );
+                })
+                .map((g) => (
+                  <div
+                    key={g.id}
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        group: g.id,
+                        type: "",
+                      }))
+                    }
+                    className={`border rounded-lg overflow-hidden cursor-pointer transition-all shadow-sm hover:shadow-md ${
+                      formData.group === g.id
+                        ? "border-emerald-500 ring-2 ring-emerald-300"
+                        : "border-gray-200 dark:border-gray-700"
+                    }`}
+                  >
+                    <div className="w-full h-16 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden">
+                      {g.image ? (
+                        <img
+                          src={g.image}
+                          alt={g.name}
+                          className="object-cover max-w-[90px] h-full"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-gray-400">
+                          Không có ảnh
+                        </span>
+                      )}
+                    </div>
+                    <div className="p-1.5 text-center">
+                      <p className="font-medium text-[13px] text-emerald-600 truncate">
+                        {g.name}
+                      </p>
+                      <p className="text-[11px] text-gray-500 truncate">
+                        Mã: {g.id}
+                      </p>
+                    </div>
+                  </div>
                 ))}
-              </SelectContent>
-            </Select>
+            </div>
+
+            {groups.length === 0 && (
+              <p className="text-center text-gray-400 text-sm py-4">
+                Không có nhóm nào.
+              </p>
+            )}
+          </div>
+
+          {/* ========== SECTION: LOẠI THIẾT BỊ CỤ THỂ ========== */}
+          <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-emerald-600 text-base flex items-center gap-1">
+                ⚙️ Loại thiết bị cụ thể
+              </h4>
+              {formData.type && (
+                <span className="text-xs text-gray-500">
+                  Đã chọn:{" "}
+                  <b>
+                    {types.find((t) => t.id === formData.type)?.name ||
+                      formData.type}
+                  </b>
+                </span>
+              )}
+            </div>
+
+            {/* Thanh tìm kiếm + nút hành động */}
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="🔍 Tìm loại theo tên, mã hoặc nhóm..."
+                value={searchType}
+                onChange={(e) => setSearchType(e.target.value)}
+                className="flex-1 h-9 text-sm"
+                disabled={!formData.group}
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                onClick={async () => {
+                  const data =
+                    await CategoryTypeService.getAllWithDisplayName();
+                  setTypes(data || []);
+                  toast.success("🔄 Danh sách loại thiết bị đã làm mới!");
+                }}
+                disabled={!formData.group}
+              >
+                <RotateCcw size={16} />
+              </Button>
+              <Button
+                onClick={() => setOpenQuickAddType(true)}
+                disabled={!formData.group}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4 disabled:opacity-60"
+              >
+                ➕ Thêm mới
+              </Button>
+            </div>
+
+            {/* Nếu chưa chọn nhóm */}
+            {!formData.group && (
+              <p className="text-center text-gray-400 text-sm py-6">
+                ⚠️ Vui lòng chọn <b>nhóm thiết bị</b> trước khi chọn loại.
+              </p>
+            )}
+
+            {/* Danh sách loại dạng list cuộn */}
+            {formData.group && (
+              <div className="max-h-[220px] overflow-y-auto border rounded-md divide-y dark:divide-gray-700 mt-2">
+                {types
+                  .filter((t) => {
+                    const q = searchType.toLowerCase();
+                    return (
+                      t.category_main_id === formData.group &&
+                      (t.name.toLowerCase().includes(q) ||
+                        t.id.toLowerCase().includes(q) ||
+                        (t.main_name || "").toLowerCase().includes(q))
+                    );
+                  })
+                  .map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          type: t.id,
+                        }))
+                      }
+                      className={`p-3 cursor-pointer transition ${
+                        formData.type === t.id
+                          ? "bg-emerald-50 dark:bg-gray-700"
+                          : "hover:bg-emerald-50 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      <p className="font-semibold text-emerald-600 text-sm">
+                        {t.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        Mã: {t.id} • Nhóm: {t.main_name || "Không xác định"}
+                      </p>
+                    </div>
+                  ))}
+
+                {/* Nếu không có loại nào */}
+                {types.filter((t) => t.category_main_id === formData.group)
+                  .length === 0 && (
+                  <p className="text-center text-gray-400 text-sm py-4">
+                    Không có loại nào thuộc nhóm này.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Tên thiết bị */}
@@ -516,6 +778,36 @@ export default function EquipmentAddCardPage() {
           </Button>
         </div>
       </form>
+      {/* QuickAdd Vendor */}
+      <VendorQuickAdd
+        open={openQuickAdd}
+        onClose={() => setOpenQuickAdd(false)}
+        onSuccess={(newVendor) => {
+          setVendors((prev) => [...prev, newVendor]);
+          setFormData((prev) => ({ ...prev, vendor: newVendor.id }));
+          toast.success("🎉 Đã thêm nhà cung cấp mới!");
+        }}
+      />
+      {/* QuickAdd Group */}
+      <EquipmentGroupQuickAdd
+        open={openQuickAddGroup}
+        onClose={() => setOpenQuickAddGroup(false)}
+        onSuccess={(newGroup) => {
+          toast.success(`🎉 Đã thêm nhóm "${newGroup.name}"!`);
+          setGroups((prev) => [...prev, newGroup]);
+          setFormData((prev) => ({ ...prev, group: newGroup.id }));
+        }}
+      />
+      {/* QuickAdd Type */}
+      <EquipmentTypeQuickAdd
+        open={openQuickAddType}
+        onClose={() => setOpenQuickAddType(false)}
+        onSuccess={(newType) => {
+          toast.success(`🎉 Đã thêm loại "${newType.name}"!`);
+          setTypes((prev) => [...prev, newType]);
+          setFormData((prev) => ({ ...prev, type: newType.id }));
+        }}
+      />
       {successMsg && (
         <div className="mb-3 p-3 rounded bg-emerald-50 text-emerald-600 text-sm border border-emerald-200">
           {successMsg}

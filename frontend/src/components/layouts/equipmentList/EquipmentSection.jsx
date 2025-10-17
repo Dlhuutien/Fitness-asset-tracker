@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -39,6 +40,8 @@ export default function EquipmentGroupPage() {
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
   const navigate = useNavigate();
   const [showAddCard, setShowAddCard] = useState(false);
+  const [highlightedId, setHighlightedId] = useState(null);
+  const tableRef = useRef(null);
 
   const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
     useEquipmentData();
@@ -133,6 +136,22 @@ export default function EquipmentGroupPage() {
       <div className="p-4 text-red-500">Lỗi khi tải dữ liệu, thử lại sau.</div>
     );
 
+  // 📍 callback khi thêm thiết bị thành công
+  const handleAddSuccess = (newEquipment) => {
+    if (!newEquipment?.id) return;
+    setShowAddCard(false); // 🔹 đóng form thêm
+    setHighlightedId(newEquipment.id);
+
+    // 🔹 Cuộn đến dòng vừa thêm (sau 200ms để table render xong)
+    setTimeout(() => {
+      const row = document.getElementById(`equipment-${newEquipment.id}`);
+      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 200);
+
+    // 🔹 Tự bỏ highlight sau 30s
+    setTimeout(() => setHighlightedId(null), 30000);
+  };
+
   return (
     <div className="p-4 space-y-4 font-jakarta">
       <Button
@@ -163,7 +182,8 @@ export default function EquipmentGroupPage() {
             transition={{ duration: 0.3 }}
             className="bg-gray-50 dark:bg-gray-900 rounded-xl border border-emerald-300 dark:border-emerald-700 shadow-inner p-4"
           >
-            <EquipmentAddCardPage />
+            {/* Truyền callback báo thành công */}
+            <EquipmentAddCardPage onSuccessAdd={handleAddSuccess} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -308,8 +328,20 @@ export default function EquipmentGroupPage() {
               {currentData.map((row, idx) => (
                 <TableRow
                   key={row.id ?? idx}
+                  id={`equipment-${row.id}`}
                   onClick={() => navigate(`/app/equipment/specs/${row.id}`)}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700 text-sm cursor-pointer transition"
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-700 text-sm cursor-pointer transition
+    ${highlightedId === row.id ? "bg-emerald-100 dark:bg-emerald-700/40" : ""}`}
+                  as={motion.tr}
+                  initial={{
+                    backgroundColor:
+                      highlightedId === row.id ? "#A7F3D0" : "transparent",
+                  }}
+                  animate={{
+                    backgroundColor:
+                      highlightedId === row.id ? "#A7F3D0" : "transparent",
+                  }}
+                  transition={{ duration: 0.6 }}
                 >
                   <TableCell className="text-center border dark:border-gray-600">
                     {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}

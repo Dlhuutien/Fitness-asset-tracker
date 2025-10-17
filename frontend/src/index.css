@@ -186,3 +186,43 @@ body {
 .animate-slide-out {
   animation: slide-out-right 0.4s ease forwards;
 }
+
+
+/* ========Ẩn thanh cuộn============== */
+/* Ẩn thanh cuộn nhưng vẫn cuộn được */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+/* ========Đổi màu tất cả thanh cuộn========= */
+/* 🎨 Style chung cho toàn bộ thanh cuộn */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* Phần track (nền) */
+::-webkit-scrollbar-track {
+  background: transparent; /* hoặc #f1f1f1 */
+}
+
+/* Thanh cuộn chính */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, #10b981, #06b6d4); /* xanh lục → cyan */
+  border-radius: 9999px;
+}
+
+/* Khi hover vào thanh cuộn */
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, #0ea5e9, #14b8a6);
+}
+
+/* Hỗ trợ Firefox */
+* {
+  scrollbar-color: #10b981 transparent;
+  scrollbar-width: thin;
+}
