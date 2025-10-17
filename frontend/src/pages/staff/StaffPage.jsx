@@ -447,9 +447,7 @@ export default function StaffPage() {
                         {new Date(u.createdAt).toLocaleDateString("vi-VN")}
                       </TableCell>
                       <TableCell>
-                        <Branch
-                          branch={u.attributes?.["custom:branch_id"] || "—"}
-                        />
+                        <Branch id={u.attributes?.["custom:branch_id"]} />
                       </TableCell>
                       <TableCell>
                         <Status status={u.enabled ? "Đang làm" : "Đã nghỉ"} />
