@@ -7,15 +7,25 @@ const InvoiceService = {
    * POST /invoice
    * data = { items: [{ equipment_id, branch_id, quantity, cost }] }
    */
-  async create(data) {
-    try {
-      const res = await axios.post(`${API}invoice`, data);
-      return res.data;
-    } catch (err) {
-      console.error("❌ Lỗi khi tạo invoice:", err.response?.data || err.message);
-      throw err.response?.data || err;
+async create(data, signal) {
+  try {
+    console.log("📡 Gửi request tạo invoice với signal:", signal);
+    const res = await axios.post(`${API}invoice`, data, { signal });
+    return res.data;
+  } catch (err) {
+    console.log("❌ Lỗi khi tạo invoice:", err);
+
+    // ✅ Cách kiểm tra hủy đúng chuẩn Axios 1.x
+    if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
+      console.warn("⚠️ Request tạo invoice đã bị hủy!");
+      throw new Error("RequestCanceled");
     }
-  },
+
+    console.error("❌ Lỗi khi tạo invoice:", err.response?.data || err.message);
+    throw err.response?.data || err;
+  }
+},
+
 
   /**
    * Lấy danh sách invoices
