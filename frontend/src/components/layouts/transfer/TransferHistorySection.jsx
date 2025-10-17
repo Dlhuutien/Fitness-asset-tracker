@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import EquipmentTransferService from "@/services/equipmentTransferService";
-import EquipmentUnitService from "@/services/equipmentUnitService";
 import Status from "@/components/common/Status";
+import Branch from "@/components/common/Branch";
 
 const STATUS_MAP = {
   active: "Hoạt động",
@@ -39,30 +39,7 @@ export default function TransferHistory() {
     const fetchTransfers = async () => {
       try {
         const data = await EquipmentTransferService.getByStatus("Completed");
-
-        const updated = await Promise.all(
-          data.map(async (t) => {
-            const details = await Promise.all(
-              t.details.map(async (d) => {
-                try {
-                  const unit = await EquipmentUnitService.getById(
-                    d.equipment_unit_id
-                  );
-                  return {
-                    ...d,
-                    equipment_unit: {
-                      ...d.equipment_unit,
-                      name: unit?.equipment?.name || "Chưa rõ",
-                    },
-                  };
-                } catch {
-                  return d;
-                }
-              })
-            );
-            return { ...t, details };
-          })
-        );
+        setTransfers(data);
 
         setTransfers(updated);
       } catch (err) {
@@ -158,8 +135,12 @@ export default function TransferHistory() {
                     <TableCell className="font-medium text-emerald-600">
                       {t.id}
                     </TableCell>
-                    <TableCell>{t.from_branch_id}</TableCell>
-                    <TableCell>{t.to_branch_id}</TableCell>
+                    <TableCell>
+                      <Branch id={t.from_branch_id} />
+                    </TableCell>
+                    <TableCell>
+                      <Branch id={t.to_branch_id} />
+                    </TableCell>
                     <TableCell>{t.approved_by_name || "—"}</TableCell>
                     <TableCell>{t.receiver_name || "—"}</TableCell>
                     <TableCell>
@@ -203,7 +184,7 @@ export default function TransferHistory() {
                                   <TableHead>Mã thiết bị</TableHead>
                                   <TableHead>Tên thiết bị</TableHead>
                                   <TableHead>Trạng thái</TableHead>
-                                  <TableHead>Ghi chú</TableHead>
+                                  <TableHead>Chi nhánh hiện tại</TableHead>
                                 </TableRow>
                               </TableHeader>
 
@@ -213,7 +194,7 @@ export default function TransferHistory() {
                                     <TableCell>{idx + 1}</TableCell>
                                     <TableCell>{d.equipment_unit_id}</TableCell>
                                     <TableCell>
-                                      {d.equipment_unit?.name ||
+                                      {d.equipment_unit?.equipment_name ||
                                         "Chưa có thông tin"}
                                     </TableCell>
                                     <TableCell>
@@ -228,7 +209,11 @@ export default function TransferHistory() {
                                       />
                                     </TableCell>
                                     <TableCell>
-                                      {d.equipment_unit?.description || "—"}
+                                      <span className="font-medium text-gray-700 dark:text-gray-200">
+                                        <Branch
+                                          id={d.equipment_unit?.branch_id}
+                                        />
+                                      </span>
                                     </TableCell>
                                   </TableRow>
                                 ))}

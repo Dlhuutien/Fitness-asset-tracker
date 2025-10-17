@@ -3,6 +3,7 @@ const equipmentTransferDetailRepository = require("../repositories/equipmentTran
 const branchRepository = require("../repositories/branchRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
 const userRepository = require("../repositories/userRepository");
+const equipmentService = require("./equipmentService");
 
 const equipmentTransferService = {
   // ===================================================
@@ -124,7 +125,22 @@ const equipmentTransferService = {
         const unit = await equipmentUnitRepository.findById(
           d.equipment_unit_id
         );
-        detailsWithUnits.push({ ...d, equipment_unit: unit });
+        let equipmentName = null;
+
+        if (unit?.equipment_id) {
+          const equipment = await equipmentService.getEquipmentById(
+            unit.equipment_id
+          );
+          equipmentName = equipment?.name || null;
+        }
+
+        detailsWithUnits.push({
+          ...d,
+          equipment_unit: {
+            ...unit,
+            equipment_name: equipmentName,
+          },
+        });
       }
 
       // 🔹 Lấy tên người yêu cầu & người nhận (nếu có)
@@ -169,7 +185,22 @@ const equipmentTransferService = {
         const unit = await equipmentUnitRepository.findById(
           d.equipment_unit_id
         );
-        detailsWithUnits.push({ ...d, equipment_unit: unit });
+        let equipmentName = null;
+
+        if (unit?.equipment_id) {
+          const equipment = await equipmentService.getEquipmentById(
+            unit.equipment_id
+          );
+          equipmentName = equipment?.name || null;
+        }
+
+        detailsWithUnits.push({
+          ...d,
+          equipment_unit: {
+            ...unit,
+            equipment_name: equipmentName,
+          },
+        });
       }
 
       // 🔹 Lấy tên người yêu cầu và người nhận
@@ -214,9 +245,21 @@ const equipmentTransferService = {
     const detailsWithUnits = [];
     for (const d of details) {
       const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+      let equipmentName = null;
+
+      if (unit?.equipment_id) {
+        const equipment = await equipmentService.getEquipmentById(
+          unit.equipment_id
+        );
+        equipmentName = equipment?.name || null;
+      }
+
       detailsWithUnits.push({
         ...d,
-        equipment_unit: unit,
+        equipment_unit: {
+          ...unit,
+          equipment_name: equipmentName,
+        },
       });
     }
 

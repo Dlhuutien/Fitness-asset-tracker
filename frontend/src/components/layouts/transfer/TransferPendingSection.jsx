@@ -28,13 +28,19 @@ import { toast } from "sonner";
 
 import EquipmentTransferService from "@/services/equipmentTransferService";
 import BranchService from "@/services/branchService";
+import Branch from "@/components/common/Branch";
 
 const ITEMS_PER_PAGE = 8;
 
 const STATUS_BADGE = {
   pending: "Đang vận chuyển",
-  moving: "Đang di chuyển",
   completed: "Đã hoàn tất",
+};
+const UNIT_STATUS_LABELS = {
+  "In Stock": "Trong kho",
+  Moving: "Đang vận chuyển",
+  Active: "Hoạt động",
+  Inactive: "Ngưng sử dụng",
 };
 
 export default function TransferPendingSection() {
@@ -156,7 +162,10 @@ export default function TransferPendingSection() {
     });
   }, [filtered, filters]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredByColumn.length / ITEMS_PER_PAGE));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredByColumn.length / ITEMS_PER_PAGE)
+  );
   const currentData = filteredByColumn.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
@@ -293,7 +302,9 @@ export default function TransferPendingSection() {
                     />
                   </TableHead>
                 )}
-                {visibleColumns.move_start_date && <TableHead>Bắt đầu</TableHead>}
+                {visibleColumns.move_start_date && (
+                  <TableHead>Bắt đầu</TableHead>
+                )}
               </TableRow>
             </TableHeader>
 
@@ -316,20 +327,26 @@ export default function TransferPendingSection() {
                     </TableCell>
                     {visibleColumns.id && <TableCell>{row.id}</TableCell>}
                     {visibleColumns.from_branch_id && (
-                      <TableCell>{row.from_branch_id}</TableCell>
+                      <TableCell>
+                        <Branch id={row.from_branch_id} />
+                      </TableCell>
                     )}
                     {visibleColumns.to_branch_id && (
-                      <TableCell>{row.to_branch_id}</TableCell>
+                      <TableCell>
+                        <Branch id={row.to_branch_id} />
+                      </TableCell>
                     )}
                     {visibleColumns.status && (
-                      <TableCell className="text-center">
+                      <TableCell>
                         <Status status={label} />
                       </TableCell>
                     )}
                     {visibleColumns.move_start_date && (
                       <TableCell>
                         {row.move_start_date
-                          ? new Date(row.move_start_date).toLocaleString("vi-VN")
+                          ? new Date(row.move_start_date).toLocaleString(
+                              "vi-VN"
+                            )
                           : "—"}
                       </TableCell>
                     )}
@@ -343,7 +360,8 @@ export default function TransferPendingSection() {
         {/* Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700 text-sm">
           <div className="text-gray-700 dark:text-gray-300">
-            Trang {currentPage} / {totalPages} — Tổng: {filteredByColumn.length} phiếu
+            Trang {currentPage} / {totalPages} — Tổng: {filteredByColumn.length}{" "}
+            phiếu
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -398,10 +416,12 @@ export default function TransferPendingSection() {
             <p>
               <b>Mã phiếu:</b> {selected.id}
             </p>
-            <p>
-              <b>Từ:</b> {selected.from_branch_id} → <b>Đến:</b>{" "}
-              {selected.to_branch_id}
+            <p className="flex items-center gap-2">
+              <b>Từ:</b> <Branch id={selected.from_branch_id} />
+              <span className="text-gray-500">→</span>
+              <b>Đến:</b> <Branch id={selected.to_branch_id} />
             </p>
+
             <p className="md:col-span-2">
               <b>Mô tả:</b> {selected.description || "—"}
             </p>
@@ -409,12 +429,6 @@ export default function TransferPendingSection() {
               <b>Bắt đầu:</b>{" "}
               {selected.move_start_date
                 ? new Date(selected.move_start_date).toLocaleString("vi-VN")
-                : "—"}
-            </p>
-            <p>
-              <b>Tiếp nhận:</b>{" "}
-              {selected.move_receive_date
-                ? new Date(selected.move_receive_date).toLocaleString("vi-VN")
                 : "—"}
             </p>
           </div>
@@ -427,24 +441,41 @@ export default function TransferPendingSection() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-100 dark:bg-gray-900 sticky top-0">
                   <tr>
-                    <th className="p-2 text-left">Mã Unit</th>
-                    <th className="p-2 text-left">Chi nhánh hiện tại</th>
+                    <th className="p-2 text-left">Mã thiết bị</th>
+                    <th className="p-2 text-left">Tên thiết bị</th>
                     <th className="p-2 text-left">Trạng thái</th>
+                    <th className="p-2 text-left">Chi nhánh hiện tại</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(selected.details || []).map((d) => (
-                    <tr key={d.id} className="border-t">
-                      <td className="p-2">{d.equipment_unit_id}</td>
-                      <td className="p-2">{d.equipment_unit?.branch_id || "—"}</td>
+                    <tr
+                      key={d.id}
+                      className="border-t hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                    >
+                      <td className="p-2 font-medium text-gray-900 dark:text-gray-100">
+                        {d.equipment_unit_id}
+                      </td>
+                      <td className="p-2 text-gray-700 dark:text-gray-300">
+                        {d.equipment_unit?.equipment_name || "—"}
+                      </td>
                       <td className="p-2">
-                        {d.equipment_unit?.status || "—"}
+                        <Status
+                          status={
+                            UNIT_STATUS_LABELS[d.equipment_unit?.status] ||
+                            d.equipment_unit?.status ||
+                            "—"
+                          }
+                        />
+                      </td>
+                      <td className="p-2">
+                        <Branch id={d.equipment_unit?.branch_id} />
                       </td>
                     </tr>
                   ))}
                   {(!selected.details || selected.details.length === 0) && (
                     <tr>
-                      <td className="p-2 text-gray-500" colSpan={3}>
+                      <td className="p-2 text-gray-500" colSpan={4}>
                         Không có thiết bị trong phiếu.
                       </td>
                     </tr>
@@ -454,21 +485,59 @@ export default function TransferPendingSection() {
             </div>
           </div>
 
-          {/* Nút hoàn tất */}
-          <Button
-            onClick={() => handleComplete(selected)}
-            disabled={completing}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            {completing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Đang xác nhận...
-              </>
-            ) : (
-              "✅ Đã vận chuyển thành công"
-            )}
-          </Button>
+          {/* Ngày hoàn tất + Nút hoàn tất */}
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Ngày hoàn tất vận chuyển:
+              </label>
+              <input
+                type="datetime-local"
+                value={selected.move_receive_date || ""}
+                min={
+                  selected.move_start_date
+                    ? new Date(selected.move_start_date)
+                        .toISOString()
+                        .slice(0, 16) // ✅ ISO → yyyy-MM-ddTHH:mm
+                    : undefined
+                }
+                onChange={(e) =>
+                  setSelected((prev) => ({
+                    ...prev,
+                    move_receive_date: e.target.value,
+                  }))
+                }
+                className="mt-1 w-full border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none"
+              />
+              {selected.move_start_date && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Ngày bắt đầu:{" "}
+                  {new Date(selected.move_start_date).toLocaleString("vi-VN")}
+                </p>
+              )}
+            </div>
+
+            <Button
+              onClick={() =>
+                handleComplete({
+                  ...selected,
+                  move_receive_date:
+                    selected.move_receive_date || new Date().toISOString(),
+                })
+              }
+              disabled={completing}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {completing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Đang xác nhận...
+                </>
+              ) : (
+                "✅ Đã vận chuyển thành công"
+              )}
+            </Button>
+          </div>
         </div>
       )}
     </div>
