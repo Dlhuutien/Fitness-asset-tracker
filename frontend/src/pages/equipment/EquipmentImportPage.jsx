@@ -64,6 +64,7 @@ export default function EquipmentImportPage({
   const [search, setSearch] = useState("");
   const [openQuickAdd, setOpenQuickAdd] = useState(false);
   const [openQuickAddEquipment, setOpenQuickAddEquipment] = useState(false);
+  const { isSuperAdmin, branchId } = useAuthRole();
 
   // ===== Overlay + theo dõi NEW record =====
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -181,8 +182,7 @@ export default function EquipmentImportPage({
       setLoadingSubmit(true);
       if (onStartImport) onStartImport();
 
-      abortControllerRef.current = new AbortController();
-
+      // ✅ bật overlay Loading
       setOverlayOpen(true);
       setOverlayMode("loading");
 
@@ -199,34 +199,48 @@ export default function EquipmentImportPage({
         cost: Number.parseFloat(item.price) || 0,
       }));
 
-      await InvoiceService.create({ items }, abortControllerRef.current.signal);
+      // 🧾 Gọi API tạo hóa đơn nhập hàng
+      await InvoiceService.create({ items });
+      toast.info("🧾 Đang chờ cập nhật danh sách thiết bị...");
 
+      // 🌀 Refresh SWR
       await refreshEquipmentUnits();
-      setOverlayMode("success");
-      toast.success(
-        "🎉 Nhập hàng thành công! Thiết bị mới đã được thêm vào hệ thống."
+
+      // 🔁 Revalidate lần 2 sau 2s để chắc chắn SWR có data mới
+      setTimeout(() => {
+        console.log("⏳ Force refresh lần 2 equipmentUnit...");
+        refreshEquipmentUnits();
+      }, 2000);
+
+      // ✅ Auto success fallback (frontend-only)
+      // Nếu sau 3s không có event fitx-units-updated → auto chuyển success
+      const autoSuccessTimer = setTimeout(() => {
+        if (overlayMode === "loading") {
+          console.log("⚙️ Auto success fallback triggered");
+          setOverlayMode("success");
+          toast.success("🎉 Nhập hàng thành công (auto fallback)");
+          // tự tắt sau 2.5s
+          setTimeout(() => {
+            setOverlayOpen(false);
+            setOverlayMode("loading");
+            newFromUnitListRef.current.clear();
+          }, 2500);
+        }
+      }, 3000);
+
+      // ✅ Nếu event thật đến thì clear fallback
+      window.addEventListener(
+        "fitx-units-updated",
+        () => clearTimeout(autoSuccessTimer),
+        { once: true }
       );
     } catch (err) {
-      const isCanceled =
-        err?.code === "ERR_CANCELED" ||
-        err?.name === "CanceledError" ||
-        err?.message === "RequestCanceled" ||
-        (typeof axios !== "undefined" && axios.isCancel?.(err));
-
-      if (isCanceled) {
-        setOverlayMode("cancelled");
-        setOverlayOpen(true);
-        toast.info("⏹️ Bạn đã dừng tiến trình nhập hàng.");
-      } else {
-        console.error("❌ Lỗi nhập hàng:", err);
-        toast.error("❌ Có lỗi khi tạo hóa đơn!");
-        setOverlayOpen(false);
-      }
+      console.error("❌ Lỗi nhập hàng:", err);
+      toast.error("❌ Có lỗi khi tạo hóa đơn!");
+      setOverlayOpen(false);
     } finally {
       setLoadingSubmit(false);
-      // Nếu muốn GIỮ lựa chọn khi hủy thì comment dòng dưới:
-      // setSelectedItems({});
-      abortControllerRef.current = null;
+      setSelectedItems({});
     }
   };
 
@@ -317,108 +331,64 @@ export default function EquipmentImportPage({
       </div>
     );
 
-
-// ===== Overlay =====
-const Overlay = () =>
-  overlayOpen && (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-emerald-300 shadow-xl p-6 max-w-md w-full text-center relative transition-all duration-300">
-        {overlayMode === "loading" && (
-          <>
-            <div className="w-12 h-12 mx-auto mb-3 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-            <h3 className="text-lg font-semibold text-emerald-600">
-              Đang nhập hàng
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Hệ thống đang cập nhật danh sách thiết bị, vui lòng chờ...
-            </p>
-
-            {/* ✅ Nút Hủy với hiệu ứng hover */}
-            <div className="mt-5">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  abortControllerRef.current?.abort();
-                  setOverlayMode("cancelled");
-                }}
-                className="text-gray-700 border-gray-300 hover:border-red-400 hover:text-red-600 hover:bg-red-50 transition-all duration-200 shadow-sm"
-              >
-                Hủy
-              </Button>
-            </div>
-          </>
-        )}
-
-        {overlayMode === "success" && (
-          <>
-            <div className="mx-auto w-12 h-12 mb-3 rounded-full bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="text-emerald-600" size={28} />
-            </div>
-            <h3 className="text-lg font-semibold text-emerald-600">
-              Nhập hàng thành công
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Các thiết bị mới đã được thêm vào hệ thống.
-            </p>
-
-            <div className="flex justify-center gap-3 mt-5">
-              <Button
-                onClick={() => {
-                  setOverlayOpen(false);
-                  setOverlayMode("loading");
-                }}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800"
-              >
-                Đồng ý
-              </Button>
-              <Button
-                onClick={() => {
-                  setOverlayOpen(false);
-                  setOverlayMode("loading");
-                  if (onRequestSwitchTab) onRequestSwitchTab("unit");
-                  try {
-                    window.dispatchEvent(new CustomEvent("fitx-go-to-unit"));
-                  } catch {}
-                  window.location.href = "/app/equipment/directory";
-                }}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-1 transition-all duration-200"
-              >
-                Chuyển đến thiết bị vừa nhập <ChevronRight size={16} />
-              </Button>
-            </div>
-          </>
-        )}
-
-        {overlayMode === "cancelled" && (
-          <>
-            <div className="mx-auto w-12 h-12 mb-3 rounded-full bg-red-100 flex items-center justify-center">
-              <Loader2 className="text-red-500" size={26} />
-            </div>
-            <h3 className="text-lg font-semibold text-red-600">
-              Bạn đã dừng nhập hàng
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Tiến trình nhập hàng đã được hủy. Không có dữ liệu nào được gửi
-              lên hệ thống.
-            </p>
-
-            <div className="flex justify-center mt-5">
-              <Button
-                onClick={() => {
-                  setOverlayOpen(false);
-                  setOverlayMode("loading");
-                }}
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 transition-all duration-200 shadow-sm"
-              >
-                Đóng
-              </Button>
-            </div>
-          </>
-        )}
+  // ===== Overlay =====
+  const Overlay = () =>
+    overlayOpen && (
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-[2px] p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-emerald-300 shadow-xl p-6 max-w-md w-full text-center">
+          {overlayMode === "loading" ? (
+            <>
+              <div className="w-12 h-12 mx-auto mb-3 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+              <h3 className="text-lg font-semibold text-emerald-600">
+                Đang nhập hàng
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Hệ thống đang cập nhật danh sách thiết bị…
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto w-12 h-12 mb-3 rounded-full bg-emerald-100 flex items-center justify-center">
+                <CheckCircle2 className="text-emerald-600" size={28} />
+              </div>
+              <h3 className="text-lg font-semibold text-emerald-600">
+                Nhập hàng thành công
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Các thiết bị mới đã hiển thị trong danh sách với nhãn <b>NEW</b>
+                .
+              </p>
+              <div className="flex justify-center gap-3 mt-5">
+                <Button
+                  onClick={() => {
+                    setOverlayOpen(false);
+                    setOverlayMode("loading");
+                    newFromUnitListRef.current.clear();
+                  }}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800"
+                >
+                  Đồng ý
+                </Button>
+                <Button
+                  onClick={() => {
+                    setOverlayOpen(false);
+                    setOverlayMode("loading");
+                    newFromUnitListRef.current.clear();
+                    if (onRequestSwitchTab) onRequestSwitchTab("unit");
+                    try {
+                      window.dispatchEvent(new CustomEvent("fitx-go-to-unit"));
+                    } catch {}
+                  }}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-1"
+                >
+                  Chuyển đến trang thiết bị <ChevronRight size={16} />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  );
-
+    );
 
   return (
     <div className="p-6 space-y-8 relative">
@@ -794,8 +764,7 @@ const Overlay = () =>
                   <AlertDialogTitle>Xác nhận nhập hàng</AlertDialogTitle>
                   <AlertDialogDescription>
                     Bạn có chắc chắn muốn nhập{" "}
-                    <b>{Object.keys(selectedItems).length}</b> loại thiết bị vào
-                    kho?
+                    <b>{Object.keys(selectedItems).length}</b> thiết bị vào kho?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
