@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import EquipmentUnitService from "@/services/equipmentUnitService";
 import BranchService from "@/services/branchService";
 import EquipmentTransferService from "@/services/equipmentTransferService";
+import useAuthRole from "@/hooks/useAuthRole";
+import Branch from "@/components/common/Branch";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -68,6 +70,7 @@ export default function TransferCreateSection() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const { isSuperAdmin, branchId } = useAuthRole();
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -272,24 +275,30 @@ export default function TransferCreateSection() {
             className="h-9 w-64 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-emerald-400 text-sm"
           />
 
-          <Select
-            defaultValue={activeBranch}
-            onValueChange={(v) => {
-              setActiveBranch(v);
-              setCurrentPage(1);
-            }}
-          >
-            <SelectTrigger className="h-9 w-48 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-              <SelectValue placeholder="Chọn chi nhánh hiện tại" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={b.id} className="text-sm">
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isSuperAdmin ? (
+            <Select
+              defaultValue={activeBranch}
+              onValueChange={(v) => {
+                setActiveBranch(v);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="h-9 w-48 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+                <SelectValue placeholder="Chi nhánh nguồn" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id} className="text-sm">
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              Chi nhánh hiện tại: <Branch id={branchId} />
+            </div>
+          )}
         </div>
 
         <ColumnVisibilityButton
@@ -493,8 +502,28 @@ export default function TransferCreateSection() {
                       </TableCell>
                     )}
                     {visibleColumns.name && (
-                      <TableCell>{row.equipment?.name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`
+                            font-semibold truncate max-w-[220px]
+                            ${
+                              row.branch_id === "GV"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : row.branch_id === "Q3"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : row.branch_id === "G3"
+                                ? "text-orange-600 dark:text-orange-400"
+                                : "text-gray-800 dark:text-gray-200"
+                            }
+                          `}
+                          >
+                            {row.equipment?.name}
+                          </span>
+                        </div>
+                      </TableCell>
                     )}
+
                     {visibleColumns.main_name && (
                       <TableCell>{row.equipment?.main_name}</TableCell>
                     )}

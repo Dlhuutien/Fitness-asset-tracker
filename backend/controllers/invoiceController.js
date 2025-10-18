@@ -83,7 +83,7 @@ const invoiceController = {
 
   getAllInvoiceDetails: async (req, res) => {
     try {
-      const result = await invoiceService.getAllInvoiceDetails();
+      const result = await invoiceService.getAllInvoiceDetails(req.branchFilter);
       res.json(result);
     } catch (error) {
       res.status(500).json({ error: error.message });

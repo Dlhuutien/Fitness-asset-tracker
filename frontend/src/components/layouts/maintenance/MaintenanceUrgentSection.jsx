@@ -41,6 +41,8 @@ const STATUS_MAP = {
   "in stock": "Thiết bị trong kho",
   deleted: "Đã xóa",
 };
+import useAuthRole from "@/hooks/useAuthRole";
+import Branch from "@/components/common/Branch";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -63,6 +65,8 @@ export default function MaintenanceUrgentSection() {
 
   const [activeBranch, setActiveBranch] = useState("all");
   const [branches, setBranches] = useState([]);
+
+  const { isSuperAdmin, branchId } = useAuthRole();
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -318,28 +322,30 @@ export default function MaintenanceUrgentSection() {
               ))}
             </SelectContent>
           </Select>
-          {/* Chi nhánh */}
-          <Select
-            onValueChange={(v) => {
-              setActiveBranch(v);
-              setCurrentPage(1);
-            }}
-            defaultValue="all"
-          >
-            <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-              <SelectValue placeholder="Chi nhánh" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-              <SelectItem value="all" className="text-sm">
-                Tất cả chi nhánh
-              </SelectItem>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={b.id} className="text-sm">
-                  {b.name}
+          {/* Chi nhánh (chỉ super-admin mới được chọn) */}
+          {isSuperAdmin && (
+            <Select
+              onValueChange={(v) => {
+                setActiveBranch(v);
+                setCurrentPage(1);
+              }}
+              defaultValue="all"
+            >
+              <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+                <SelectValue placeholder="Chi nhánh" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+                <SelectItem value="all" className="text-sm">
+                  Tất cả chi nhánh
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id} className="text-sm">
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
         <ColumnVisibilityButton
@@ -436,8 +442,28 @@ export default function MaintenanceUrgentSection() {
                       </TableCell>
                     )}
                     {visibleColumns.name && (
-                      <TableCell>{row.equipment?.name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`
+                            font-semibold truncate max-w-[220px]
+                            ${
+                              row.branch_id === "GV"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : row.branch_id === "Q3"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : row.branch_id === "G3"
+                                ? "text-orange-600 dark:text-orange-400"
+                                : "text-gray-800 dark:text-gray-200"
+                            }
+                          `}
+                          >
+                            {row.equipment?.name}
+                          </span>
+                        </div>
+                      </TableCell>
                     )}
+
                     {visibleColumns.main_name && (
                       <TableCell>{row.equipment?.main_name}</TableCell>
                     )}

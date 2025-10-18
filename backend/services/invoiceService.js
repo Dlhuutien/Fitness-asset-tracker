@@ -229,8 +229,11 @@ const invoiceService = {
   // ======================================================
   // LẤY TOÀN BỘ CHI TIẾT HÓA ĐƠN (/invoice/details)
   // ======================================================
-  getAllInvoiceDetails: async () => {
-    const invoices = await invoiceRepository.findAll();
+  getAllInvoiceDetails: async (branchFilter = null) => {
+    // 🔍 Nếu có filter chi nhánh → query theo GSI
+    const invoices = branchFilter
+      ? await invoiceRepository.findByBranch(branchFilter)
+      : await invoiceRepository.findAll();
     const allDetails = await invoiceDetailRepository.findAll();
     const combined = [];
 

@@ -4,6 +4,7 @@ const {
   GetCommand,
   UpdateCommand,
   DeleteCommand,
+  QueryCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const { dynamodb } = require("../utils/aws-helper");
 const { v4: uuidv4 } = require("uuid");
@@ -38,14 +39,11 @@ const EquipmentTransferModel = {
 
   getTransfersByBranch: async (branch_id) => {
     const result = await dynamodb.send(
-      new QueryCommand({
+      new ScanCommand({
         TableName: tableName,
-        IndexName: "branch_index-index",
-        KeyConditionExpression:
-          "branch_index_key = :key1 OR branch_index_key = :key2",
+        FilterExpression: "from_branch_id = :b OR to_branch_id = :b",
         ExpressionAttributeValues: {
-          ":key1": `${branch_id}#${branch_id}`,
-          ":key2": `${branch_id}#${branch_id}`,
+          ":b": branch_id,
         },
       })
     );
