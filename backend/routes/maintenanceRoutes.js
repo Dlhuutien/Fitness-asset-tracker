@@ -5,14 +5,10 @@ const {
   verifyAccessToken,
   requireRole,
 } = require("../middlewares/authMiddleware");
+const branchFilterMiddleware = require("../middlewares/branchFilterMiddleware");
 
 // CREATE
-router.post(
-  "/",
-  verifyAccessToken,
-  requireRole("super-admin", "admin", "operator", "technician"),
-  maintenanceController.create
-);
+router.post("/", verifyAccessToken, maintenanceController.create);
 
 // GET maintenance theo unit ID
 router.get(
@@ -35,7 +31,7 @@ router.get(
 );
 
 // GET
-router.get("/", maintenanceController.getAll);
+router.get("/", verifyAccessToken, branchFilterMiddleware,maintenanceController.getAll);
 router.get("/:id", maintenanceController.getById);
 
 // UPDATE status

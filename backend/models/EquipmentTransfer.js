@@ -17,6 +17,7 @@ const EquipmentTransferModel = {
       id: uuidv4(),
       from_branch_id: data.from_branch_id,
       to_branch_id: data.to_branch_id,
+      branch_index_key: `${data.from_branch_id}#${data.to_branch_id}`,
       approved_by: data.approved_by,
       receiver_id: null,
       description: data.description,
@@ -33,6 +34,22 @@ const EquipmentTransferModel = {
     );
 
     return item;
+  },
+
+  getTransfersByBranch: async (branch_id) => {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "branch_index-index",
+        KeyConditionExpression:
+          "branch_index_key = :key1 OR branch_index_key = :key2",
+        ExpressionAttributeValues: {
+          ":key1": `${branch_id}#${branch_id}`,
+          ":key2": `${branch_id}#${branch_id}`,
+        },
+      })
+    );
+    return result.Items || [];
   },
 
   // READ ALL

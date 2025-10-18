@@ -85,7 +85,6 @@ Table Branch {
 
 Table Equipment_transfer {
   id int [primary key]
-  equipment_unit_id varchar
   from_branch_id varchar [note: 'từ chi nhánh A']
   to_branch_id varchar [note: 'sang chi nhánh B']
   approved_by varchar [note: 'người yêu cầu vận chuyển']
@@ -95,6 +94,12 @@ Table Equipment_transfer {
   move_receive_date datetime [note: 'Ngày tới chi nhánh']
 }
 
+Table Equipment_transfer_detail {
+  id int [primary key]
+  equipment_unit_id varchar
+  transfer_id varchar
+  create_at datetime [note: 'Ngày bắt đầu vận chuyển sang chi nhánh khác']
+}
 
 Table Maintenance {
   id varchar [primary key]

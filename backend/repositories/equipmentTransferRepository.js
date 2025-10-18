@@ -2,6 +2,7 @@ const EquipmentTransferModel = require("../models/EquipmentTransfer");
 
 const equipmentTransferRepository = {
   create: async (data) => EquipmentTransferModel.createTransfer(data),
+  findByBranch: async (branch_id) => EquipmentTransferModel.getTransfersByBranch(branch_id),
   findAll: async () => EquipmentTransferModel.getTransfers(),
   findAllByStatus: async (status) =>
     EquipmentTransferModel.getTransfersByStatus(status),

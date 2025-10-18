@@ -21,6 +21,21 @@ const EquipmentUnitModel = {
     return data;
   },
 
+  // Query theo chi nhánh (GSI)
+  getByBranchId: async (branch_id) => {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "branch_id-index",
+        KeyConditionExpression: "branch_id = :b",
+        ExpressionAttributeValues: {
+          ":b": branch_id,
+        },
+      })
+    );
+    return result.Items || [];
+  },
+
   getUnitById: async (id) => {
     const result = await dynamodb.send(
       new GetCommand({
@@ -34,17 +49,6 @@ const EquipmentUnitModel = {
   getAllUnits: async () => {
     const result = await dynamodb.send(
       new ScanCommand({ TableName: tableName })
-    );
-    return result.Items || [];
-  },
-
-  findByBranch: async (branch_id) => {
-    const result = await dynamodb.send(
-      new ScanCommand({
-        TableName: tableName,
-        FilterExpression: "branch_id = :b",
-        ExpressionAttributeValues: { ":b": branch_id },
-      })
     );
     return result.Items || [];
   },

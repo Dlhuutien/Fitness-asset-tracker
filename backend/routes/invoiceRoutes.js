@@ -2,12 +2,18 @@ const express = require("express");
 const router = express.Router();
 const invoiceController = require("../controllers/invoiceController");
 const { verifyAccessToken } = require("../middlewares/authMiddleware");
+const branchFilterMiddleware = require("../middlewares/branchFilterMiddleware");
 
 // CREATE
 router.post("/", verifyAccessToken, invoiceController.createInvoice);
 
 // READ ALL
-router.get("/", invoiceController.getInvoices);
+router.get(
+  "/",
+  verifyAccessToken,
+  branchFilterMiddleware,
+  invoiceController.getInvoices
+);
 
 //READE ALL INVOCIE DETAIL
 router.get("/details", invoiceController.getAllInvoiceDetails);

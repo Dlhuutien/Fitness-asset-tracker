@@ -36,7 +36,7 @@ const invoiceController = {
 
   getInvoices: async (req, res) => {
     try {
-      const invoices = await invoiceService.getInvoices();
+      const invoices = await invoiceService.getInvoices(req.branchFilter);
       res.json(invoices);
     } catch (error) {
       res.status(500).json({ error: error.message });
