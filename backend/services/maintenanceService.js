@@ -108,8 +108,10 @@ const maintenanceService = {
     };
   },
 
-  getAll: async () => {
-    const maintenances = await maintenanceRepository.findAll();
+  getAll: async (branchFilter = null) => {
+    const maintenances = branchFilter
+      ? await maintenanceRepository.findByBranch(branchFilter)
+      : await maintenanceRepository.findAll();
     const allInvoices = await maintenanceInvoiceRepository.findAll();
 
     const result = [];
@@ -271,7 +273,9 @@ const maintenanceService = {
       if (m.user_id) {
         const techUser = await userRepository.getUserBySub(m.user_id);
         technicianName =
-          techUser?.attributes?.name || techUser?.username || "Chưa có thông tin";
+          techUser?.attributes?.name ||
+          techUser?.username ||
+          "Chưa có thông tin";
       }
 
       // 🧩 Lấy tên thiết bị

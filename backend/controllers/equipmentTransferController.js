@@ -32,7 +32,7 @@ const equipmentTransferController = {
 
   getTransfers: async (req, res) => {
     try {
-      const transfers = await equipmentTransferService.getTransfers();
+      const transfers = await equipmentTransferService.getTransfers(req.branchFilter);
       res.json(transfers);
     } catch (error) {
       res.status(500).json({ error: error.message });

@@ -40,7 +40,7 @@ const equipmentTransferService = {
     if (!fromBranch) throw new Error(`From branch ${from_branch_id} not found`);
 
     // ✅ Mô tả chung
-    const description = `Transfer ${data.unit_ids.length} unit(s) from ${fromBranch.name} to ${toBranch.name}`;
+    const description = `Chuyển ${data.unit_ids.length} thiết bị từ ${fromBranch.name} sang ${toBranch.name}`;
 
     // ✅ Tạo record master (Equipment_transfer)
     const transfer = await equipmentTransferRepository.create({
@@ -111,8 +111,10 @@ const equipmentTransferService = {
   // ===================================================
   // 🔍 GET ALL TRANSFERS (kèm details + unit info)
   // ===================================================
-  getTransfers: async () => {
-    const transfers = await equipmentTransferRepository.findAll();
+  getTransfers: async (branchFilter = null) => {
+    const transfers = branchFilter
+      ? await equipmentTransferRepository.findByBranch(branchFilter)
+      : await equipmentTransferRepository.findAll();
     const results = [];
 
     for (const t of transfers) {

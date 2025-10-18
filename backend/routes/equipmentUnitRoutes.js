@@ -5,39 +5,41 @@ const {
   verifyAccessToken,
   requireRole,
 } = require("../middlewares/authMiddleware");
+const branchFilterMiddleware = require("../middlewares/branchFilterMiddleware");
 
 // READ ALL
 router.get(
   "/",
   verifyAccessToken,
-  requireRole("super-admin", "admin", "technician", "operator"),
+  branchFilterMiddleware,
   equipmentUnitController.getUnits
-);
-
-// Lấy danh sách theo nhóm trạng thái
-router.get(
-  "/status-group",
-  verifyAccessToken,
-  requireRole("super-admin", "admin", "technician", "operator"),
-  equipmentUnitController.getByStatusGroup
 );
 
 // Lọc theo 1 trạng thái
 router.get(
   "/status/:status",
   verifyAccessToken,
-  requireRole("super-admin", "admin", "technician", "operator"),
+  branchFilterMiddleware,
   equipmentUnitController.getByStatus
 );
 
-// READ ONE
-router.get("/:id", equipmentUnitController.getUnitById);
+// Lấy danh sách theo nhóm trạng thái
+router.get(
+  "/status-group",
+  verifyAccessToken,
+  requireRole("super-admin", "admin", "technician"),
+  branchFilterMiddleware,
+  equipmentUnitController.getByStatusGroup
+);
 
 // READ BY equipment_id
 router.get(
   "/equipment/:equipment_id",
   equipmentUnitController.getUnitsByEquipmentId
 );
+
+// READ ONE
+router.get("/:id", equipmentUnitController.getUnitById);
 
 // UPDATE
 router.put(
@@ -53,14 +55,6 @@ router.delete(
   verifyAccessToken,
   requireRole("admin", "super-admin"),
   equipmentUnitController.deleteUnit
-);
-
-// Lấy danh sách theo nhóm trạng thái
-router.get(
-  "/status-group",
-  verifyAccessToken,
-  requireRole("super-admin", "admin", "technician"),
-  equipmentUnitController.getByStatusGroup
 );
 
 module.exports = router;

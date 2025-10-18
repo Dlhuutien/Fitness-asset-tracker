@@ -1,14 +1,27 @@
 const express = require("express");
 const equipmentTransferController = require("../controllers/equipmentTransferController");
-const { verifyAccessToken } = require("../middlewares/authMiddleware");
+const {
+  verifyAccessToken,
+  requireRole,
+} = require("../middlewares/authMiddleware");
+const branchFilterMiddleware = require("../middlewares/branchFilterMiddleware");
 
 const router = express.Router();
 
-// CREATE transfer (chỉ admin+)
-router.post("/", verifyAccessToken, equipmentTransferController.createTransfer);
+// CREATE transfer
+router.post(
+  "/",
+  verifyAccessToken,
+  equipmentTransferController.createTransfer
+);
 
 // READ ALL
-router.get("/", equipmentTransferController.getTransfers);
+router.get(
+  "/",
+  verifyAccessToken,
+  branchFilterMiddleware,
+  equipmentTransferController.getTransfers
+);
 
 // GET transfers by status (e.g., Completed)
 router.get("/status/:status", equipmentTransferController.getTransfersByStatus);

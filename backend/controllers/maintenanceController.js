@@ -108,7 +108,7 @@ const maintenanceController = {
 
   getAll: async (req, res) => {
     try {
-      const data = await maintenanceService.getAll();
+      const data = await maintenanceService.getAll(req.branchFilter);
       res.json(data);
     } catch (error) {
       res.status(500).json({ error: error.message });
