@@ -55,6 +55,9 @@ export default function TransferPendingSection() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
 
   // excel tools
   const controller = useGlobalFilterController();
@@ -72,14 +75,15 @@ export default function TransferPendingSection() {
     move_start_date: true,
   });
 
-  const loadData = async () => {
+  const loadData = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (!isRefresh) setLoading(true);
+      else setRefreshing(true);
+
       const [t, b] = await Promise.all([
         EquipmentTransferService.getAll(),
         BranchService.getAll(),
       ]);
-      // chỉ hiển thị phiếu chưa Completed (theo yêu cầu “phiếu đang vận chuyển”)
       const list = (t || []).filter(
         (x) => (x.status || "").toLowerCase() !== "completed"
       );
@@ -90,12 +94,15 @@ export default function TransferPendingSection() {
       console.error(e);
       toast.error("Không thể tải danh sách phiếu vận chuyển.");
     } finally {
-      setLoading(false);
+      if (!isRefresh) setLoading(false);
+      else setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    (async () => {
+      await loadData();
+    })();
   }, []);
 
   // Search + branch filter
@@ -178,17 +185,36 @@ export default function TransferPendingSection() {
 
       await EquipmentTransferService.complete(transfer.id, dateValue);
       toast.success("✅ Đã xác nhận hoàn tất vận chuyển!");
+
+      // 🧠 Đóng card trước — để tránh mất thông báo khi re-render
       setSelected(null);
-      await loadData();
+
+      // ✅ Đặt thông báo sau khi đóng card
+      setSuccessMsg("✅ Đã xác nhận hoàn tất vận chuyển!");
+      setErrorMsg("");
+
+      // Reload lại dữ liệu (refresh ngầm)
+      await loadData(true);
+
+      // ⏳ Ẩn thông báo sau 5s
+      setTimeout(() => setSuccessMsg(""), 5000);
     } catch (e) {
       console.error(e);
       toast.error(e?.error || "Xác nhận hoàn tất thất bại.");
+
+      // 🧠 Đóng card trước — để luôn thấy lỗi
+      setSelected(null);
+
+      setErrorMsg("❌ Xác nhận thất bại, vui lòng thử lại!");
+      setSuccessMsg("");
+
+      setTimeout(() => setErrorMsg(""), 5000);
     } finally {
       setCompleting(false);
     }
   };
 
-  if (loading)
+  if (loading && !refreshing)
     return (
       <div className="p-6 text-gray-500 dark:text-gray-300 animate-pulse">
         Đang tải phiếu vận chuyển...
@@ -399,6 +425,17 @@ export default function TransferPendingSection() {
           </div>
         </div>
       </div>
+      {/* 🧩 Thông báo */}
+      {successMsg && (
+        <div className="mt-3 px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+          {successMsg}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="mt-3 px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+          {errorMsg}
+        </div>
+      )}
 
       {/* Card chi tiết + nút hoàn tất */}
       {selected && (
@@ -526,7 +563,7 @@ export default function TransferPendingSection() {
                 })
               }
               disabled={completing}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="w-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {completing ? (
                 <>

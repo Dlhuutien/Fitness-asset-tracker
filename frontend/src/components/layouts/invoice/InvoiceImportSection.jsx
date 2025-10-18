@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import DatePicker from "react-datepicker";
 import { vi } from "date-fns/locale";
 import "react-datepicker/dist/react-datepicker.css";
+import { useLocation } from "react-router-dom";
 
 import {
   ChevronDown,
@@ -40,7 +41,6 @@ const STATUS_MAP = {
   "temporary urgent": "Ngừng tạm thời",
   "in stock": "Thiết bị trong kho",
 };
-
 
 /* ====== Bộ lọc khoảng tổng tiền ====== */
 function NumberRangeHeaderFilter({
@@ -227,6 +227,43 @@ export default function InvoiceImportSection() {
   const toggleExpand = (id) => {
     setExpandedInvoiceId((prev) => (prev === id ? null : id));
   };
+
+  // 🧭 Tự động expand + highlight khi có ?invoiceId=
+  const location = useLocation();
+
+  useEffect(() => {
+    // chỉ chạy khi dữ liệu đã load xong
+    if (loading) return;
+
+    const params = new URLSearchParams(location.search);
+    const invoiceId = params.get("invoiceId");
+
+    if (invoiceId) {
+      setExpandedInvoiceId(invoiceId);
+
+      // đợi DOM render xong
+      setTimeout(() => {
+        const el = document.querySelector(`[data-invoice="${invoiceId}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add(
+            "ring-4",
+            "ring-emerald-400",
+            "ring-opacity-60",
+            "transition-all",
+            "duration-700"
+          );
+          setTimeout(() => {
+            el.classList.remove(
+              "ring-4",
+              "ring-emerald-400",
+              "ring-opacity-60"
+            );
+          }, 2000);
+        }
+      }, 400);
+    }
+  }, [location.search, loading]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -527,6 +564,7 @@ export default function InvoiceImportSection() {
                   <>
                     <TableRow
                       key={inv.invoice.id}
+                      data-invoice={inv.invoice.id}
                       onClick={() => toggleExpand(inv.invoice.id)}
                       className="text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     >

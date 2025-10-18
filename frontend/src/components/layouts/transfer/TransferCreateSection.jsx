@@ -72,6 +72,9 @@ export default function TransferCreateSection() {
   const [creating, setCreating] = useState(false);
   const { isSuperAdmin, branchId } = useAuthRole();
 
+  const [successMsg, setSuccessMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
     id: [],
@@ -245,12 +248,22 @@ export default function TransferCreateSection() {
         to_branch_id: destBranch,
       });
       toast.success("Đã tạo yêu cầu vận chuyển!");
+      setSuccessMsg("✅ Đã tạo yêu cầu vận chuyển thành công!");
+      setErrorMsg("");
+
       setSelected({});
       setUnits((prev) => prev.filter((u) => !unit_ids.includes(u.id)));
       setFiltered((prev) => prev.filter((u) => !unit_ids.includes(u.id)));
+
+      // Ẩn thông báo sau 2s
+      setTimeout(() => setSuccessMsg(""), 5000);
     } catch (e) {
       console.error(e);
       toast.error(e?.error || "Tạo yêu cầu vận chuyển thất bại.");
+      setErrorMsg("❌ Không thể tạo yêu cầu vận chuyển, vui lòng thử lại!");
+      setSuccessMsg("");
+
+      setTimeout(() => setErrorMsg(""), 5000);
     } finally {
       setCreating(false);
     }
@@ -347,9 +360,9 @@ export default function TransferCreateSection() {
         <Button
           onClick={handleCreateTransfer}
           disabled={!canSubmit || creating}
-          className={`text-white ${
+          className={`flex items-center justify-center text-white ${
             canSubmit ? "bg-emerald-500 hover:bg-emerald-600" : "bg-gray-400"
-          } `}
+          }`}
         >
           {creating ? (
             <>
@@ -360,6 +373,17 @@ export default function TransferCreateSection() {
             "Tạo yêu cầu vận chuyển"
           )}
         </Button>
+        {/* 🧩 Thông báo */}
+        {successMsg && (
+          <div className="mt-3 px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+            {successMsg}
+          </div>
+        )}
+        {errorMsg && (
+          <div className="mt-3 px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+            {errorMsg}
+          </div>
+        )}
       </div>
       {/* ===== Card hiển thị thiết bị đang chọn ===== */}
       {selectedItems.length > 0 && (
@@ -553,10 +577,46 @@ export default function TransferCreateSection() {
           </Table>
         </div>
         {/* Pagination */}
-        <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700 text-sm">
-          <div className="text-gray-700 dark:text-gray-300">
-            Trang {currentPage} / {totalPages} — Tổng: {filteredByColumn.length}{" "}
-            thiết bị
+        <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Tổng cộng: {filteredByColumn.length} thiết bị
+          </div>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="dark:border-gray-600 dark:text-gray-200 disabled:opacity-50"
+            >
+              «
+            </Button>
+
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <Button
+                key={i}
+                size="sm"
+                variant={currentPage === i + 1 ? "default" : "outline"}
+                className={`transition-all ${
+                  currentPage === i + 1
+                    ? "bg-emerald-500 text-white font-semibold"
+                    : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
+                }`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </Button>
+            ))}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="dark:border-gray-600 dark:text-gray-200 disabled:opacity-50"
+            >
+              »
+            </Button>
           </div>
         </div>
       </div>
