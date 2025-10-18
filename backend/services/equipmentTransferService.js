@@ -172,11 +172,22 @@ const equipmentTransferService = {
     return results;
   },
 
-  getTransfersByStatus: async (status) => {
+  getTransfersByStatus: async (status, branchFilter = null) => {
+    // 🟢 Lấy toàn bộ transfer có cùng status
     const transfers = await equipmentTransferRepository.findAllByStatus(status);
+
+    // 🟡 Nếu có branchFilter (admin, technician...), thì lọc lại
+    const filteredTransfers = branchFilter
+      ? transfers.filter(
+          (t) =>
+            t.from_branch_id === branchFilter || t.to_branch_id === branchFilter
+        )
+      : transfers;
+
     const results = [];
 
-    for (const t of transfers) {
+    for (const t of filteredTransfers) {
+      // 🧩 Lấy danh sách chi tiết
       const details = await equipmentTransferDetailRepository.findByTransferId(
         t.id
       );

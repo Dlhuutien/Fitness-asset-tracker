@@ -32,7 +32,9 @@ const equipmentTransferController = {
 
   getTransfers: async (req, res) => {
     try {
-      const transfers = await equipmentTransferService.getTransfers(req.branchFilter);
+      const transfers = await equipmentTransferService.getTransfers(
+        req.branchFilter
+      );
       res.json(transfers);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -43,7 +45,8 @@ const equipmentTransferController = {
     try {
       const { status } = req.params;
       const transfers = await equipmentTransferService.getTransfersByStatus(
-        status
+        status,
+        req.branchFilter // ✅ truyền filter vào service
       );
       res.json(transfers);
     } catch (error) {

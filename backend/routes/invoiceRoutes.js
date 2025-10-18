@@ -16,7 +16,12 @@ router.get(
 );
 
 //READE ALL INVOCIE DETAIL
-router.get("/details", invoiceController.getAllInvoiceDetails);
+router.get(
+  "/details",
+  verifyAccessToken,
+  branchFilterMiddleware,
+  invoiceController.getAllInvoiceDetails
+);
 
 // READ ONE
 router.get("/:id", invoiceController.getInvoiceById);

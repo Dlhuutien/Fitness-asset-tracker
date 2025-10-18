@@ -17,6 +17,8 @@ import InvoiceService from "@/services/invoiceService";
 import { toast } from "sonner";
 import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
 import EquipmentQuickAdd from "@/components/panel/importEquipment/EquipmentQuickAdd";
+import BranchService from "@/services/branchService";
+import useAuthRole from "@/hooks/useAuthRole";
 
 import {
   AlertDialog,
@@ -62,6 +64,7 @@ export default function EquipmentImportPage({
   const [search, setSearch] = useState("");
   const [openQuickAdd, setOpenQuickAdd] = useState(false);
   const [openQuickAddEquipment, setOpenQuickAddEquipment] = useState(false);
+  const { isSuperAdmin, branchId } = useAuthRole();
 
   // ===== Overlay + theo dõi NEW record =====
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -85,8 +88,28 @@ export default function EquipmentImportPage({
     name: true,
     warranty_duration: true,
   });
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState("");
 
-  // 🧭 Load dữ liệu ban đầu
+  // ✅ Load branch list & set default branch nếu user thường
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await BranchService.getAll();
+        setBranches(data || []);
+
+        // Nếu không phải super-admin thì gán branch mặc định
+        if (!isSuperAdmin && branchId) {
+          setSelectedBranch(branchId);
+        }
+      } catch (err) {
+        console.error("❌ Lỗi khi load branch:", err);
+        toast.error("Không thể tải danh sách chi nhánh!");
+      }
+    })();
+  }, [isSuperAdmin, branchId]);
+
+  // ✅ Load vendor + equipment độc lập
   useEffect(() => {
     (async () => {
       try {
@@ -163,9 +186,15 @@ export default function EquipmentImportPage({
       setOverlayOpen(true);
       setOverlayMode("loading");
 
+      if (!selectedBranch) {
+        toast.error("⚠️ Vui lòng chọn chi nhánh nhập hàng!");
+        setLoadingSubmit(false);
+        return;
+      }
+
       const items = Object.values(selectedItems).map((item) => ({
         equipment_id: item.id,
-        branch_id: "GV",
+        branch_id: selectedBranch,
         quantity: Number.parseInt(item.qty) || 0,
         cost: Number.parseFloat(item.price) || 0,
       }));
@@ -364,6 +393,53 @@ export default function EquipmentImportPage({
   return (
     <div className="p-6 space-y-8 relative">
       <Overlay />
+      {/* 🏬 Chi nhánh nhập hàng */}
+      <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">
+        <h3 className="font-semibold text-emerald-600 text-lg">
+          🏬 Chi nhánh nhập hàng
+        </h3>
+
+        {isSuperAdmin ? (
+          // 🔹 Super admin: được chọn chi nhánh
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="border rounded-md p-2 w-full dark:bg-gray-700 dark:text-white text-sm"
+            >
+              <option value="">-- Chọn chi nhánh --</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.id})
+                </option>
+              ))}
+            </select>
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={async () => {
+                const data = await BranchService.getAll();
+                setBranches(data || []);
+                toast.success("🔄 Danh sách chi nhánh đã làm mới!");
+              }}
+            >
+              <RefreshCw size={16} />
+            </Button>
+          </div>
+        ) : (
+          // 🔸 User thường: hiển thị chi nhánh cố định
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-emerald-600">
+              Bạn đang nhập hàng cho chi nhánh:
+            </p>
+            <span className="px-3 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-semibold text-sm border border-emerald-400/50">
+              {branches.find((b) => b.id === branchId)?.name ||
+                branchId ||
+                "Không xác định"}
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Nhà cung cấp */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">

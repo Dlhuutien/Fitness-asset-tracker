@@ -29,6 +29,8 @@ import BranchService from "@/services/branchService";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 import { useNavigate } from "react-router-dom";
 import { ArrowDownUp } from "lucide-react";
+import useAuthRole from "@/hooks/useAuthRole";
+import Branch from "@/components/common/Branch";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -43,6 +45,7 @@ export default function EquipmentUnitListSection() {
   const [newIds, setNewIds] = useState(new Set());
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuthRole();
 
   const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
     useEquipmentData();
@@ -108,18 +111,17 @@ export default function EquipmentUnitListSection() {
     const incoming = units.map((u) => u.id);
     const newOnes = incoming.filter((id) => !prev.has(id));
 
-if (newOnes.length > 0) {
-  setNewIds((prev) => new Set([...prev, ...newOnes]));
-  newOnes.forEach((id) => prev.add(id));
-  localStorage.setItem(LS_KEY, JSON.stringify([...prev]));
+    if (newOnes.length > 0) {
+      setNewIds((prev) => new Set([...prev, ...newOnes]));
+      newOnes.forEach((id) => prev.add(id));
+      localStorage.setItem(LS_KEY, JSON.stringify([...prev]));
 
-  // ✅ BẮN SỰ KIỆN CHUẨN CHO IMPORT PAGE
-  console.log("📦 fitx-units-updated fired:", newOnes);
-  window.dispatchEvent(
-    new CustomEvent("fitx-units-updated", { detail: { newIds: newOnes } })
-  );
-}
-
+      // ✅ BẮN SỰ KIỆN CHUẨN CHO IMPORT PAGE
+      console.log("📦 fitx-units-updated fired:", newOnes);
+      window.dispatchEvent(
+        new CustomEvent("fitx-units-updated", { detail: { newIds: newOnes } })
+      );
+    }
   }, [units]);
 
   // Hover qua hàng => bỏ hiệu ứng NEW
@@ -289,28 +291,30 @@ if (newOnes.length > 0) {
             </SelectContent>
           </Select>
 
-          {/* Chi nhánh */}
-          <Select
-            onValueChange={(v) => {
-              setActiveBranch(v);
-              setCurrentPage(1);
-            }}
-            defaultValue="all"
-          >
-            <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-              <SelectValue placeholder="Chi nhánh" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-              <SelectItem value="all" className="text-sm">
-                Tất cả chi nhánh
-              </SelectItem>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={b.id} className="text-sm">
-                  {b.name}
+          {/* Chi nhánh — chỉ hiển thị nếu là super-admin */}
+          {isSuperAdmin && (
+            <Select
+              onValueChange={(v) => {
+                setActiveBranch(v);
+                setCurrentPage(1);
+              }}
+              defaultValue="all"
+            >
+              <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+                <SelectValue placeholder="Chi nhánh" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+                <SelectItem value="all" className="text-sm">
+                  Tất cả chi nhánh
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id} className="text-sm">
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
           {/* Trạng thái */}
           <Select
@@ -504,7 +508,26 @@ if (newOnes.length > 0) {
                     )}
 
                     {visibleColumns.name && (
-                      <TableCell>{row.equipment?.name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`
+                  font-semibold 
+                  ${
+                    row.branch_id === "GV"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : row.branch_id === "Q3"
+                      ? "text-blue-600 dark:text-blue-400"
+                      : row.branch_id === "G3"
+                      ? "text-orange-600 dark:text-orange-400"
+                      : "text-gray-800 dark:text-gray-200"
+                  }
+                `}
+                          >
+                            {row.equipment?.name}
+                          </span>
+                        </div>
+                      </TableCell>
                     )}
                     {visibleColumns.main && (
                       <TableCell>{row.equipment?.main_name}</TableCell>

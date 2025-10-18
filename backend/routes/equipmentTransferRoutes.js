@@ -9,11 +9,7 @@ const branchFilterMiddleware = require("../middlewares/branchFilterMiddleware");
 const router = express.Router();
 
 // CREATE transfer
-router.post(
-  "/",
-  verifyAccessToken,
-  equipmentTransferController.createTransfer
-);
+router.post("/", verifyAccessToken, equipmentTransferController.createTransfer);
 
 // READ ALL
 router.get(
@@ -24,7 +20,12 @@ router.get(
 );
 
 // GET transfers by status (e.g., Completed)
-router.get("/status/:status", equipmentTransferController.getTransfersByStatus);
+router.get(
+  "/status/:status",
+  verifyAccessToken,
+  branchFilterMiddleware,
+  equipmentTransferController.getTransfersByStatus
+);
 
 // READ ONE
 router.get("/:id", equipmentTransferController.getTransferById);

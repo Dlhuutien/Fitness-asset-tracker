@@ -54,7 +54,7 @@ const equipmentUnitController = {
   getByStatus: async (req, res) => {
     try {
       const status = req.params.status;
-      const all = await equipmentUnitService.getAllUnits();
+      const all = await equipmentUnitService.getAllUnits(req.branchFilter);
       const filtered = all.filter(
         (u) => u.status.toLowerCase() === status.toLowerCase()
       );
@@ -69,7 +69,7 @@ const equipmentUnitController = {
       const statuses = req.query.statuses
         ? req.query.statuses.split(",").map((s) => s.trim().toLowerCase())
         : [];
-      const all = await equipmentUnitService.getAllUnits();
+      const all = await equipmentUnitService.getAllUnits(req.branchFilter);
       const filtered = all.filter((u) =>
         statuses.includes(u.status.toLowerCase())
       );
