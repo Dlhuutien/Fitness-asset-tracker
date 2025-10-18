@@ -2,6 +2,8 @@ const equipmentTransferRepository = require("../repositories/equipmentTransferRe
 const equipmentTransferDetailRepository = require("../repositories/equipmentTransferDetailRepository");
 const branchRepository = require("../repositories/branchRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
+const userRepository = require("../repositories/userRepository");
+const equipmentService = require("./equipmentService");
 
 const equipmentTransferService = {
   // ===================================================
@@ -38,7 +40,7 @@ const equipmentTransferService = {
     if (!fromBranch) throw new Error(`From branch ${from_branch_id} not found`);
 
     // ✅ Mô tả chung
-    const description = `Transfer ${data.unit_ids.length} unit(s) from ${fromBranch.name} to ${toBranch.name}`;
+    const description = `Chuyển ${data.unit_ids.length} thiết bị từ ${fromBranch.name} sang ${toBranch.name}`;
 
     // ✅ Tạo record master (Equipment_transfer)
     const transfer = await equipmentTransferRepository.create({
@@ -109,11 +111,83 @@ const equipmentTransferService = {
   // ===================================================
   // 🔍 GET ALL TRANSFERS (kèm details + unit info)
   // ===================================================
-  getTransfers: async () => {
-    const transfers = await equipmentTransferRepository.findAll();
+  getTransfers: async (branchFilter = null) => {
+    const transfers = branchFilter
+      ? await equipmentTransferRepository.findByBranch(branchFilter)
+      : await equipmentTransferRepository.findAll();
     const results = [];
 
     for (const t of transfers) {
+      const details = await equipmentTransferDetailRepository.findByTransferId(
+        t.id
+      );
+
+      const detailsWithUnits = [];
+      for (const d of details) {
+        const unit = await equipmentUnitRepository.findById(
+          d.equipment_unit_id
+        );
+        let equipmentName = null;
+
+        if (unit?.equipment_id) {
+          const equipment = await equipmentService.getEquipmentById(
+            unit.equipment_id
+          );
+          equipmentName = equipment?.name || null;
+        }
+
+        detailsWithUnits.push({
+          ...d,
+          equipment_unit: {
+            ...unit,
+            equipment_name: equipmentName,
+          },
+        });
+      }
+
+      // 🔹 Lấy tên người yêu cầu & người nhận (nếu có)
+      let approvedByName = null;
+      let receiverName = null;
+
+      if (t.approved_by) {
+        const approvedUser = await userRepository.getUserBySub(t.approved_by);
+        approvedByName =
+          approvedUser?.attributes?.name || approvedUser?.username || null;
+      }
+
+      if (t.receiver_id) {
+        const receiverUser = await userRepository.getUserBySub(t.receiver_id);
+        receiverName =
+          receiverUser?.attributes?.name || receiverUser?.username || null;
+      }
+
+      results.push({
+        ...t,
+        approved_by_name: approvedByName,
+        receiver_name: receiverName,
+        details: detailsWithUnits,
+      });
+    }
+
+    return results;
+  },
+
+  getTransfersByStatus: async (status, branchFilter = null) => {
+    // 🟢 Lấy toàn bộ transfer có cùng status
+    const transfers = await equipmentTransferRepository.findAllByStatus(status);
+
+    // 🟡 Nếu có branchFilter (admin, technician...), thì lọc lại
+    const filteredTransfers = branchFilter
+      ? transfers.filter(
+          (t) =>
+            t.from_branch_id === branchFilter || t.to_branch_id === branchFilter
+        )
+      : transfers;
+
+    const results = [];
+
+    for (const t of filteredTransfers) {
+      // 🧩 Lấy danh sách chi tiết
       const details = await equipmentTransferDetailRepository.findByTransferId(
         t.id
       );
@@ -124,19 +198,109 @@ const equipmentTransferService = {
         const unit = await equipmentUnitRepository.findById(
           d.equipment_unit_id
         );
+        let equipmentName = null;
+
+        if (unit?.equipment_id) {
+          const equipment = await equipmentService.getEquipmentById(
+            unit.equipment_id
+          );
+          equipmentName = equipment?.name || null;
+        }
+
         detailsWithUnits.push({
           ...d,
-          equipment_unit: unit,
+          equipment_unit: {
+            ...unit,
+            equipment_name: equipmentName,
+          },
         });
+      }
+
+      // 🔹 Lấy tên người yêu cầu và người nhận
+      let approvedByName = null;
+      let receiverName = null;
+
+      if (t.approved_by) {
+        const approvedUser = await userRepository.getUserBySub(t.approved_by);
+        approvedByName =
+          approvedUser?.attributes?.name || approvedUser?.username || null;
+      }
+
+      if (t.receiver_id) {
+        const receiverUser = await userRepository.getUserBySub(t.receiver_id);
+        receiverName =
+          receiverUser?.attributes?.name || receiverUser?.username || null;
       }
 
       results.push({
         ...t,
+        approved_by_name: approvedByName,
+        receiver_name: receiverName,
         details: detailsWithUnits,
       });
     }
 
     return results;
+  },
+
+  // ===================================================
+  // 🔎 GET ONE TRANSFER BY ID (kèm details + unit info)
+  // ===================================================
+  getTransferById: async (id) => {
+    const transfer = await equipmentTransferRepository.findById(id);
+    if (!transfer) throw new Error("EquipmentTransfer not found");
+
+    const details = await equipmentTransferDetailRepository.findByTransferId(
+      id
+    );
+
+    // Join với EquipmentUnit để lấy thông tin đầy đủ
+    const detailsWithUnits = [];
+    for (const d of details) {
+      const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+      let equipmentName = null;
+
+      if (unit?.equipment_id) {
+        const equipment = await equipmentService.getEquipmentById(
+          unit.equipment_id
+        );
+        equipmentName = equipment?.name || null;
+      }
+
+      detailsWithUnits.push({
+        ...d,
+        equipment_unit: {
+          ...unit,
+          equipment_name: equipmentName,
+        },
+      });
+    }
+
+    let approvedByName = null;
+    let receiverName = null;
+
+    if (transfer.approved_by) {
+      const approvedUser = await userRepository.getUserBySub(
+        transfer.approved_by
+      );
+      approvedByName =
+        approvedUser?.attributes?.name || approvedUser?.username || null;
+    }
+
+    if (transfer.receiver_id) {
+      const receiverUser = await userRepository.getUserBySub(
+        transfer.receiver_id
+      );
+      receiverName =
+        receiverUser?.attributes?.name || receiverUser?.username || null;
+    }
+
+    return {
+      ...transfer,
+      approved_by_name: approvedByName,
+      receiver_name: receiverName,
+      details: detailsWithUnits,
+    };
   },
 
   // ===================================================

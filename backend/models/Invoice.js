@@ -4,6 +4,7 @@ const {
   GetCommand,
   UpdateCommand,
   DeleteCommand,
+  QueryCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const { dynamodb } = require("../utils/aws-helper");
 const { v4: uuidv4 } = require("uuid");
@@ -16,59 +17,82 @@ const InvoiceModel = {
     const item = {
       id: uuidv4(),
       user_id: data.user_id, // từ Cognito sub
+      branch_id: data.branch_id,
       total: data.total,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    await dynamodb.send(new PutCommand({
-      TableName: tableName,
-      Item: item,
-    }));
+    await dynamodb.send(
+      new PutCommand({
+        TableName: tableName,
+        Item: item,
+      })
+    );
 
     return item;
   },
 
+  getInvoicesByBranch: async (branch_id) => {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "branch_id-index",
+        KeyConditionExpression: "branch_id = :b",
+        ExpressionAttributeValues: { ":b": branch_id },
+      })
+    );
+    return result.Items || [];
+  },
+
   // READ ALL
   getInvoices: async () => {
-    const result = await dynamodb.send(new ScanCommand({ TableName: tableName }));
+    const result = await dynamodb.send(
+      new ScanCommand({ TableName: tableName })
+    );
     return result.Items || [];
   },
 
   // READ ONE
   getInvoiceById: async (id) => {
-    const result = await dynamodb.send(new GetCommand({
-      TableName: tableName,
-      Key: { id },
-    }));
+    const result = await dynamodb.send(
+      new GetCommand({
+        TableName: tableName,
+        Key: { id },
+      })
+    );
     return result.Item;
   },
 
   // UPDATE (chỉ sửa total)
   updateInvoice: async (id, data) => {
-    const result = await dynamodb.send(new UpdateCommand({
-      TableName: tableName,
-      Key: { id },
-      UpdateExpression: "set #t = :total, #u = :updatedAt",
-      ExpressionAttributeNames: {
-        "#t": "total",
-        "#u": "updated_at",
-      },
-      ExpressionAttributeValues: {
-        ":total": data.total,
-        ":updatedAt": new Date().toISOString(),
-      },
-      ReturnValues: "ALL_NEW",
-    }));
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: tableName,
+        Key: { id },
+        UpdateExpression: "set #t = :total, #u = :updatedAt",
+        ExpressionAttributeNames: {
+          "#t": "total",
+          "#u": "updated_at",
+        },
+        ExpressionAttributeValues: {
+          ":total": data.total,
+          ":updatedAt": new Date().toISOString(),
+        },
+        ReturnValues: "ALL_NEW",
+      })
+    );
     return result.Attributes;
   },
 
   // DELETE
   deleteInvoice: async (id) => {
-    await dynamodb.send(new DeleteCommand({
-      TableName: tableName,
-      Key: { id },
-    }));
+    await dynamodb.send(
+      new DeleteCommand({
+        TableName: tableName,
+        Key: { id },
+      })
+    );
     return { id };
   },
 };

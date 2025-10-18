@@ -32,7 +32,22 @@ const equipmentTransferController = {
 
   getTransfers: async (req, res) => {
     try {
-      const transfers = await equipmentTransferService.getTransfers();
+      const transfers = await equipmentTransferService.getTransfers(
+        req.branchFilter
+      );
+      res.json(transfers);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  getTransfersByStatus: async (req, res) => {
+    try {
+      const { status } = req.params;
+      const transfers = await equipmentTransferService.getTransfersByStatus(
+        status,
+        req.branchFilter // ✅ truyền filter vào service
+      );
       res.json(transfers);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -56,7 +71,7 @@ const equipmentTransferController = {
         await equipmentTransferService.completeTransfer(
           req.params.id,
           req.body.move_receive_date,
-          req.user.sub  
+          req.user.sub
         );
 
       const admins = await userService.getUsersByRoles([

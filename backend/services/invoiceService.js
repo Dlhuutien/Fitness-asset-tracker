@@ -12,9 +12,15 @@ const invoiceService = {
       throw new Error("user_id and items are required");
     }
 
+    const branch_id = data.items[0]?.branch_id;
+    if (!branch_id) {
+      throw new Error("branch_id is required in at least one item");
+    }
+
     // 1. Tạo invoice trước (chưa có total)
     const invoice = await invoiceRepository.create({
       user_id: data.user_id,
+      branch_id,
       total: 0,
     });
 
@@ -92,8 +98,12 @@ const invoiceService = {
     };
   },
 
-  getInvoices: async () => {
-    const invoices = await invoiceRepository.findAll();
+  getInvoices: async (branchFilter = null) => {
+    // 🔍 Nếu có filter chi nhánh → query theo GSI
+    const invoices = branchFilter
+      ? await invoiceRepository.findByBranch(branchFilter)
+      : await invoiceRepository.findAll();
+      
     const result = [];
 
     for (const inv of invoices) {
@@ -219,8 +229,11 @@ const invoiceService = {
   // ======================================================
   // LẤY TOÀN BỘ CHI TIẾT HÓA ĐƠN (/invoice/details)
   // ======================================================
-  getAllInvoiceDetails: async () => {
-    const invoices = await invoiceRepository.findAll();
+  getAllInvoiceDetails: async (branchFilter = null) => {
+    // 🔍 Nếu có filter chi nhánh → query theo GSI
+    const invoices = branchFilter
+      ? await invoiceRepository.findByBranch(branchFilter)
+      : await invoiceRepository.findAll();
     const allDetails = await invoiceDetailRepository.findAll();
     const combined = [];
 

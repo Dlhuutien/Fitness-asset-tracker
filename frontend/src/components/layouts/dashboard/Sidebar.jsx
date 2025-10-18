@@ -49,6 +49,7 @@ export default function Sidebar() {
         // { label: "Tạo thông tin thiết bị", path: "/app/equipment/add-group" },
         { label: "Nhập thiết bị", path: "/app/equipment/import" },
         { label: "Bảo trì thiết bị", path: "/app/maintenance" },
+        { label: "Vận chuyển thiết bị", path: "/app/equipment/transfer" },
       ],
     },
     {

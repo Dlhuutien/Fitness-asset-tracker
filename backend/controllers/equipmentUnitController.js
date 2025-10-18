@@ -3,19 +3,7 @@ const equipmentUnitService = require("../services/equipmentUnitService");
 const equipmentUnitController = {
   getUnits: async (req, res) => {
     try {
-      const user = req.user;
-      let branchFilter = null;
-
-      // 🧠 Chỉ super-admin thấy tất cả
-      // Còn lại (admin, technician, operator) chỉ thấy theo chi nhánh của họ
-      if (user && user.role !== "super-admin") {
-        branchFilter =
-          user["custom:branch_id"] ||
-          user?.attributes?.["custom:branch_id"] ||
-          null;
-      }
-
-      const units = await equipmentUnitService.getAllUnits(branchFilter);
+      const units = await equipmentUnitService.getAllUnits(req.branchFilter);
       res.json(units);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -66,7 +54,7 @@ const equipmentUnitController = {
   getByStatus: async (req, res) => {
     try {
       const status = req.params.status;
-      const all = await equipmentUnitService.getAllUnits();
+      const all = await equipmentUnitService.getAllUnits(req.branchFilter);
       const filtered = all.filter(
         (u) => u.status.toLowerCase() === status.toLowerCase()
       );
@@ -81,7 +69,7 @@ const equipmentUnitController = {
       const statuses = req.query.statuses
         ? req.query.statuses.split(",").map((s) => s.trim().toLowerCase())
         : [];
-      const all = await equipmentUnitService.getAllUnits();
+      const all = await equipmentUnitService.getAllUnits(req.branchFilter);
       const filtered = all.filter((u) =>
         statuses.includes(u.status.toLowerCase())
       );

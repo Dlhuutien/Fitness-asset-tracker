@@ -38,7 +38,9 @@ const MaintenanceModel = {
   },
 
   getAll: async () => {
-    const result = await dynamodb.send(new ScanCommand({ TableName: tableName }));
+    const result = await dynamodb.send(
+      new ScanCommand({ TableName: tableName })
+    );
     return result.Items || [];
   },
 
@@ -50,6 +52,19 @@ const MaintenanceModel = {
       })
     );
     return result.Item;
+  },
+
+  // GSI query theo branch_id
+  getByBranchId: async (branch_id) => {
+    const result = await dynamodb.send(
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "branch_id-index",
+        KeyConditionExpression: "branch_id = :b",
+        ExpressionAttributeValues: { ":b": branch_id },
+      })
+    );
+    return result.Items || [];
   },
 
   updateMaintenance: async (id, data) => {
