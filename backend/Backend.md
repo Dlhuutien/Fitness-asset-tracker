@@ -126,6 +126,7 @@
 
     - `POST /maintenance` — Tạo yêu cầu bảo trì thiết bị
     - `GET /maintenance` — Lấy danh sách yêu cầu bảo trì
+    - `GET /maintenance/results` — Lấy danh sách kết quả bảo trì
     - `GET /maintenance/:id` — Lấy chi tiết một yêu cầu bảo trì
     - `GET /maintenance/by-unit/:unitId` — Lấy maintenance đang bảo trì theo equipment_unit_id
     - `GET /maintenance/history/:unitId` — Lấy lịch sử bảo trì theo equipment_unit_id
