@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import { Label } from "@/components/ui/label";
+import { useNavigate } from "react-router-dom";
+
 import {
   Table,
   TableHead,
@@ -52,7 +54,7 @@ export default function EquipmentImportPage({
 }) {
   const { mutate } = useSWRConfig();
   const { refreshEquipmentUnits } = useEquipmentData(); // ✅ dùng hook đã fix key
-
+  const navigate = useNavigate();
   const [selectedVendor, setSelectedVendor] = useState("");
   const [selectedItems, setSelectedItems] = useState({});
   const [vendors, setVendors] = useState([]);
@@ -177,72 +179,75 @@ export default function EquipmentImportPage({
   };
 
   // ✅ Xác nhận nhập hàng
-  const handleConfirmImport = async () => {
-    try {
-      setLoadingSubmit(true);
-      if (onStartImport) onStartImport();
+// ✅ Xác nhận nhập hàng
+const handleConfirmImport = async () => {
+  try {
+    setLoadingSubmit(true);
+    if (onStartImport) onStartImport();
 
-      // ✅ bật overlay Loading
-      setOverlayOpen(true);
-      setOverlayMode("loading");
+    // ✅ bật overlay Loading
+    setOverlayOpen(true);
+    setOverlayMode("loading");
 
-      if (!selectedBranch) {
-        toast.error("⚠️ Vui lòng chọn chi nhánh nhập hàng!");
-        setLoadingSubmit(false);
-        return;
-      }
-
-      const items = Object.values(selectedItems).map((item) => ({
-        equipment_id: item.id,
-        branch_id: selectedBranch,
-        quantity: Number.parseInt(item.qty) || 0,
-        cost: Number.parseFloat(item.price) || 0,
-      }));
-
-      // 🧾 Gọi API tạo hóa đơn nhập hàng
-      await InvoiceService.create({ items });
-      toast.info("🧾 Đang chờ cập nhật danh sách thiết bị...");
-
-      // 🌀 Refresh SWR
-      await refreshEquipmentUnits();
-
-      // 🔁 Revalidate lần 2 sau 2s để chắc chắn SWR có data mới
-      setTimeout(() => {
-        console.log("⏳ Force refresh lần 2 equipmentUnit...");
-        refreshEquipmentUnits();
-      }, 2000);
-
-      // ✅ Auto success fallback (frontend-only)
-      // Nếu sau 3s không có event fitx-units-updated → auto chuyển success
-      const autoSuccessTimer = setTimeout(() => {
-        if (overlayMode === "loading") {
-          console.log("⚙️ Auto success fallback triggered");
-          setOverlayMode("success");
-          toast.success("🎉 Nhập hàng thành công (auto fallback)");
-          // tự tắt sau 2.5s
-          setTimeout(() => {
-            setOverlayOpen(false);
-            setOverlayMode("loading");
-            newFromUnitListRef.current.clear();
-          }, 2500);
-        }
-      }, 3000);
-
-      // ✅ Nếu event thật đến thì clear fallback
-      window.addEventListener(
-        "fitx-units-updated",
-        () => clearTimeout(autoSuccessTimer),
-        { once: true }
-      );
-    } catch (err) {
-      console.error("❌ Lỗi nhập hàng:", err);
-      toast.error("❌ Có lỗi khi tạo hóa đơn!");
-      setOverlayOpen(false);
-    } finally {
+    if (!selectedBranch) {
+      toast.error("⚠️ Vui lòng chọn chi nhánh nhập hàng!");
       setLoadingSubmit(false);
-      setSelectedItems({});
+      return;
     }
-  };
+
+    const items = Object.values(selectedItems).map((item) => ({
+      equipment_id: item.id,
+      branch_id: selectedBranch,
+      quantity: Number.parseInt(item.qty) || 0,
+      cost: Number.parseFloat(item.price) || 0,
+    }));
+
+    // 🧾 Gọi API tạo hóa đơn nhập hàng
+    await InvoiceService.create({ items });
+    toast.info("🧾 Đang chờ cập nhật danh sách thiết bị...");
+
+    // 🌀 Refresh SWR
+    await refreshEquipmentUnits();
+
+    // 🔁 Revalidate lần 2 sau 2s để chắc chắn SWR có data mới
+    setTimeout(() => {
+      console.log("⏳ Force refresh lần 2 equipmentUnit...");
+      refreshEquipmentUnits();
+    }, 2000);
+
+    // ✅ Auto success fallback (frontend-only)
+    // Nếu sau 3s không có event fitx-units-updated → auto chuyển success
+    const autoSuccessTimer = setTimeout(() => {
+      if (overlayMode === "loading") {
+        console.log("⚙️ Auto success fallback triggered");
+        setOverlayMode("success");
+        toast.success("🎉 Nhập hàng thành công (auto fallback)");
+
+        // ❌ Bỏ đoạn tự tắt overlay - để user chủ động bấm nút
+        // setTimeout(() => {
+        //   setOverlayOpen(false);
+        //   setOverlayMode("loading");
+        //   newFromUnitListRef.current.clear();
+        // }, 2500);
+      }
+    }, 3000);
+
+    // ✅ Nếu event thật đến thì clear fallback
+    window.addEventListener(
+      "fitx-units-updated",
+      () => clearTimeout(autoSuccessTimer),
+      { once: true }
+    );
+  } catch (err) {
+    console.error("❌ Lỗi nhập hàng:", err);
+    toast.error("❌ Có lỗi khi tạo hóa đơn!");
+    setOverlayOpen(false);
+  } finally {
+    setLoadingSubmit(false);
+    setSelectedItems({});
+  }
+};
+
 
   // ===== Lọc và hiển thị =====
   const vendorEquipments = useMemo(() => {
@@ -374,14 +379,11 @@ export default function EquipmentImportPage({
                     setOverlayOpen(false);
                     setOverlayMode("loading");
                     newFromUnitListRef.current.clear();
-                    if (onRequestSwitchTab) onRequestSwitchTab("unit");
-                    try {
-                      window.dispatchEvent(new CustomEvent("fitx-go-to-unit"));
-                    } catch {}
+                    navigate("/app/equipment/directory");
                   }}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-1"
                 >
-                  Chuyển đến trang thiết bị <ChevronRight size={16} />
+                  Chuyển đến danh mục thiết bị <ChevronRight size={16} />
                 </Button>
               </div>
             </>
