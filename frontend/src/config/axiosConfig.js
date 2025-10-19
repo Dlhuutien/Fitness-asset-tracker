@@ -24,28 +24,40 @@ function isTokenExpiringSoon(token) {
 // ============================================================
 // 📦 Request Interceptor
 // ============================================================
-api.interceptors.request.use(async (config) => {
-  const auth = AuthService.getAuth();
-  if (auth?.accessToken) {
-    // Nếu token sắp hết hạn, tự refresh
-    if (isTokenExpiringSoon(auth.accessToken)) {
-      console.log("⚠️ Token sắp hết hạn, đang refresh...");
-      try {
-        await AuthService.refreshToken(auth.username, auth.refreshToken);
-        const updated = AuthService.getAuth();
-        config.headers.Authorization = `Bearer ${updated.accessToken}`;
-        toast.success("🔄 Token đã được refresh tự động!");
-      } catch (err) {
-        console.error("❌ Refresh token thất bại:", err);
-        AuthService.clearAuth();
-        window.location.href = "/login";
+api.interceptors.request.use(
+  async (config) => {
+    const auth = AuthService.getAuth();
+
+    if (auth?.accessToken) {
+      // Nếu token sắp hết hạn, tự refresh
+      if (isTokenExpiringSoon(auth.accessToken)) {
+        console.log("⚠️ Token sắp hết hạn, đang refresh...");
+        try {
+          await AuthService.refreshToken(auth.username, auth.refreshToken);
+          const updated = AuthService.getAuth();
+          config.headers.Authorization = `Bearer ${updated.accessToken}`;
+          toast.success("🔄 Token đã được refresh tự động!");
+        } catch (err) {
+          console.error("❌ Refresh token thất bại:", err);
+          AuthService.clearAuth();
+          window.location.href = "/login";
+        }
+      } else {
+        config.headers.Authorization = `Bearer ${auth.accessToken}`;
       }
-    } else {
-      config.headers.Authorization = `Bearer ${auth.accessToken}`;
     }
-  }
-  return config;
-});
+
+    // ✅ Giữ nguyên signal (nếu có)
+    if (config.signal) {
+      // Không làm gì cả, chỉ log kiểm tra
+      // console.log("✅ Signal giữ nguyên trong request:", config.signal);
+    }
+
+    return config; // ⚠️ phải return config gốc, KHÔNG clone hoặc await thêm
+  },
+  (error) => Promise.reject(error)
+);
+
 
 // ============================================================
 // 🚨 Response Interceptor (retry nếu token invalid / 401)

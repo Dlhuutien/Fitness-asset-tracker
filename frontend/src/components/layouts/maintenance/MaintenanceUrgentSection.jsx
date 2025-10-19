@@ -29,6 +29,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import BranchService from "@/services/branchService";
+import useAuthRole from "@/hooks/useAuthRole";
 
 const STATUS_MAP = {
   active: "Hoạt động",
@@ -41,8 +42,6 @@ const STATUS_MAP = {
   "in stock": "Thiết bị trong kho",
   deleted: "Đã xóa",
 };
-import useAuthRole from "@/hooks/useAuthRole";
-import Branch from "@/components/common/Branch";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -56,17 +55,14 @@ export default function MaintenanceUrgentSection() {
   const [loading, setLoading] = useState(true);
   const [loadingStart, setLoadingStart] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
 
   const [search, setSearch] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
-  const [currentPage, setCurrentPage] = useState(1);
-
   const [activeBranch, setActiveBranch] = useState("all");
   const [branches, setBranches] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const { isSuperAdmin, branchId } = useAuthRole();
+  const { isSuperAdmin } = useAuthRole();
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -110,31 +106,7 @@ export default function MaintenanceUrgentSection() {
     })();
   }, []);
 
-  // ====== Tìm kiếm + Lọc nhóm ======
-  // ====== Tìm kiếm + Lọc nhóm + Chi nhánh ======
-  useEffect(() => {
-    const q = search.trim().toLowerCase();
-
-    const f = equipments.filter((u) => {
-      const matchSearch =
-        !q ||
-        u.equipment?.name?.toLowerCase().includes(q) ||
-        u.equipment?.vendor_name?.toLowerCase().includes(q) ||
-        u.equipment?.type_name?.toLowerCase().includes(q);
-
-      const matchGroup =
-        activeGroup === "all" || u.equipment?.main_name === activeGroup;
-
-      const matchBranch =
-        activeBranch === "all" || u.branch_id === activeBranch;
-
-      return matchSearch && matchGroup && matchBranch;
-    });
-
-    setFiltered(f);
-    setCurrentPage(1);
-  }, [search, activeGroup, activeBranch, equipments]);
-
+  // 🏢 Load chi nhánh
   useEffect(() => {
     (async () => {
       try {
@@ -146,7 +118,28 @@ export default function MaintenanceUrgentSection() {
     })();
   }, []);
 
-  // ====== Excel-style lọc theo cột ======
+  // 🔎 Tìm kiếm + Lọc nhóm + Chi nhánh
+  useEffect(() => {
+    const q = search.trim().toLowerCase();
+    const f = equipments.filter((u) => {
+      const matchSearch =
+        !q ||
+        u.equipment?.name?.toLowerCase().includes(q) ||
+        u.equipment?.vendor_name?.toLowerCase().includes(q) ||
+        u.equipment?.type_name?.toLowerCase().includes(q);
+
+      const matchGroup =
+        activeGroup === "all" || u.equipment?.main_name === activeGroup;
+      const matchBranch =
+        activeBranch === "all" || u.branch_id === activeBranch;
+
+      return matchSearch && matchGroup && matchBranch;
+    });
+    setFiltered(f);
+    setCurrentPage(1);
+  }, [search, activeGroup, activeBranch, equipments]);
+
+  // 📊 Excel-style filter
   const uniqueValues = useMemo(
     () => ({
       id: getUniqueValues(equipments, (e) => e.id),
@@ -233,7 +226,7 @@ export default function MaintenanceUrgentSection() {
       setSelected({ ...selected, status: "In Progress" });
       setMaintenanceSteps((prev) => ({ ...prev, [selected.id]: 2 }));
       setCost(checkWarranty(selected) ? "0" : "");
-    } catch (err) {
+    } catch {
       toast.error("Không thể bắt đầu bảo trì");
     } finally {
       setLoadingStart(false);
@@ -270,7 +263,7 @@ export default function MaintenanceUrgentSection() {
         setEquipments((prev) => prev.filter((eq) => eq.id !== selected.id));
         setSelected(null);
       }, 2000);
-    } catch (err) {
+    } catch {
       toast.error("Không thể hoàn tất bảo trì");
     } finally {
       setLoadingComplete(false);
@@ -306,8 +299,7 @@ export default function MaintenanceUrgentSection() {
               <SelectValue placeholder="Nhóm thiết bị" />
             </SelectTrigger>
             <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md rounded-md">
-              {[
-                { id: "all", name: "Tất cả nhóm" },
+              {[{ id: "all", name: "Tất cả nhóm" },
                 ...Array.from(
                   new Set(equipments.map((e) => e.equipment?.main_name))
                 ).map((n) => ({ id: n, name: n })),
@@ -322,7 +314,7 @@ export default function MaintenanceUrgentSection() {
               ))}
             </SelectContent>
           </Select>
-          {/* Chi nhánh (chỉ super-admin mới được chọn) */}
+
           {isSuperAdmin && (
             <Select
               onValueChange={(v) => {
@@ -352,7 +344,7 @@ export default function MaintenanceUrgentSection() {
           visibleColumns={visibleColumns}
           setVisibleColumns={setVisibleColumns}
           labels={{
-            id: "Mã Unit",
+            id: "Mã định danh thiết bị",
             image: "Ảnh",
             name: "Tên thiết bị",
             main_name: "Nhóm",
@@ -368,32 +360,46 @@ export default function MaintenanceUrgentSection() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-700">
-            <TableHeader>
-              <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                <TableHead>#</TableHead>
-                {Object.entries(visibleColumns).map(
-                  ([key, visible]) =>
-                    visible && (
-                      <TableHead key={key}>
-                        {["status"].includes(key) ? (
-                          "Trạng thái"
-                        ) : (
-                          <HeaderFilter
-                            selfKey={key}
-                            label={key}
-                            values={uniqueValues[key]}
-                            selected={filters[key]}
-                            onChange={(v) =>
-                              setFilters((p) => ({ ...p, [key]: v }))
-                            }
-                            controller={controller}
-                          />
-                        )}
-                      </TableHead>
-                    )
-                )}
-              </TableRow>
-            </TableHeader>
+ <TableHeader>
+  <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
+    <TableHead>#</TableHead>
+    {Object.entries(visibleColumns).map(([key, visible]) => {
+      if (!visible) return null;
+
+      const COLUMN_LABELS = {
+        id: "Mã định danh thiết bị",
+        image: "Ảnh",
+        name: "Tên thiết bị",
+        main_name: "Nhóm thiết bị",
+        type_name: "Loại thiết bị",
+        status: "Trạng thái",
+        vendor_name: "Nhà cung cấp",
+        branch_id: "Chi nhánh",
+      };
+
+      // 🧩 Bỏ filter cho cột "image"
+      const noFilterColumns = ["image"];
+
+      return (
+        <TableHead key={key}>
+          {noFilterColumns.includes(key) ? (
+            COLUMN_LABELS[key]
+          ) : (
+            <HeaderFilter
+              selfKey={key}
+              label={COLUMN_LABELS[key] || key}
+              values={uniqueValues[key]}
+              selected={filters[key]}
+              onChange={(v) => setFilters((p) => ({ ...p, [key]: v }))}
+              controller={controller}
+            />
+          )}
+        </TableHead>
+      );
+    })}
+  </TableRow>
+</TableHeader>
+
 
             <TableBody>
               {currentData.map((row, idx) => {
@@ -418,8 +424,6 @@ export default function MaintenanceUrgentSection() {
                           technician_name: m.technician_name,
                         }));
                       }
-
-                      // Nếu thiết bị đang bảo trì → hiển thị luôn Step 2
                       if (row.status?.toLowerCase() === "in progress") {
                         setMaintenanceSteps((prev) => ({
                           ...prev,
@@ -445,9 +449,7 @@ export default function MaintenanceUrgentSection() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span
-                            className={`
-                            font-semibold truncate max-w-[220px]
-                            ${
+                            className={`font-semibold truncate max-w-[220px] ${
                               row.branch_id === "GV"
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : row.branch_id === "Q3"
@@ -455,15 +457,13 @@ export default function MaintenanceUrgentSection() {
                                 : row.branch_id === "G3"
                                 ? "text-orange-600 dark:text-orange-400"
                                 : "text-gray-800 dark:text-gray-200"
-                            }
-                          `}
+                            }`}
                           >
                             {row.equipment?.name}
                           </span>
                         </div>
                       </TableCell>
                     )}
-
                     {visibleColumns.main_name && (
                       <TableCell>{row.equipment?.main_name}</TableCell>
                     )}
@@ -491,8 +491,8 @@ export default function MaintenanceUrgentSection() {
         {/* Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700 text-sm">
           <div className="text-gray-700 dark:text-gray-300">
-            Trang {currentPage} / {totalPages} — Tổng: {filteredByColumn.length}{" "}
-            thiết bị
+            Trang {currentPage} / {totalPages} — Tổng:{" "}
+            {filteredByColumn.length} thiết bị
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -508,12 +508,11 @@ export default function MaintenanceUrgentSection() {
               <button
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`w-8 h-8 flex items-center justify-center rounded-md border text-sm font-medium transition-all
-                  ${
-                    currentPage === page
-                      ? "bg-emerald-500 text-white border-emerald-500"
-                      : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
+                className={`w-8 h-8 flex items-center justify-center rounded-md border text-sm font-medium transition-all ${
+                  currentPage === page
+                    ? "bg-emerald-500 text-white border-emerald-500"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                }`}
               >
                 {page}
               </button>
@@ -565,7 +564,8 @@ export default function MaintenanceUrgentSection() {
                 <strong>Tên:</strong> {selected.equipment?.name}
               </p>
               <p>
-                <strong>Nhà cung cấp:</strong> {selected.equipment?.vendor_name}
+                <strong>Nhà cung cấp:</strong>{" "}
+                {selected.equipment?.vendor_name}
               </p>
               <p>
                 <strong>Nhóm:</strong> {selected.equipment?.main_name}
@@ -584,7 +584,9 @@ export default function MaintenanceUrgentSection() {
                     ✅ Còn hạn
                   </span>
                 ) : (
-                  <span className="text-red-600 font-semibold">❌ Hết hạn</span>
+                  <span className="text-red-600 font-semibold">
+                    ❌ Hết hạn
+                  </span>
                 )}
               </p>
             </div>

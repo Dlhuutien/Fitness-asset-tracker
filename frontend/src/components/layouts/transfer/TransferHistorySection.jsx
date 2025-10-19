@@ -1,6 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, ChevronUp, Truck, Search } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Truck,
+  Search,
+  ArrowDownUp,
+} from "lucide-react";
 
 import {
   Table,
@@ -11,9 +17,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/buttonn";
 import EquipmentTransferService from "@/services/equipmentTransferService";
 import Status from "@/components/common/Status";
 import Branch from "@/components/common/Branch";
+import {
+  HeaderFilter,
+  ColumnVisibilityButton,
+  useGlobalFilterController,
+  getUniqueValues,
+} from "@/components/common/ExcelTableTools";
 
 const STATUS_MAP = {
   active: "Hoạt động",
@@ -30,6 +43,26 @@ export default function TransferHistory() {
   const [expandedId, setExpandedId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [sortNewestFirst, setSortNewestFirst] = useState(true);
+
+  // 🔍 Excel filters
+  const controller = useGlobalFilterController();
+  const [filters, setFilters] = useState({
+    id: [],
+    from_branch_id: [],
+    to_branch_id: [],
+    approved_by_name: [],
+    receiver_name: [],
+  });
+  const [visibleColumns, setVisibleColumns] = useState({
+    id: true,
+    from_branch_id: true,
+    to_branch_id: true,
+    approved_by_name: true,
+    receiver_name: true,
+    move_start_date: true,
+    move_receive_date: true,
+  });
 
   const toggleExpand = (id) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -40,8 +73,6 @@ export default function TransferHistory() {
       try {
         const data = await EquipmentTransferService.getByStatus("Completed");
         setTransfers(data);
-
-        setTransfers(updated);
       } catch (err) {
         console.error("❌ Lỗi tải danh sách vận chuyển:", err);
       } finally {
@@ -52,19 +83,46 @@ export default function TransferHistory() {
     fetchTransfers();
   }, []);
 
+  // Unique filter values
+  const uniqueValues = useMemo(
+    () => ({
+      id: getUniqueValues(transfers, (t) => t.id),
+      from_branch_id: getUniqueValues(transfers, (t) => t.from_branch_id),
+      to_branch_id: getUniqueValues(transfers, (t) => t.to_branch_id),
+      approved_by_name: getUniqueValues(transfers, (t) => t.approved_by_name),
+      receiver_name: getUniqueValues(transfers, (t) => t.receiver_name),
+    }),
+    [transfers]
+  );
+
+  // Filter + Search + Sort
   const filteredTransfers = useMemo(() => {
-    if (!searchTerm) return transfers;
     const s = searchTerm.toLowerCase();
-    return transfers.filter(
-      (t) =>
+    const list = transfers.filter((t) => {
+      const matchSearch =
+        !s ||
         t.id.toLowerCase().includes(s) ||
         t.from_branch_id.toLowerCase().includes(s) ||
         t.to_branch_id.toLowerCase().includes(s) ||
         t.approved_by_name?.toLowerCase().includes(s) ||
         t.receiver_name?.toLowerCase().includes(s) ||
-        t.description?.toLowerCase().includes(s)
-    );
-  }, [searchTerm, transfers]);
+        t.description?.toLowerCase().includes(s);
+
+      const matchFilter = Object.keys(filters).every((key) => {
+        if (!filters[key] || filters[key].length === 0) return true;
+        const val = t[key] || "";
+        return filters[key].includes(val);
+      });
+
+      return matchSearch && matchFilter;
+    });
+
+    return list.sort((a, b) => {
+      const dateA = new Date(a.move_receive_date || a.move_start_date || 0);
+      const dateB = new Date(b.move_receive_date || b.move_start_date || 0);
+      return sortNewestFirst ? dateB - dateA : dateA - dateB;
+    });
+  }, [transfers, searchTerm, filters, sortNewestFirst]);
 
   if (loading)
     return (
@@ -76,7 +134,7 @@ export default function TransferHistory() {
   return (
     <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-5">
       {/* ===== Header ===== */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <Truck className="text-emerald-500" />
           <h2 className="text-lg font-semibold text-emerald-600">
@@ -84,13 +142,37 @@ export default function TransferHistory() {
           </h2>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Tìm mã, chi nhánh, người..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 w-72 h-10 text-sm"
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setSortNewestFirst((p) => !p)}
+            className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
+          >
+            <ArrowDownUp size={16} />
+            {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
+          </Button>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Tìm mã, chi nhánh, người..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-8 w-72 h-10 text-sm"
+            />
+          </div>
+
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              id: "Mã vận chuyển",
+              from_branch_id: "Từ chi nhánh",
+              to_branch_id: "Đến chi nhánh",
+              approved_by_name: "Người yêu cầu",
+              receiver_name: "Người nhận",
+              move_start_date: "Ngày bắt đầu",
+              move_receive_date: "Ngày hoàn tất",
+            }}
           />
         </div>
       </div>
@@ -101,13 +183,41 @@ export default function TransferHistory() {
           <TableHeader>
             <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
               <TableHead>#</TableHead>
-              <TableHead>Mã vận chuyển</TableHead>
-              <TableHead>Từ chi nhánh</TableHead>
-              <TableHead>Đến chi nhánh</TableHead>
-              <TableHead>Người yêu cầu</TableHead>
-              <TableHead>Người nhận</TableHead>
-              <TableHead>Ngày bắt đầu</TableHead>
-              <TableHead>Ngày hoàn tất</TableHead>
+              {Object.entries(visibleColumns).map(([key, visible]) => {
+                if (!visible) return null;
+
+                const LABELS = {
+                  id: "Mã vận chuyển",
+                  from_branch_id: "Từ chi nhánh",
+                  to_branch_id: "Đến chi nhánh",
+                  approved_by_name: "Người yêu cầu",
+                  receiver_name: "Người nhận",
+                  move_start_date: "Ngày bắt đầu",
+                  move_receive_date: "Ngày hoàn tất",
+                };
+
+                // ❌ Không filter cho các cột ngày
+                const noFilterColumns = ["move_start_date", "move_receive_date"];
+
+                return (
+                  <TableHead key={key}>
+                    {noFilterColumns.includes(key) ? (
+                      LABELS[key]
+                    ) : (
+                      <HeaderFilter
+                        selfKey={key}
+                        label={LABELS[key]}
+                        values={uniqueValues[key]}
+                        selected={filters[key]}
+                        onChange={(v) =>
+                          setFilters((p) => ({ ...p, [key]: v }))
+                        }
+                        controller={controller}
+                      />
+                    )}
+                  </TableHead>
+                );
+              })}
               <TableHead className="text-center">Chi tiết</TableHead>
             </TableRow>
           </TableHeader>
@@ -116,7 +226,7 @@ export default function TransferHistory() {
             {filteredTransfers.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={9}
+                  colSpan={Object.keys(visibleColumns).length + 2}
                   className="text-center py-4 text-gray-500"
                 >
                   Không có lịch sử vận chuyển nào.
@@ -132,26 +242,39 @@ export default function TransferHistory() {
                     className="text-sm cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                   >
                     <TableCell>{i + 1}</TableCell>
-                    <TableCell className="font-medium text-emerald-600">
-                      {t.id}
-                    </TableCell>
-                    <TableCell>
-                      <Branch id={t.from_branch_id} />
-                    </TableCell>
-                    <TableCell>
-                      <Branch id={t.to_branch_id} />
-                    </TableCell>
-                    <TableCell>{t.approved_by_name || "—"}</TableCell>
-                    <TableCell>{t.receiver_name || "—"}</TableCell>
-                    <TableCell>
-                      {new Date(t.move_start_date).toLocaleString("vi-VN")}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(
-                        t.move_receive_date?.move_receive_date ||
-                          t.move_receive_date
-                      ).toLocaleString("vi-VN")}
-                    </TableCell>
+                    {visibleColumns.id && (
+                      <TableCell className="font-medium text-emerald-600">
+                        {t.id}
+                      </TableCell>
+                    )}
+                    {visibleColumns.from_branch_id && (
+                      <TableCell>
+                        <Branch id={t.from_branch_id} />
+                      </TableCell>
+                    )}
+                    {visibleColumns.to_branch_id && (
+                      <TableCell>
+                        <Branch id={t.to_branch_id} />
+                      </TableCell>
+                    )}
+                    {visibleColumns.approved_by_name && (
+                      <TableCell>{t.approved_by_name || "—"}</TableCell>
+                    )}
+                    {visibleColumns.receiver_name && (
+                      <TableCell>{t.receiver_name || "—"}</TableCell>
+                    )}
+                    {visibleColumns.move_start_date && (
+                      <TableCell>
+                        {new Date(t.move_start_date).toLocaleString("vi-VN")}
+                      </TableCell>
+                    )}
+                    {visibleColumns.move_receive_date && (
+                      <TableCell>
+                        {t.move_receive_date
+                          ? new Date(t.move_receive_date).toLocaleString("vi-VN")
+                          : "—"}
+                      </TableCell>
+                    )}
                     <TableCell className="text-center">
                       {expandedId === t.id ? (
                         <ChevronUp className="mx-auto text-emerald-500" />
@@ -172,7 +295,10 @@ export default function TransferHistory() {
                         transition={{ duration: 0.25 }}
                         className="bg-emerald-50 dark:bg-gray-900/40"
                       >
-                        <td colSpan={9} className="p-0">
+                        <td
+                          colSpan={Object.keys(visibleColumns).length + 2}
+                          className="p-0"
+                        >
                           <div className="overflow-hidden px-5 py-3">
                             <p className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-200">
                               Danh sách thiết bị được chuyển:

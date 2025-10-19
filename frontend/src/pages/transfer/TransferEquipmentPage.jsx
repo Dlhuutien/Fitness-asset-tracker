@@ -2,13 +2,13 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import TransferCreateSection from "@/components/layouts/transfer/TransferCreateSection";
 import TransferPendingSection from "@/components/layouts/transfer/TransferPendingSection";
-import TransferHistorySection from "@/components/layouts/transfer/TransferHistorySection"; 
+import TransferHistorySection from "@/components/layouts/transfer/TransferHistorySection";
 
 export default function TransferEquipmentPage() {
   const [tab, setTab] = useState("create");
 
   const tabs = [
-    { key: "create", label: "📦 Tạo yêu cầu vận chuyển" },
+    { key: "create", label: "📦 Tạo phiếu vận chuyển" },
     { key: "pending", label: "🚚 Phiếu đang vận chuyển" },
     { key: "history", label: "📜 Lịch sử vận chuyển" },
   ];
