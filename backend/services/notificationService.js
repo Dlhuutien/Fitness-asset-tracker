@@ -18,7 +18,8 @@ const notificationService = {
     if (!recipients.length) return;
 
     const user = await userRepository.getUserBySub(invoice.user_id);
-    const creatorName = user?.attributes?.name || user?.username || "Chưa có thông tin";
+    const creatorName =
+      user?.attributes?.name || user?.username || "Chưa có thông tin";
 
     const branchIds = [
       ...new Set(
@@ -179,7 +180,9 @@ const notificationService = {
     const unitCode = unit.id;
     const branchName = branch?.name || "Chưa có thông tin chi nhánh";
     const technicianName =
-      technician?.attributes?.name || technician?.username || "Chưa có thông tin";
+      technician?.attributes?.name ||
+      technician?.username ||
+      "Chưa có thông tin";
     const reason = maintenance.maintenance_reason || "Chưa có thông tin";
 
     // Email
@@ -235,7 +238,9 @@ const notificationService = {
     const unitCode = unit.id;
     const branchName = branch?.name || "Chưa có thông tin chi nhánh";
     const technicianName =
-      technician?.attributes?.name || technician?.username || "Chưa có thông tin";
+      technician?.attributes?.name ||
+      technician?.username ||
+      "Chưa có thông tin";
     const status = maintenance.status || unit.status;
 
     // Email
@@ -465,6 +470,105 @@ Người phê duyệt: ${approverName}, Người nhận: ${receiverName}
       receiver_role: receiverRoles,
       receiver_id: receiverIds,
       created_by: createdBy,
+    });
+  },
+
+  // =========================
+  // Thanh lý thiết bị (Disposal)
+  // =========================
+  /**
+   * Gửi thông báo khi có Phiếu thanh lý mới
+   */
+  async notifyDisposalCreated(disposal, details, admins) {
+    const recipients = admins.map((u) => u.email);
+    if (!recipients.length) return;
+
+    const user = await userRepository.getUserBySub(disposal.user_id);
+    const creatorName =
+      user?.attributes?.name || user?.username || "Chưa có thông tin";
+
+    // Lấy tên chi nhánh
+    const branch = await branchRepository.findById(disposal.branch_id);
+    const branchName = branch?.name || disposal.branch_id;
+
+    // Tạo HTML bảng chi tiết thiết bị
+    let itemsHtml = "";
+    for (const d of details) {
+      let equipmentName = "Chưa có thông tin";
+      let costOriginal = 0;
+
+      // Lấy thông tin unit + thiết bị
+      const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
+      if (unit?.equipment_id) {
+        const eq = await equipmentRepository.findById(unit.equipment_id);
+        equipmentName = eq?.name || unit.equipment_id;
+        costOriginal = eq?.cost || unit?.cost || 0;
+      }
+
+      itemsHtml += `
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">${equipmentName}</td>
+          <td style="border:1px solid #ddd; padding:8px;">${
+            d.equipment_unit_id
+          }</td>
+          <td style="border:1px solid #ddd; padding:8px; text-align:right;">
+            ${(costOriginal || 0).toLocaleString()} VND
+          </td>
+          <td style="border:1px solid #ddd; padding:8px; text-align:right;">
+            ${(d.value_recovered || 0).toLocaleString()} VND
+          </td>
+        </tr>`;
+    }
+
+    const subject = "Phiếu thanh lý thiết bị mới";
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
+                  border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+        ${buildHeader("Phiếu thanh lý thiết bị mới")}
+        <div style="padding:20px; color:#000;">
+          <p style="color:#000;">Một Phiếu thanh lý thiết bị vừa được tạo.</p>
+          <p style="color:#000;"><b>Mã thanh lý:</b> ${disposal.id}</p>
+          <p style="color:#000;"><b>Chi nhánh:</b> ${branchName}</p>
+          <p style="color:#000;"><b>Người thực hiện:</b> ${creatorName}</p>
+          <p style="color:#000;"><b>Tổng giá trị thu hồi:</b> ${disposal.total_value.toLocaleString()} VND</p>
+          ${
+            disposal.note
+              ? `<p style="color:#000;"><b>Ghi chú:</b> ${disposal.note}</p>`
+              : ""
+          }
+          <div style="overflow-x:auto; margin-top:10px;">
+            <table style="border-collapse:collapse; width:100%; min-width:500px;">
+              <thead>
+                <tr>
+                  <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
+                  <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã định danh</th>
+                  <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Giá gốc</th>
+                  <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Giá trị thu hồi</th>
+                </tr>
+              </thead>
+              <tbody>${itemsHtml}</tbody>
+            </table>
+          </div>
+        </div>
+        ${buildFooter()}
+      </div>
+    `;
+
+    await sendNoReplyEmail(recipients, subject, html);
+
+    const receiverRoles = [...new Set(admins.flatMap((u) => u.roles))];
+    const receiverIds = admins.map((u) => u.sub).filter(Boolean);
+
+    return await notificationRepository.create({
+      type: "disposal",
+      title: "Phiếu thanh lý thiết bị mới",
+      message: `Phiếu thanh lý ${
+        disposal.id
+      } được tạo bởi ${creatorName}, tổng giá trị thu hồi: ${disposal.total_value.toLocaleString()} VND`,
+      disposal_id: disposal.id,
+      receiver_role: receiverRoles,
+      receiver_id: receiverIds,
+      created_by: disposal.user_id,
     });
   },
 
