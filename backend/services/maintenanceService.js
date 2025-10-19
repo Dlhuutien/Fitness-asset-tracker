@@ -82,11 +82,13 @@ const maintenanceService = {
   },
 
   completeMaintenance: async (id, data) => {
+    const success = data.status === "Ready";
     // Ready hoặc Failed
     const updated = await maintenanceRepository.update(id, {
       user_id: data.user_id,
       maintenance_detail: data.maintenance_detail,
       end_date: new Date().toISOString(),
+      result: success,
     });
 
     // đổi status Unit theo kết quả
@@ -94,7 +96,7 @@ const maintenanceService = {
       status: data.status,
     });
 
-    if (data.status === "Ready") {
+    if (success) {
       // tạo invoice với cost (nếu còn warranty thì 0)
       await maintenanceInvoiceRepository.create(
         updated.id,
@@ -105,6 +107,7 @@ const maintenanceService = {
     return {
       ...updated,
       status: data.status,
+      result: success,
     };
   },
 
@@ -171,6 +174,84 @@ const maintenanceService = {
     }
 
     // Sắp xếp mới nhất trước
+    result.sort(
+      (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
+    );
+
+    return result;
+  },
+
+  getAllResult: async (branchFilter = null) => {
+    // Lấy tất cả maintenance
+    const maintenances = branchFilter
+      ? await maintenanceRepository.findByBranch(branchFilter)
+      : await maintenanceRepository.findAll();
+
+    // 🧩 Chỉ lấy những maintenance có result !== undefined/null
+    const filtered = maintenances.filter(
+      (m) => m.result === true || m.result === false
+    );
+
+    const allInvoices = await maintenanceInvoiceRepository.findAll();
+    const result = [];
+
+    for (const m of filtered) {
+      const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
+
+      // Lấy tên thiết bị
+      let equipmentName = "Chưa có thông tin";
+      if (m.equipment_unit_id) {
+        const unit = await equipmentUnitRepository.findById(
+          m.equipment_unit_id
+        );
+        if (unit?.equipment_id) {
+          const eq = await equipmentRepository.findById(unit.equipment_id);
+          equipmentName = eq?.name || "Chưa có thông tin";
+        }
+      }
+
+      // Người yêu cầu
+      let requestedByName = "Chưa có thông tin";
+      if (m.assigned_by) {
+        const reqUser = await userRepository.getUserBySub(m.assigned_by);
+        requestedByName =
+          reqUser?.attributes?.name ||
+          reqUser?.UserAttributes?.find(
+            (a) => a.Name === "name" || a.Name === "custom:name"
+          )?.Value ||
+          reqUser?.username ||
+          reqUser?.Username ||
+          "Chưa có thông tin";
+      }
+
+      // Kỹ thuật viên
+      let technicianName = "Chưa có thông tin";
+      if (m.user_id) {
+        const techUser = await userRepository.getUserBySub(m.user_id);
+        technicianName =
+          techUser?.attributes?.name ||
+          techUser?.UserAttributes?.find(
+            (a) => a.Name === "name" || a.Name === "custom:name"
+          )?.Value ||
+          techUser?.username ||
+          techUser?.Username ||
+          "Chưa có thông tin";
+      }
+
+      // Gán nhãn kết quả
+      const resultText = m.result ? "Thành công" : "Thất bại";
+
+      result.push({
+        ...m,
+        invoices,
+        requested_by_name: requestedByName,
+        technician_name: technicianName,
+        equipment_name: equipmentName,
+        result_text: resultText,
+      });
+    }
+
+    // Sắp xếp theo ngày kết thúc mới nhất
     result.sort(
       (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
     );

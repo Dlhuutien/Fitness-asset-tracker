@@ -126,6 +126,7 @@
 
     - `POST /maintenance` — Tạo yêu cầu bảo trì thiết bị
     - `GET /maintenance` — Lấy danh sách yêu cầu bảo trì
+    - `GET /maintenance/results` — Lấy danh sách kết quả bảo trì
     - `GET /maintenance/:id` — Lấy chi tiết một yêu cầu bảo trì
     - `GET /maintenance/by-unit/:unitId` — Lấy maintenance đang bảo trì theo equipment_unit_id
     - `GET /maintenance/history/:unitId` — Lấy lịch sử bảo trì theo equipment_unit_id
@@ -134,6 +135,12 @@
     - `PUT /maintenance/:id/complete` — Hoàn tất bảo trì (Ready / Failed)
     - `DELETE /maintenance/:id` — Xóa yêu cầu bảo trì
 
+16. [Equipment Disposal APIs (`/disposal`)](#equipment-disposal-apis-disposal)
+
+    - `POST /disposal` — Tạo đợt thanh lý thiết bị
+    - `GET /disposal` — Lấy danh sách đợt thanh lý (kèm chi tiết)
+    - `GET /disposal/:id` — Lấy chi tiết một đợt thanh lý
+    
 ---
 
 ## Thiết lập ban đầu
@@ -2625,4 +2632,144 @@ Xóa một yêu cầu bảo trì.
 { "error": "Maintenance not found" }
 ```
 
+---
+
+## Equipment Disposal APIs (`/disposal`)
+
+> **Authentication**
+>
+> * Tất cả request yêu cầu header
+>   `Authorization: Bearer <accessToken>`
+> * Role cho phép: `admin`, `super-admin`, `operator`
+> * `technician` chỉ được **xem**, không được tạo/sửa/xóa.
+
+---
+
+### POST `/disposal`
+
+Tạo **đợt thanh lý thiết bị** (nhiều unit cùng lúc).
+
+**Rule**
+
+* Mỗi `equipment_unit` phải tồn tại và **chưa bị thanh lý** (`status !== "Disposed"`).
+* Sau khi tạo thành công → các unit trong danh sách sẽ được cập nhật trạng thái `Disposed`.
+* Hệ thống tự động tính **tổng giá trị thu hồi (`total_value`)**.
+
+**Request body (JSON):**
+
+```json
+{
+  "branch_id": "GV",
+  "note": "Thanh lý thiết bị hư 19/10",
+  "items": [
+    {
+      "equipment_unit_id": "CAOTMJS-8",
+      "value_recovered": 10000000
+    }
+  ]
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "33de8359-d77d-4550-987d-e00f9b4dc669",
+  "branch_id": "GV",
+  "note": "Thanh lý thiết bị hư 19/10",
+  "user_id": "b9daf50c-1081-7027-d089-42f33412e8f0",
+  "user_name": "Đinh Quốc Khánh",
+  "branch_name": "FitX Gym Gò Vấp",
+  "created_at": "2025-10-19T09:32:16.445Z",
+  "total_value": 10000000,
+  "details": [
+    {
+      "id": "86d520de-728e-42f8-b3c4-5aa8860a12f9",
+      "disposal_id": "33de8359-d77d-4550-987d-e00f9b4dc669",
+      "equipment_unit_id": "CAOTMJS-8",
+      "value_recovered": 10000000,
+      "equipment_name": "Endurance Treadmill",
+      "cost_original": 120000000,
+      "created_at": "2025-10-19T09:32:16.744Z"
+    }
+  ]
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Danh sách thiết bị không được trống" }
+```
+
+---
+
+### GET `/disposal`
+
+Lấy **tất cả đợt thanh lý**, kèm chi tiết từng thiết bị trong mỗi đợt.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "33de8359-d77d-4550-987d-e00f9b4dc669",
+    "branch_id": "GV",
+    "branch_name": "FitX Gym Gò Vấp",
+    "note": "Thanh lý thiết bị hư 19/10",
+    "user_id": "b9daf50c-1081-7027-d089-42f33412e8f0",
+    "user_name": "Đinh Quốc Khánh",
+    "created_at": "2025-10-19T09:32:16.445Z",
+    "total_value": 10000000,
+    "details": [
+      {
+        "id": "86d520de-728e-42f8-b3c4-5aa8860a12f9",
+        "disposal_id": "33de8359-d77d-4550-987d-e00f9b4dc669",
+        "equipment_unit_id": "CAOTMJS-8",
+        "value_recovered": 10000000,
+        "equipment_name": "Endurance Treadmill",
+        "cost_original": 120000000,
+        "created_at": "2025-10-19T09:32:16.744Z"
+      }
+    ]
+  }
+]
+```
+---
+
+### GET `/disposal/:id`
+
+Lấy **chi tiết một đợt thanh lý**, gồm danh sách thiết bị và giá trị thu hồi.
+
+**Response (200):**
+
+```json
+{
+  "id": "33de8359-d77d-4550-987d-e00f9b4dc669",
+  "branch_id": "GV",
+  "branch_name": "FitX Gym Gò Vấp",
+  "note": "Thanh lý thiết bị hư 19/10",
+  "user_id": "b9daf50c-1081-7027-d089-42f33412e8f0",
+  "user_name": "Đinh Quốc Khánh",
+  "created_at": "2025-10-19T09:32:16.445Z",
+  "total_value": 10000000,
+  "details": [
+    {
+      "id": "86d520de-728e-42f8-b3c4-5aa8860a12f9",
+      "disposal_id": "33de8359-d77d-4550-987d-e00f9b4dc669",
+      "equipment_unit_id": "CAOTMJS-8",
+      "value_recovered": 10000000,
+      "equipment_name": "Endurance Treadmill",
+      "cost_original": 120000000,
+      "created_at": "2025-10-19T09:32:16.744Z"
+    }
+  ]
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Không tìm thấy đợt thanh lý" }
+```
 ---

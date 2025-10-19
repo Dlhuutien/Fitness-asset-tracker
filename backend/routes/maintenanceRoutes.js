@@ -31,7 +31,21 @@ router.get(
 );
 
 // GET
-router.get("/", verifyAccessToken, branchFilterMiddleware,maintenanceController.getAll);
+router.get(
+  "/",
+  verifyAccessToken,
+  branchFilterMiddleware,
+  maintenanceController.getAll
+);
+
+// GET chỉ lấy những maintenance có result
+router.get(
+  "/results",
+  verifyAccessToken,
+  branchFilterMiddleware,
+  maintenanceController.getAllResult
+);
+
 router.get("/:id", maintenanceController.getById);
 
 // UPDATE status

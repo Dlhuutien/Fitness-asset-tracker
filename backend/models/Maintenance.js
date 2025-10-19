@@ -87,6 +87,11 @@ const MaintenanceModel = {
       expAttrNames["#ed"] = "end_date";
       expAttrValues[":ed"] = data.end_date;
     }
+    if (data.result !== undefined) {
+      updateExp.push("#r = :r");
+      expAttrNames["#r"] = "result";
+      expAttrValues[":r"] = !!data.result;
+    }
 
     const result = await dynamodb.send(
       new UpdateCommand({

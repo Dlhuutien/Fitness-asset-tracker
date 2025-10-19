@@ -17,6 +17,7 @@ const equipmentUnitRoutes = require('./routes/equipmentUnitRoutes');
 const maintenanceRoutes = require('./routes/maintenanceRoutes');
 const equipmentTransferRoutes = require("./routes/equipmentTransferRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const equipmentDisposalRoutes = require("./routes/equipmentDisposalRoutes");
 
 const app = express();
 app.use(cors());
@@ -44,5 +45,6 @@ app.use("/equipmentUnit", equipmentUnitRoutes);
 app.use("/maintenance", maintenanceRoutes);
 app.use("/equipmentTransfer", equipmentTransferRoutes);
 app.use("/notification", notificationRoutes);
+app.use("/disposal", equipmentDisposalRoutes);
 
 module.exports = app;

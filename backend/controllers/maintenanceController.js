@@ -115,6 +115,15 @@ const maintenanceController = {
     }
   },
 
+  getAllResult: async (req, res) => {
+    try {
+      const data = await maintenanceService.getAllResult(req.branchFilter);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+
   getById: async (req, res) => {
     try {
       const data = await maintenanceService.getById(req.params.id);
