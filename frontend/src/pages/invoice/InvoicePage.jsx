@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import PageContainer from "@/components/common/PageContainer";
 import InvoiceImportSection from "@/components/layouts/invoice/InvoiceImportSection";
 import InvoiceMaintenanceSection from "@/components/layouts/invoice/InvoiceMaintenanceSection";
+import InvoiceDisposalSection from "@/components/layouts/invoice/InvoiceDisposalSection";
 
 export default function InvoicePage() {
   const [tab, setTab] = useState("import");
@@ -16,6 +17,7 @@ export default function InvoicePage() {
         {[
           { key: "import", label: "📦 Hóa đơn nhập" },
           { key: "maintenance", label: "🧰 Hóa đơn bảo trì" },
+          { key: "disposal", label: "♻️ Hóa đơn thanh lý" },
         ].map((t) => (
           <button
             key={t.key}
@@ -54,6 +56,17 @@ export default function InvoicePage() {
             transition={{ duration: 0.3 }}
           >
             <InvoiceMaintenanceSection />
+          </motion.div>
+        )}
+        {tab === "disposal" && (
+          <motion.div
+            key="disposal-tab"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.3 }}
+          >
+            <InvoiceDisposalSection />
           </motion.div>
         )}
       </AnimatePresence>
