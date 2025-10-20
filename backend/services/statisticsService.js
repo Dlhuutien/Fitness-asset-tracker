@@ -55,6 +55,7 @@ const statisticsService = {
     year,
     month,
     quarter,
+    week,
     branchFilter,
     userRole,
   }) {
@@ -63,6 +64,7 @@ const statisticsService = {
       year,
       month,
       quarter,
+      week,
       branchFilter,
       userRole,
     });
@@ -96,18 +98,39 @@ const statisticsService = {
       equipmentDisposalDetailRepository.findAll().catch(() => []),
     ]);
 
+    // 🧩 Tính cutoff (giới hạn thời gian cuối kỳ)
+    let cutoff = null;
+    if (type === "week" && week && month) {
+      const startOfMonth = new Date(year, month - 1, 1);
+      const startWeekday =
+        startOfMonth.getDay() === 0 ? 7 : startOfMonth.getDay();
+      const startDay = (week - 1) * 7 - (startWeekday - 1) + 1;
+      const endDay = Math.min(startDay + 6, new Date(year, month, 0).getDate());
+      cutoff = new Date(year, month - 1, endDay, 23, 59, 59);
+    } else if (type === "month" && month) {
+      cutoff = new Date(year, month, 0, 23, 59, 59); // Cuối tháng
+    } else if (type === "quarter" && quarter) {
+      const endMonth = quarter * 3;
+      cutoff = new Date(year, endMonth, 0, 23, 59, 59); // Cuối quý
+    } else if (type === "year") {
+      cutoff = new Date(year, 11, 31, 23, 59, 59); // Cuối năm
+    }
+
     // 2️⃣ Tổng số thiết bị (trừ thiết bị đã thanh lý) / vendor
     const disposedUnitIds = disposalDetails
       .filter((det) =>
         disposals.some((disp) =>
-          isInPeriod(disp.created_at, type, { year, month, quarter })
+          isInPeriod(disp.created_at, type, { year, month, quarter, week })
         )
       )
       .map((d) => d.equipment_unit_id);
 
-    const totalEquipments = units.filter(
-      (u) => !disposedUnitIds.includes(u.id)
-    ).length;
+    const totalEquipments = units.filter((u) => {
+      const createdAt = new Date(u.created_at || u.import_date || 0);
+      const notDisposed = !disposedUnitIds.includes(u.id);
+      if (cutoff) return createdAt <= cutoff && notDisposed;
+      return notDisposed;
+    }).length;
 
     const totalVendors = vendors.length;
 
@@ -126,7 +149,7 @@ const statisticsService = {
 
     // 4️⃣ Thiết bị nhập hàng trong kỳ
     const importInvoices = invoices.filter((inv) =>
-      isInPeriod(inv.created_at, type, { year, month, quarter })
+      isInPeriod(inv.created_at, type, { year, month, quarter, week })
     );
     const importInvoiceIds = importInvoices.map((i) => i.id);
     const newEquipmentUnits = invoiceDetails.filter((det) =>
@@ -135,7 +158,7 @@ const statisticsService = {
 
     // 5️⃣ Bảo trì
     const maintenanceThisPeriod = maintenances.filter((m) =>
-      isInPeriod(m.start_date, type, { year, month, quarter })
+      isInPeriod(m.start_date, type, { year, month, quarter, week })
     );
     const maintenanceInProgress = maintenanceThisPeriod.filter(
       (m) => !m.result && !m.end_date
@@ -147,19 +170,22 @@ const statisticsService = {
       (m) => m.result === false
     ).length;
 
-    // 6️⃣ Chi phí
-    const importCost = invoices.reduce(
-      (sum, inv) => sum + (Number(inv.total) || 0),
-      0
-    );
-    const maintenanceCost = maintenanceInvoices.reduce(
-      (sum, inv) => sum + (Number(inv.cost) || 0),
-      0
-    );
+    // 6️⃣ Chi phí (lọc theo kỳ)
+    const importCost = invoices
+      .filter((inv) =>
+        isInPeriod(inv.created_at, type, { year, month, quarter, week })
+      )
+      .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0);
+
+    const maintenanceCost = maintenanceInvoices
+      .filter((inv) =>
+        isInPeriod(inv.created_at, type, { year, month, quarter, week })
+      )
+      .reduce((sum, inv) => sum + (Number(inv.cost) || 0), 0);
 
     // 7️⃣ Thanh lý thiết bị
     const disposalThisPeriod = disposals.filter((d) =>
-      isInPeriod(d.created_at, type, { year, month, quarter })
+      isInPeriod(d.created_at, type, { year, month, quarter, week })
     );
     const disposalCost = disposalThisPeriod.reduce(
       (sum, d) => sum + (Number(d.total_value) || 0),
@@ -182,27 +208,43 @@ const statisticsService = {
     ];
     const equipmentStatusCount = {};
     for (const status of targetStatuses) {
-      equipmentStatusCount[status] = units.filter(
-        (u) => u.status === status
-      ).length;
+      equipmentStatusCount[status] = units.filter((u) => {
+        const createdAt = new Date(u.created_at || u.import_date || 0);
+        const notDisposed = !disposedUnitIds.includes(u.id);
+        if (cutoff)
+          return createdAt <= cutoff && u.status === status && notDisposed;
+        return u.status === status && notDisposed;
+      }).length;
     }
 
     // 9️⃣ Đếm thiết bị còn hạn / hết hạn bảo hành (trừ thiết bị đã thanh lý)
     const now = new Date();
 
-    const warrantyValid = units.filter(
-      (u) =>
-        u.warranty_end_date &&
-        new Date(u.warranty_end_date) >= now &&
-        !disposedUnitIds.includes(u.id)
-    ).length;
+    const warrantyValid = units.filter((u) => {
+      const createdAt = new Date(u.created_at || u.import_date || 0);
+      const notDisposed = !disposedUnitIds.includes(u.id);
+      if (!u.warranty_end_date) return false;
+      if (cutoff)
+        return (
+          createdAt <= cutoff &&
+          new Date(u.warranty_end_date) >= cutoff &&
+          notDisposed
+        );
+      return new Date(u.warranty_end_date) >= now && notDisposed;
+    }).length;
 
-    const warrantyExpired = units.filter(
-      (u) =>
-        u.warranty_end_date &&
-        new Date(u.warranty_end_date) < now &&
-        !disposedUnitIds.includes(u.id)
-    ).length;
+    const warrantyExpired = units.filter((u) => {
+      const createdAt = new Date(u.created_at || u.import_date || 0);
+      const notDisposed = !disposedUnitIds.includes(u.id);
+      if (!u.warranty_end_date) return false;
+      if (cutoff)
+        return (
+          createdAt <= cutoff &&
+          new Date(u.warranty_end_date) < cutoff &&
+          notDisposed
+        );
+      return new Date(u.warranty_end_date) < now && notDisposed;
+    }).length;
 
     // 🔟 Tổng hợp kết quả
     const summary = {
@@ -223,7 +265,7 @@ const statisticsService = {
     };
 
     return {
-      period: { type, year, month, quarter, branchFilter },
+      period: { type, year, month, quarter, week, branchFilter },
       summary,
     };
   },

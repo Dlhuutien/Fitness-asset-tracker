@@ -5,7 +5,7 @@ const dashboardController = {
   // 📊 Thống kê tổng hợp
   getStatistics: async (req, res) => {
     try {
-      const { type = "month", year, month, quarter, branch_id } = req.query;
+      const { type = "month", year, month, quarter, week, branch_id } = req.query;
       const branchFilter = branch_id || req.branchFilter || null;
       const userRole = req.user?.role || null;
 
@@ -14,6 +14,7 @@ const dashboardController = {
         year: parseInt(year),
         month: parseInt(month),
         quarter: parseInt(quarter),
+        week: parseInt(week),
         branchFilter,
         userRole,
       });
