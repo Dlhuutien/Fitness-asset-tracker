@@ -17,6 +17,7 @@ import {
   Search,
   Plus,
   XCircle,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import CategoryMainService from "@/services/categoryMainService";
@@ -26,6 +27,8 @@ import {
   useGlobalFilterController,
   getUniqueValues,
 } from "@/components/common/ExcelTableTools";
+import { toast } from "sonner";
+import { exportToExcel } from "@/services/Files";
 
 export default function EquipmentGroupSection({ groups, setGroups }) {
   const [showForm, setShowForm] = useState(false);
@@ -42,7 +45,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [highlightedId, setHighlightedId] = useState(null);
 
-  // Excel-style filter
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
     code: [],
@@ -95,20 +97,18 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
           description: groupForm.desc,
           image: groupForm.img || null,
         });
-        newId = editGroupId; // cập nhật
+        newId = editGroupId;
       } else {
         const created = await CategoryMainService.create({
           name: groupForm.name,
           description: groupForm.desc,
           image: groupForm.img || null,
         });
-        newId = created.id; // lấy id từ API create trả về
+        newId = created.id;
       }
 
       const updated = await CategoryMainService.getAll();
       setGroups(updated);
-
-      // 🟢 Lưu id nhóm vừa được thêm hoặc cập nhật để highlight
       setHighlightedId(newId);
 
       setGroupForm({ name: "", desc: "", img: null, preview: "" });
@@ -116,8 +116,6 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
       setSuccessMsg("✅ Lưu nhóm thành công!");
       setTimeout(() => setSuccessMsg(""), 2000);
       setShowForm(false);
-
-      // 🕒 Sau 30 giây tự bỏ highlight
       setTimeout(() => setHighlightedId(null), 30000);
     } catch (err) {
       console.error(err);
@@ -207,7 +205,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         </Button>
       </div>
 
-      {/* 🧾 Form thêm nhóm - ẩn/hiện bằng AnimatePresence */}
+      {/* 🧾 Form thêm nhóm */}
       <AnimatePresence>
         {showForm && (
           <motion.div
@@ -316,7 +314,7 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
         )}
       </AnimatePresence>
 
-      {/* Bộ lọc & bảng danh sách */}
+      {/* Bộ lọc & Export */}
       <div className="flex justify-between items-center mb-2 gap-3 mt-4">
         <div className="relative w-80">
           <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
@@ -328,20 +326,48 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
           />
         </div>
 
-        <ColumnVisibilityButton
-          visibleColumns={visibleColumns}
-          setVisibleColumns={setVisibleColumns}
-          labels={{
-            image: "Ảnh",
-            code: "Mã nhóm",
-            name: "Tên nhóm",
-            desc: "Mô tả",
-            created: "Ngày nhập",
-            updated: "Ngày sửa",
-          }}
-        />
+        {/* Cụm phải */}
+        <div className="flex items-center gap-3">
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              image: "Ảnh",
+              code: "Mã nhóm",
+              name: "Tên nhóm",
+              desc: "Mô tả",
+              created: "Ngày nhập",
+              updated: "Ngày sửa",
+            }}
+          />
+
+          <Button
+            onClick={() => {
+              if (!filteredGroups || filteredGroups.length === 0) {
+                toast.warning("⚠️ Không có dữ liệu để xuất!");
+                return;
+              }
+
+              const data = filteredGroups.map((g) => ({
+                "Mã nhóm": g.id,
+                "Tên nhóm": g.name,
+                "Mô tả": g.description,
+                "Ngày nhập": new Date(g.created_at).toLocaleDateString("vi-VN"),
+                "Ngày sửa": new Date(g.updated_at).toLocaleDateString("vi-VN"),
+              }));
+
+              exportToExcel(data, "Danh_sach_nhom_thiet_bi");
+              toast.success(`✅ Đã xuất ${data.length} nhóm thiết bị ra Excel!`);
+            }}
+            className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </Button>
+        </div>
       </div>
 
+      {/* Bảng danh sách */}
       <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700 shadow-inner">
         <Table>
           <TableHeader className="bg-emerald-50 dark:bg-gray-800">
@@ -416,8 +442,9 @@ export default function EquipmentGroupSection({ groups, setGroups }) {
             {filteredGroups.map((g, idx) => (
               <TableRow
                 key={g.id}
-                className={`transition-all duration-500 hover:bg-emerald-50 dark:hover:bg-gray-800 
-                ${highlightedId === g.id ? "bg-emerald-100 dark:bg-emerald-700/40" : ""}`}
+                className={`transition-all duration-500 hover:bg-emerald-50 dark:hover:bg-gray-800 ${
+                  highlightedId === g.id ? "bg-emerald-100 dark:bg-emerald-700/40" : ""
+                }`}
                 as={motion.tr}
                 initial={{
                   backgroundColor:

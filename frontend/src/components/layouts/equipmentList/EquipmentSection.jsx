@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -10,7 +9,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowDownUp } from "lucide-react";
+import { ArrowDownUp, PlusCircle, XCircle, Download } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useEquipmentData } from "@/hooks/useEquipmentData";
 import {
   HeaderFilter,
@@ -26,9 +26,9 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { exportToExcel } from "@/services/Files";
 import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
-import { PlusCircle, XCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 const ITEMS_PER_PAGE = 7;
 
@@ -38,10 +38,10 @@ export default function EquipmentGroupPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
-  const navigate = useNavigate();
   const [showAddCard, setShowAddCard] = useState(false);
   const [highlightedId, setHighlightedId] = useState(null);
   const tableRef = useRef(null);
+  const navigate = useNavigate();
 
   const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
     useEquipmentData();
@@ -139,21 +139,20 @@ export default function EquipmentGroupPage() {
   // 📍 callback khi thêm thiết bị thành công
   const handleAddSuccess = (newEquipment) => {
     if (!newEquipment?.id) return;
-    setShowAddCard(false); // 🔹 đóng form thêm
+    setShowAddCard(false);
     setHighlightedId(newEquipment.id);
 
-    // 🔹 Cuộn đến dòng vừa thêm (sau 200ms để table render xong)
     setTimeout(() => {
       const row = document.getElementById(`equipment-${newEquipment.id}`);
       row?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 200);
 
-    // 🔹 Tự bỏ highlight sau 30s
     setTimeout(() => setHighlightedId(null), 30000);
   };
 
   return (
     <div className="p-4 space-y-4 font-jakarta">
+      {/* Nút thêm thiết bị */}
       <Button
         onClick={() => setShowAddCard((prev) => !prev)}
         className={`flex items-center gap-2 ${
@@ -172,6 +171,8 @@ export default function EquipmentGroupPage() {
           </>
         )}
       </Button>
+
+      {/* Form thêm thiết bị */}
       <AnimatePresence>
         {showAddCard && (
           <motion.div
@@ -182,13 +183,14 @@ export default function EquipmentGroupPage() {
             transition={{ duration: 0.3 }}
             className="bg-gray-50 dark:bg-gray-900 rounded-xl border border-emerald-300 dark:border-emerald-700 shadow-inner p-4"
           >
-            {/* Truyền callback báo thành công */}
             <EquipmentAddCardPage onSuccessAdd={handleAddSuccess} />
           </motion.div>
         )}
       </AnimatePresence>
-      {/* ==== Thanh Toolbar trên ==== */}
+
+      {/* ==== Thanh Toolbar ==== */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+        {/* Cụm trái: tìm kiếm, nhóm, sắp xếp */}
         <div className="flex flex-wrap items-center gap-2">
           <Input
             placeholder="🔍 Tìm kiếm thiết bị"
@@ -234,20 +236,49 @@ export default function EquipmentGroupPage() {
           </Button>
         </div>
 
-        {/* Hiển thị cột */}
-        <ColumnVisibilityButton
-          visibleColumns={visibleColumns}
-          setVisibleColumns={setVisibleColumns}
-          labels={{
-            id: "Mã phân loại thiết bị",
-            image: "Hình ảnh",
-            name: "Tên thiết bị",
-            main: "Nhóm",
-            type: "Tên loại",
-            vendor: "Nhà cung cấp",
-            created_at: "Ngày tạo",
-          }}
-        />
+        {/* Cụm phải: Hiển thị cột + Export Excel */}
+        <div className="flex items-center gap-3">
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              id: "Mã phân loại thiết bị",
+              image: "Hình ảnh",
+              name: "Tên thiết bị",
+              main: "Nhóm",
+              type: "Tên loại",
+              vendor: "Nhà cung cấp",
+              created_at: "Ngày tạo",
+            }}
+          />
+
+          <Button
+            onClick={() => {
+              if (!filteredData || filteredData.length === 0) {
+                toast.warning("⚠️ Không có dữ liệu để xuất!");
+                return;
+              }
+
+              const data = filteredData.map((d) => ({
+                "Mã phân loại thiết bị": d.id,
+                "Tên thiết bị": d.name,
+                Nhóm: d.main_name,
+                "Tên loại": d.type_name,
+                "Nhà cung cấp": d.vendor_name,
+                "Ngày tạo": new Date(d.created_at).toLocaleString("vi-VN"),
+              }));
+
+              exportToExcel(data, "Danh_sach_dong_thiet_bi");
+              toast.success(
+                `✅ Đã xuất ${data.length} dòng thiết bị ra Excel!`
+              );
+            }}
+            className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </Button>
+        </div>
       </div>
 
       {/* ==== Bảng dữ liệu ==== */}
@@ -330,8 +361,11 @@ export default function EquipmentGroupPage() {
                   key={row.id ?? idx}
                   id={`equipment-${row.id}`}
                   onClick={() => navigate(`/app/equipment/specs/${row.id}`)}
-                  className={`hover:bg-gray-50 dark:hover:bg-gray-700 text-sm cursor-pointer transition
-    ${highlightedId === row.id ? "bg-emerald-100 dark:bg-emerald-700/40" : ""}`}
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-700 text-sm cursor-pointer transition ${
+                    highlightedId === row.id
+                      ? "bg-emerald-100 dark:bg-emerald-700/40"
+                      : ""
+                  }`}
                   as={motion.tr}
                   initial={{
                     backgroundColor:

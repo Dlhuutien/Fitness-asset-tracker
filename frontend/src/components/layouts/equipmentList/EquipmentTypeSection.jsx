@@ -9,6 +9,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Download } from "lucide-react";
+import { toast } from "sonner";
+import { exportToExcel } from "@/services/Files";
+
 import {
   Pencil,
   CheckCircle2,
@@ -284,17 +288,32 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
         )}
       </AnimatePresence>
 
-      {/* Search + Hiển thị cột */}
-      <div className="flex justify-between items-center mb-2 gap-3 mt-4">
-        <div className="relative w-80">
-          <Search className="absolute left-3 top-3 text-gray-400 w-4 h-4" />
-          <Input
-            placeholder="Tìm loại theo mã, tên, mô tả hoặc nhóm..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 h-10 text-sm"
-          />
-        </div>
+      <div className="flex items-center gap-3">
+        {/* Nút Export Excel */}
+        <Button
+          onClick={() => {
+            if (!filteredTypes || filteredTypes.length === 0) {
+              toast.warning("⚠️ Không có dữ liệu để xuất!");
+              return;
+            }
+
+            const data = filteredTypes.map((t) => ({
+              "Mã loại": t.id,
+              "Tên loại": t.name,
+              Nhóm: t.main_name,
+              "Mô tả": t.description,
+              "Ngày tạo": new Date(t.created_at).toLocaleDateString("vi-VN"),
+              "Ngày sửa": new Date(t.updated_at).toLocaleDateString("vi-VN"),
+            }));
+
+            exportToExcel(data, "Danh_sach_loai_thiet_bi");
+            toast.success(`✅ Đã xuất ${data.length} bản ghi ra Excel!`);
+          }}
+          className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 hover:-translate-y-[1px] transition-all duration-200"
+        >
+          <Download className="w-4 h-4" />
+          Export Excel
+        </Button>
 
         <ColumnVisibilityButton
           visibleColumns={visibleColumns}
@@ -400,7 +419,11 @@ export default function EquipmentTypeSection({ types, setTypes, groups }) {
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
                 className={`transition-all duration-500 hover:bg-emerald-50 dark:hover:bg-gray-800 
-                ${highlightedId === t.id ? "bg-emerald-100 dark:bg-emerald-800/40" : ""}`}
+                ${
+                  highlightedId === t.id
+                    ? "bg-emerald-100 dark:bg-emerald-800/40"
+                    : ""
+                }`}
               >
                 <TableCell>
                   {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
