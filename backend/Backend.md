@@ -140,7 +140,13 @@
     - `POST /disposal` — Tạo đợt thanh lý thiết bị
     - `GET /disposal` — Lấy danh sách đợt thanh lý (kèm chi tiết)
     - `GET /disposal/:id` — Lấy chi tiết một đợt thanh lý
-    
+
+17. [Dashboard APIs (`/dashboard`)](#dashboard-apis-dashboard)
+
+    * `GET /dashboard/statistics` — Thống kê tổng hợp (theo tháng / quý / năm)
+    * `GET /dashboard/equipment-hierarchy` — Cấu trúc phân cấp nhóm thiết bị
+    * `GET /dashboard/statistics/trend` — Biểu đồ xu hướng (theo tháng / quý / tuần)
+
 ---
 
 ## Thiết lập ban đầu
@@ -2107,6 +2113,7 @@ Response (200):
 ```
 
 ---
+
 ### ### GET `/equipmentUnit/status/:status`
 
 Lọc danh sách **equipment units** theo **trạng thái duy nhất**.
@@ -2153,7 +2160,7 @@ Lọc danh sách **equipment units** theo **nhiều trạng thái** cùng lúc.
 
 **Query params:**
 
-* `statuses`: Danh sách trạng thái, cách nhau bằng dấu phẩy (`,`)
+- `statuses`: Danh sách trạng thái, cách nhau bằng dấu phẩy (`,`)
 
 **Ví dụ:**
 
@@ -2638,10 +2645,10 @@ Xóa một yêu cầu bảo trì.
 
 > **Authentication**
 >
-> * Tất cả request yêu cầu header
+> - Tất cả request yêu cầu header
 >   `Authorization: Bearer <accessToken>`
-> * Role cho phép: `admin`, `super-admin`, `operator`
-> * `technician` chỉ được **xem**, không được tạo/sửa/xóa.
+> - Role cho phép: `admin`, `super-admin`, `operator`
+> - `technician` chỉ được **xem**, không được tạo/sửa/xóa.
 
 ---
 
@@ -2651,9 +2658,9 @@ Tạo **đợt thanh lý thiết bị** (nhiều unit cùng lúc).
 
 **Rule**
 
-* Mỗi `equipment_unit` phải tồn tại và **chưa bị thanh lý** (`status !== "Disposed"`).
-* Sau khi tạo thành công → các unit trong danh sách sẽ được cập nhật trạng thái `Disposed`.
-* Hệ thống tự động tính **tổng giá trị thu hồi (`total_value`)**.
+- Mỗi `equipment_unit` phải tồn tại và **chưa bị thanh lý** (`status !== "Disposed"`).
+- Sau khi tạo thành công → các unit trong danh sách sẽ được cập nhật trạng thái `Disposed`.
+- Hệ thống tự động tính **tổng giá trị thu hồi (`total_value`)**.
 
 **Request body (JSON):**
 
@@ -2735,6 +2742,7 @@ Lấy **tất cả đợt thanh lý**, kèm chi tiết từng thiết bị trong
   }
 ]
 ```
+
 ---
 
 ### GET `/disposal/:id`
@@ -2771,5 +2779,371 @@ Lấy **chi tiết một đợt thanh lý**, gồm danh sách thiết bị và g
 
 ```json
 { "error": "Không tìm thấy đợt thanh lý" }
+```
+
+---
+
+# **Dashboard API**
+
+### **Giải thích chi tiết các trường**
+
+| Trường                  | Mô tả                                      |
+| ----------------------- | ------------------------------------------ |
+| `label`                 | Tên kỳ thống kê (Tháng X / Quý X / Tuần X) |
+| `totalEquipments`       | Tổng thiết bị còn hoạt động đến cuối kỳ    |
+| `newEquipmentUnits`     | Thiết bị mới nhập trong kỳ                 |
+| `disposedUnits`         | Thiết bị đã thanh lý trong kỳ              |
+| `maintenanceInProgress` | Số bảo trì đang thực hiện                  |
+| `maintenanceSuccess`    | Số bảo trì hoàn thành                      |
+| `maintenanceFailed`     | Số bảo trì thất bại                        |
+| `totalStaff`            | Tổng nhân viên hệ thống                    |
+| `totalVendors`          | Tổng nhà cung cấp                          |
+| `importCost`            | Tổng chi phí nhập hàng trong kỳ            |
+| `maintenanceCost`       | Tổng chi phí bảo trì trong kỳ              |
+| `disposalCost`          | Tổng giá trị thanh lý thiết bị trong kỳ    |
+| `equipmentStatusCount`  | Đếm thiết bị theo từng trạng thái          |
+| `warrantyValid`         | Số thiết bị còn trong thời gian bảo hành   |
+| `warrantyExpired`       | Số thiết bị đã hết bảo hành                |
+
+---
+
+## Base URL
+
+---
+
+## `GET /dashboard/statistics`
+
+Trả về **thống kê tổng hợp** cho Dashboard (dạng tổng quát)
+gồm số lượng thiết bị, bảo trì, thanh lý, nhân viên, chi phí, trạng thái và bảo hành.
+
+---
+
+### **Query Params**
+
+`type`: Kiểu thời gian thống kê: `"month"`, `"quarter"`, `"year"`
+`year`: Năm muốn thống kê (VD: `2025`)
+`month`: Nếu `type="month"` thì phải có tháng (VD: `10`)
+`quarter`: Nếu `type="quarter"` thì phải có quý (VD: `3`)
+`branch_id`: Lọc theo chi nhánh cụ thể (chỉ dành cho super-admin)
+
+---
+
+### **Các trường hợp gọi API**
+
+### 1. Super-admin xem **toàn hệ thống** trong tháng 10/2025 Không giới hạn chi nhánh
+```
+/dashboard/statistics?type=month&year=2025&month=10
+```
+### 2. Super-admin xem **chi nhánh Gò Vấp** theo quý 3/2025
+```
+/dashboard/statistics?type=quarter&year=2025&quarter=3&branch_id=GV
+```
+### 3. Admin chi nhánh G3 xem thống kê tháng 10 (`branchFilterMiddleware` tự động giới hạn theo chi nhánh G3)
+```
+/dashboard/statistics?type=month&year=2025&month=10
+```
+### 4. Super-admin xem theo năm (Tổng hợp cả năm)
+```
+/dashboard/statistics?type=year&year=2025
+```
+---
+
+**Response Example**
+
+```json
+{
+  "period": {
+    "type": "month",
+    "year": 2025,
+    "month": 10,
+    "branchFilter": "G3"
+  },
+  "summary": {
+    "totalEquipments": 51,
+    "newEquipmentUnits": 52,
+    "disposedUnits": 3,
+    "maintenanceInProgress": 1,
+    "maintenanceSuccess": 4,
+    "maintenanceFailed": 0,
+    "totalStaff": 13,
+    "totalVendors": 2,
+    "importCost": 2231000000,
+    "maintenanceCost": 0,
+    "disposalCost": 110000000,
+    "equipmentStatusCount": {
+      "Active": 12,
+      "Inactive": 5,
+      "Temporary Urgent": 2,
+      "In Progress": 1,
+      "In Stock": 20,
+      "Moving": 11
+    },
+    "warrantyValid": 47,
+    "warrantyExpired": 4
+  }
+}
+```
+
+---
+
+## `GET /dashboard/equipment-hierarchy`
+
+Trả về **cấu trúc phân cấp nhóm thiết bị (Category hierarchy)**
+gồm: **Nhóm chính → Loại → Dòng thiết bị → Số lượng unit hiện có**
+
+---
+
+### **Query Params**
+
+`branch_id`: Lọc theo chi nhánh cụ thể (super-admin có thể chọn). Nếu admin → tự động lấy chi nhánh.
+
+---
+
+`super-admin`: Xem tất cả chi nhánh hoặc chi nhánh cụ thể qua query param
+`admin`: Chỉ xem chi nhánh của mình
+
+---
+### **Các trường hợp gọi API**
+
+### 1. Super-admin xem **toàn hệ thống** Gộp tất cả chi nhánh
+```
+/dashboard/equipment-hierarchy
+```
+### 2. Super-admin xem **chi nhánh G3** Lọc branch_id = "G3"
+```
+/dashboard/equipment-hierarchy?branch_id=G3
+```
+### 3. Admin chi nhánh G3 xem riêng của mình (Middleware tự động lọc branch_id = G3)
+```
+/dashboard/equipment-hierarchy
+```
+
+---
+### 📤 **Response Example**
+
+```json
+[
+  {
+    "main_id": "CARDIO",
+    "main_name": "Thiết bị Cardio",
+    "types": [
+      {
+        "type_id": "RUNNING",
+        "type_name": "Máy chạy bộ",
+        "equipments": [
+          {
+            "equipment_id": "TMX200",
+            "equipment_name": "Treadmill X200",
+            "unit_count": 8
+          },
+          {
+            "equipment_id": "TMX300",
+            "equipment_name": "Treadmill X300",
+            "unit_count": 5
+          }
+        ]
+      },
+      {
+        "type_id": "BIKE",
+        "type_name": "Xe đạp tĩnh",
+        "equipments": [
+          {
+            "equipment_id": "BIKE100",
+            "equipment_name": "Bike 100",
+            "unit_count": 7
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "main_id": "STRENGTH",
+    "main_name": "Máy tập sức mạnh",
+    "types": [
+      {
+        "type_id": "CHEST",
+        "type_name": "Ngực",
+        "equipments": [
+          {
+            "equipment_id": "CHESTPRESS100",
+            "equipment_name": "Chest Press 100",
+            "unit_count": 4
+          }
+        ]
+      }
+    ]
+  }
+]
+```
+---
+
+# **Dashboard API**
+
+## `GET /dashboard/statistics/trend`
+
+Trả về **biểu đồ xu hướng (Trend chart)** của các chỉ số Dashboard,
+chia theo **tháng / quý / hoặc tuần trong tháng**.
+Với tháng hiện hành, các tuần **chưa tới** sẽ **tự động ẩn**.
+
+---
+
+### **Query Params**
+`type` = `"month"` | `"quarter"` | `"week"`: Kiểu thống kê theo thời gian
+`branch_id`:Lọc theo chi nhánh cụ thể (chỉ dành cho super-admin)
+
+---
+
+### **Các trường hợp gọi API**
+
+#### 1. Super-admin xem xu hướng theo **tháng** của năm 2025
+
+```
+/dashboard/statistics/trend?type=month&year=2025
+```
+
+#### 2. Super-admin xem xu hướng theo **quý** của năm 2025
+
+```
+/dashboard/statistics/trend?type=quarter&year=2025
+```
+
+#### 3. Super-admin xem xu hướng **theo tuần trong tháng 10/2025**
+
+```
+/dashboard/statistics/trend?type=week&year=2025&month=10
+```
+
+#### 4. Super-admin xem xu hướng theo **chi nhánh G3** (tháng)
+
+```
+/dashboard/statistics/trend?type=month&year=2025&branch_id=G3
+```
+
+#### 5. Admin chi nhánh G3 (middleware tự động lọc)
+
+```
+/dashboard/statistics/trend?type=week&year=2025&month=10
+```
+
+---
+
+### **Response Example (theo tháng)**
+
+```json
+[
+  {
+    "label": "Tháng 1",
+    "totalEquipments": 20,
+    "newEquipmentUnits": 5,
+    "disposedUnits": 0,
+    "maintenanceInProgress": 1,
+    "maintenanceSuccess": 0,
+    "maintenanceFailed": 0,
+    "totalStaff": 4,
+    "totalVendors": 2,
+    "importCost": 50000000,
+    "maintenanceCost": 0,
+    "disposalCost": 0,
+    "equipmentStatusCount": {
+      "Active": 12,
+      "Inactive": 5,
+      "Temporary Urgent": 1,
+      "In Progress": 0,
+      "In Stock": 2,
+      "Moving": 0,
+      "Ready": 0,
+      "Failed": 0
+    },
+    "warrantyValid": 18,
+    "warrantyExpired": 2
+  },
+  {
+    "label": "Tháng 2",
+    "totalEquipments": 25,
+    "newEquipmentUnits": 7,
+    "disposedUnits": 2,
+    "maintenanceInProgress": 0,
+    "maintenanceSuccess": 3,
+    "maintenanceFailed": 0,
+    "totalStaff": 4,
+    "totalVendors": 2,
+    "importCost": 85000000,
+    "maintenanceCost": 10000000,
+    "disposalCost": 2000000,
+    "equipmentStatusCount": {
+      "Active": 14,
+      "Inactive": 4,
+      "Temporary Urgent": 2,
+      "In Progress": 0,
+      "In Stock": 3,
+      "Moving": 0,
+      "Ready": 0,
+      "Failed": 0
+    },
+    "warrantyValid": 23,
+    "warrantyExpired": 2
+  }
+]
+```
+
+---
+
+### **Response Example (theo tuần)**
+
+```json
+[
+  {
+    "label": "Tuần 1",
+    "totalEquipments": 0,
+    "newEquipmentUnits": 0,
+    "disposedUnits": 0,
+    "maintenanceInProgress": 0,
+    "maintenanceSuccess": 0,
+    "maintenanceFailed": 0,
+    "totalStaff": 4,
+    "totalVendors": 2,
+    "importCost": 0,
+    "maintenanceCost": 0,
+    "disposalCost": 0,
+    "equipmentStatusCount": {
+      "Active": 0,
+      "Inactive": 0,
+      "Temporary Urgent": 0,
+      "In Progress": 0,
+      "In Stock": 0,
+      "Moving": 0,
+      "Ready": 0,
+      "Failed": 0
+    },
+    "warrantyValid": 0,
+    "warrantyExpired": 0
+  },
+  {
+    "label": "Tuần 2",
+    "totalEquipments": 48,
+    "newEquipmentUnits": 49,
+    "disposedUnits": 3,
+    "maintenanceInProgress": 0,
+    "maintenanceSuccess": 2,
+    "maintenanceFailed": 0,
+    "totalStaff": 4,
+    "totalVendors": 2,
+    "importCost": 2219000000,
+    "maintenanceCost": 0,
+    "disposalCost": 110000000,
+    "equipmentStatusCount": {
+      "Active": 30,
+      "Inactive": 5,
+      "Temporary Urgent": 2,
+      "In Progress": 0,
+      "In Stock": 8,
+      "Moving": 2,
+      "Ready": 1,
+      "Failed": 0
+    },
+    "warrantyValid": 48,
+    "warrantyExpired": 0
+  }
+]
 ```
 ---
