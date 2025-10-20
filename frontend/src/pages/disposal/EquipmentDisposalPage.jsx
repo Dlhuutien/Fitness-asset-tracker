@@ -23,12 +23,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Loader2, PackageCheck } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import EquipmentUnitService from "@/services/equipmentUnitService";
+import EquipmentDisposalService from "@/services/EquipmentDisposalService";
 import BranchService from "@/services/branchService";
-import EquipmentTransferService from "@/services/equipmentTransferService";
 import useAuthRole from "@/hooks/useAuthRole";
 import Branch from "@/components/common/Branch";
 
@@ -38,40 +38,21 @@ const STATUS_MAP = {
   active: "Hoạt động",
   "in stock": "Thiết bị trong kho",
   inactive: "Ngưng hoạt động",
-  "temporary urgent": "Ngừng tạm thời",
-  "in progress": "Đang bảo trì",
-  ready: "Bảo trì thành công",
-  failed: "Bảo trì thất bại",
-  moving: "Đang di chuyển",
-  deleted: "Đã xóa",
+  disposed: "Đã thanh lý",
 };
 
-const DISALLOWED_FOR_TRANSFER = new Set([
-  "inactive",
-  "temporary urgent",
-  "in progress",
-  "ready",
-  "failed",
-  "deleted",
-  "moving",
-]);
-
-export default function TransferCreateSection() {
+export default function EquipmentDisposalPage() {
   const [units, setUnits] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [destBranch, setDestBranch] = useState("all");
-
-  const [search, setSearch] = useState("");
-  const [activeGroup, setActiveGroup] = useState("all");
   const [activeBranch, setActiveBranch] = useState("");
-
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
+  const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const { isSuperAdmin, branchId } = useAuthRole();
-
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -103,18 +84,13 @@ export default function TransferCreateSection() {
       try {
         setLoading(true);
         const [u, b] = await Promise.all([
-          EquipmentUnitService.getByStatusGroup(["Active", "In Stock"]),
+          EquipmentUnitService.getByStatusGroup(["In Stock", "Inactive"]),
           BranchService.getAll(),
         ]);
         setUnits(u || []);
         setFiltered(u || []);
         setBranches(b || []);
-        if (b?.length > 0) {
-          setActiveBranch(b[0].id); // mặc định chi nhánh hiện tại
-          // Mặc định chọn chi nhánh đích là chi nhánh tiếp theo (nếu có),
-          // nếu chỉ có 1 chi nhánh thì vẫn để "all"
-          if (b.length > 1) setDestBranch(b[1].id);
-        }
+        if (b?.length > 0) setActiveBranch(b[0].id);
       } catch (e) {
         console.error(e);
         toast.error("Không thể tải dữ liệu thiết bị/chi nhánh.");
@@ -133,14 +109,12 @@ export default function TransferCreateSection() {
         u.equipment?.name?.toLowerCase().includes(q) ||
         u.equipment?.vendor_name?.toLowerCase().includes(q) ||
         u.equipment?.type_name?.toLowerCase().includes(q);
-      const matchGroup =
-        activeGroup === "all" || u.equipment?.main_name === activeGroup;
       const matchBranch = !activeBranch || u.branch_id === activeBranch;
-      return matchSearch && matchGroup && matchBranch;
+      return matchSearch && matchBranch;
     });
     setFiltered(f);
     setCurrentPage(1);
-  }, [search, activeGroup, activeBranch, units]);
+  }, [search, activeBranch, units]);
 
   // ===== Unique values cho HeaderFilter =====
   const uniqueValues = useMemo(
@@ -161,8 +135,8 @@ export default function TransferCreateSection() {
 
   // ===== Lọc theo cột =====
   const filteredByColumn = useMemo(() => {
-    return (filtered || []).filter((e) => {
-      return Object.keys(filters).every((key) => {
+    return filtered.filter((e) =>
+      Object.keys(filters).every((key) => {
         const vals = filters[key] || [];
         if (!vals.length) return true;
         let v = "";
@@ -188,12 +162,10 @@ export default function TransferCreateSection() {
           case "status":
             v = STATUS_MAP[e.status?.toLowerCase()];
             break;
-          default:
-            v = "";
         }
         return vals.includes(v);
-      });
-    });
+      })
+    );
   }, [filtered, filters]);
 
   const totalPages = Math.max(
@@ -207,62 +179,83 @@ export default function TransferCreateSection() {
 
   // ===== Toggle chọn thiết bị =====
   const toggleSelect = (row) => {
-    const normalized = (row.status || "").toLowerCase();
-    if (DISALLOWED_FOR_TRANSFER.has(normalized)) {
-      toast.warning("Thiết bị không thể chuyển ở trạng thái hiện tại.");
+    if (row.status?.toLowerCase() === "disposed") {
+      toast.warning("Thiết bị này đã được thanh lý.");
       return;
     }
+
+    // ✅ Nếu đã có thiết bị được chọn, chỉ cho chọn thêm cùng chi nhánh
+    const currentSelected = Object.values(selected);
+    if (currentSelected.length > 0) {
+      const selectedBranch = currentSelected[0].branch_id;
+      if (row.branch_id !== selectedBranch) {
+        toast.warning(
+          `Chỉ được chọn thiết bị cùng chi nhánh (${selectedBranch})!`
+        );
+        return;
+      }
+    }
+
     setSelected((prev) => {
       const next = { ...prev };
       if (next[row.id]) delete next[row.id];
-      else next[row.id] = row;
+      else next[row.id] = { ...row, value_recovered: 0 };
       return next;
     });
   };
 
-  const selectedIds = Object.keys(selected);
-  const selectedItems = Object.values(selected);
-  const canSubmit =
-    selectedIds.length > 0 &&
-    destBranch !== "all" &&
-    selectedIds.every((id) => selected[id].branch_id !== destBranch);
+  const handleValueChange = (id, value) => {
+    setSelected((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], value_recovered: Number(value) || 0 },
+    }));
+  };
 
-  // ===== Gửi yêu cầu tạo transfer =====
-  const handleCreateTransfer = async () => {
-    if (!canSubmit) {
-      toast.info("Hãy chọn thiết bị và chi nhánh nhận hợp lệ.");
+  const selectedItems = Object.values(selected);
+  const totalValue = selectedItems.reduce(
+    (sum, i) => sum + (i.value_recovered || 0),
+    0
+  );
+
+  // ===== Gửi yêu cầu tạo thanh lý =====
+  const handleCreateDisposal = async () => {
+    if (selectedItems.length === 0) {
+      toast.info("Hãy chọn ít nhất một thiết bị để thanh lý.");
       return;
     }
+    if (!note.trim()) {
+      toast.info("Vui lòng nhập ghi chú cho đợt thanh lý.");
+      return;
+    }
+
     try {
       setCreating(true);
-      const unit_ids = selectedIds;
-      const anySameDest = unit_ids.some(
-        (id) => selected[id].branch_id === destBranch
-      );
-      if (anySameDest) {
-        toast.error("Thiết bị đã thuộc chi nhánh đích.");
-        return;
-      }
-      await EquipmentTransferService.create({
-        unit_ids,
-        to_branch_id: destBranch,
+      const items = selectedItems.map((u) => ({
+        equipment_unit_id: u.id,
+        value_recovered: u.value_recovered || 0,
+      }));
+
+      await EquipmentDisposalService.create({
+        branch_id: isSuperAdmin ? activeBranch : branchId,
+        note,
+        items,
       });
-      toast.success("Đã tạo yêu cầu vận chuyển!");
-      setSuccessMsg("✅ Đã tạo yêu cầu vận chuyển thành công!");
+
+      toast.success("✅ Đã tạo đợt thanh lý thành công!");
+      setSuccessMsg("✅ Đã tạo đợt thanh lý thành công!");
       setErrorMsg("");
 
+      const disposedIds = items.map((i) => i.equipment_unit_id);
+      setUnits((prev) => prev.filter((u) => !disposedIds.includes(u.id)));
+      setFiltered((prev) => prev.filter((u) => !disposedIds.includes(u.id)));
       setSelected({});
-      setUnits((prev) => prev.filter((u) => !unit_ids.includes(u.id)));
-      setFiltered((prev) => prev.filter((u) => !unit_ids.includes(u.id)));
+      setNote("");
 
-      // Ẩn thông báo sau 2s
       setTimeout(() => setSuccessMsg(""), 5000);
-    } catch (e) {
-      console.error(e);
-      toast.error(e?.error || "Tạo yêu cầu vận chuyển thất bại.");
-      setErrorMsg("❌ Không thể tạo yêu cầu vận chuyển, vui lòng thử lại!");
+    } catch (err) {
+      toast.error(err?.error || "Không thể tạo đợt thanh lý.");
+      setErrorMsg("❌ Không thể tạo đợt thanh lý, vui lòng thử lại!");
       setSuccessMsg("");
-
       setTimeout(() => setErrorMsg(""), 5000);
     } finally {
       setCreating(false);
@@ -299,12 +292,8 @@ export default function TransferCreateSection() {
             >
               <SelectTrigger
                 className={`h-9 w-48 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 
-                  ${
-                    selectedItems.length > 0
-                      ? "opacity-60 cursor-not-allowed"
-                      : ""
-                  }
-                `}
+        ${selectedItems.length > 0 ? "opacity-60 cursor-not-allowed" : ""}
+      `}
               >
                 <SelectValue placeholder="Chi nhánh" />
               </SelectTrigger>
@@ -345,86 +334,82 @@ export default function TransferCreateSection() {
         />
       </div>
 
-      {/* ===== Chọn chi nhánh đích + nút tạo yêu cầu ===== */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-            Chuyển đến:
-          </span>
-          <Select value={destBranch} onValueChange={setDestBranch}>
-            <SelectTrigger className="h-9 w-48 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-              <SelectValue placeholder="Chọn chi nhánh nhận" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-              {branches
-                .filter((b) => b.id !== activeBranch)
-                .map((b) => (
-                  <SelectItem key={b.id} value={b.id} className="text-sm">
-                    {b.name}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-
-          <div className="text-sm text-gray-500">
-            Đã chọn: <b>{selectedIds.length}</b> thiết bị
+      {/* ===== Ghi chú + tạo đợt thanh lý ===== */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Input
+            placeholder="📝 Ghi chú đợt thanh lý (ví dụ: Thanh lý thiết bị hư 19/10)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="flex-1 h-9 text-sm"
+          />
+          <div className="text-sm text-gray-600">
+            Tổng giá trị thu hồi:{" "}
+            <b className="text-emerald-600">
+              {totalValue.toLocaleString("vi-VN")}₫
+            </b>
           </div>
+          <Button
+            onClick={handleCreateDisposal}
+            disabled={creating}
+            className="bg-rose-500 hover:bg-rose-600 text-white flex items-center"
+          >
+            {creating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Đang tạo...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Tạo đơn thanh lý
+              </>
+            )}
+          </Button>
         </div>
 
-        <Button
-          onClick={handleCreateTransfer}
-          disabled={!canSubmit || creating}
-          className={`flex items-center justify-center text-white ${
-            canSubmit ? "bg-emerald-500 hover:bg-emerald-600" : "bg-gray-400"
-          }`}
-        >
-          {creating ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Đang tạo yêu cầu...
-            </>
-          ) : (
-            "Tạo yêu cầu vận chuyển"
-          )}
-        </Button>
-        {/* 🧩 Thông báo */}
-        {successMsg && (
-          <div className="mt-3 px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
-            {successMsg}
-          </div>
-        )}
-        {errorMsg && (
-          <div className="mt-3 px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
-            {errorMsg}
+        {/* 🧩 Thông báo (hiện ngay dưới nút, full width, không lệch flex) */}
+        {(successMsg || errorMsg) && (
+          <div className="mt-3">
+            {successMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+                {successMsg}
+              </div>
+            )}
+            {errorMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+                {errorMsg}
+              </div>
+            )}
           </div>
         )}
       </div>
+
       {/* ===== Card hiển thị thiết bị đang chọn ===== */}
       {selectedItems.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <PackageCheck className="text-emerald-500" />
-            <h2 className="text-lg font-semibold text-emerald-600">
-              Thiết bị đang chọn để vận chuyển ({selectedItems.length})
+            <Trash2 className="text-rose-500" />
+            <h2 className="text-lg font-semibold text-rose-600">
+              Thiết bị được chọn để thanh lý ({selectedItems.length})
             </h2>
             <Button
               onClick={() => setSelected({})}
-              className="ml-auto bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1"
+              className="ml-auto bg-gray-500 hover:bg-gray-600 text-white text-sm px-3 py-1"
             >
               Bỏ chọn tất cả
             </Button>
           </div>
 
-          <Table className="min-w-[700px] border">
+          <Table className="min-w-[800px] border">
             <TableHeader>
-              <TableRow className="bg-emerald-50 dark:bg-gray-700 text-sm font-semibold">
+              <TableRow className="bg-rose-50 dark:bg-gray-700 text-sm font-semibold">
                 <TableHead>#</TableHead>
                 <TableHead>Mã thiết bị</TableHead>
                 <TableHead>Tên thiết bị</TableHead>
-                <TableHead>Nhóm</TableHead>
-                <TableHead>Loại</TableHead>
                 <TableHead>Trạng thái</TableHead>
-                <TableHead>Chi nhánh hiện tại</TableHead>
+                <TableHead>Chi nhánh</TableHead>
+                <TableHead>Giá gốc (vn₫)</TableHead>
+                <TableHead>Giá trị thu hồi (vn₫)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -432,9 +417,28 @@ export default function TransferCreateSection() {
                 <TableRow key={item.id} className="text-sm">
                   <TableCell>{i + 1}</TableCell>
                   <TableCell>{item.id}</TableCell>
-                  <TableCell>{item.equipment?.name}</TableCell>
-                  <TableCell>{item.equipment?.main_name}</TableCell>
-                  <TableCell>{item.equipment?.type_name}</TableCell>
+                  {visibleColumns.name && (
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`
+                    font-semibold truncate max-w-[220px]
+                    ${
+                      item.branch_id === "GV"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : item.branch_id === "Q3"
+                        ? "text-blue-600 dark:text-blue-400"
+                        : item.branch_id === "G3"
+                        ? "text-orange-600 dark:text-orange-400"
+                        : "text-gray-800 dark:text-gray-200"
+                    }
+                  `}
+                        >
+                          {item.equipment?.name}
+                        </span>
+                      </div>
+                    </TableCell>
+                  )}
                   <TableCell>
                     <Status
                       status={
@@ -443,13 +447,44 @@ export default function TransferCreateSection() {
                     />
                   </TableCell>
                   <TableCell>{item.branch_id}</TableCell>
+                  <TableCell className="text-right font-medium text-gray-700 dark:text-gray-200">
+                    {item.cost?.toLocaleString("vi-VN") || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="0"
+                      value={
+                        item.value_recovered
+                          ? item.value_recovered.toLocaleString("vi-VN")
+                          : ""
+                      }
+                      onChange={(e) => {
+                        // Loại bỏ mọi ký tự không phải số
+                        const raw = e.target.value.replace(/\D/g, "");
+                        // Cập nhật state gốc bằng số thật
+                        handleValueChange(item.id, raw ? Number(raw) : 0);
+                      }}
+                      onBlur={(e) => {
+                        // Khi blur, tự format lại có dấu chấm
+                        const raw = e.target.value.replace(/\D/g, "");
+                        const formatted = raw
+                          ? Number(raw).toLocaleString("vi-VN")
+                          : "";
+                        e.target.value = formatted;
+                      }}
+                      className="w-36 h-8 text-right"
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       )}
-      {/* ===== Bảng danh sách thiết bị ===== */}
+
+      {/* ===== Danh sách thiết bị ===== */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-700">
@@ -457,15 +492,15 @@ export default function TransferCreateSection() {
               <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
                 <TableHead>#</TableHead>
                 {visibleColumns.select && (
-                  <TableHead className="text-emerald-600 font-bold text-center">
+                  <TableHead className="text-rose-600 font-bold text-center">
                     Chọn
                   </TableHead>
                 )}
                 {Object.entries(visibleColumns).map(([key, visible]) => {
                   if (!visible || key === "select") return null;
                   const columnLabels = {
-                    id: "Mã thiết bị",
-                    image: "Hình ảnh",
+                    id: "Mã Unit",
+                    image: "Ảnh",
                     name: "Tên thiết bị",
                     main_name: "Nhóm",
                     type_name: "Loại",
@@ -480,7 +515,7 @@ export default function TransferCreateSection() {
                       ) : (
                         <HeaderFilter
                           selfKey={key}
-                          label={columnLabels[key] || key}
+                          label={columnLabels[key]}
                           values={uniqueValues[key]}
                           selected={filters[key]}
                           onChange={(v) =>
@@ -499,14 +534,13 @@ export default function TransferCreateSection() {
               {currentData.map((row, idx) => {
                 const norm = row.status?.toLowerCase();
                 const translated = STATUS_MAP[norm] || row.status;
-                const disabled = DISALLOWED_FOR_TRANSFER.has(norm);
                 const isChecked = !!selected[row.id];
                 return (
                   <TableRow
                     key={row.id}
                     className={`transition ${
                       isChecked
-                        ? "bg-emerald-50 dark:bg-emerald-900/30"
+                        ? "bg-rose-50 dark:bg-rose-900/30"
                         : "hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
@@ -517,15 +551,9 @@ export default function TransferCreateSection() {
                       <TableCell className="text-center">
                         <input
                           type="checkbox"
-                          disabled={disabled}
                           checked={isChecked}
                           onChange={() => toggleSelect(row)}
-                          className={`w-5 h-5 cursor-pointer accent-emerald-500 transition-transform duration-150 
-                          ${
-                            disabled
-                              ? "opacity-40 cursor-not-allowed"
-                              : "hover:scale-110"
-                          }`}
+                          className="w-5 h-5 accent-rose-500 hover:scale-110 transition-transform"
                         />
                       </TableCell>
                     )}
@@ -561,7 +589,6 @@ export default function TransferCreateSection() {
                         </div>
                       </TableCell>
                     )}
-
                     {visibleColumns.main_name && (
                       <TableCell>{row.equipment?.main_name}</TableCell>
                     )}
@@ -571,11 +598,6 @@ export default function TransferCreateSection() {
                     {visibleColumns.status && (
                       <TableCell className="text-center">
                         <Status status={translated} />
-                        {disabled && (
-                          <div className="text-[11px] text-rose-500 mt-1">
-                            Không thể chuyển
-                          </div>
-                        )}
                       </TableCell>
                     )}
                     {visibleColumns.vendor_name && (
@@ -590,7 +612,8 @@ export default function TransferCreateSection() {
             </TableBody>
           </Table>
         </div>
-        {/* Pagination */}
+
+        {/* ===== Pagination ===== */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
           <div className="text-sm text-gray-700 dark:text-gray-300">
             Tổng cộng: {filteredByColumn.length} thiết bị

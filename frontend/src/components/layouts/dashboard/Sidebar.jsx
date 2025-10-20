@@ -50,6 +50,7 @@ export default function Sidebar() {
         { label: "Nhập thiết bị", path: "/app/equipment/import" },
         { label: "Bảo trì thiết bị", path: "/app/maintenance" },
         { label: "Vận chuyển thiết bị", path: "/app/equipment/transfer" },
+        { label: "Thanh lý thiết bị", path: "/app/equipment/disposal" },
       ],
     },
     {

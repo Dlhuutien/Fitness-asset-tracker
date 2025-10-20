@@ -13,6 +13,8 @@ import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
 import EquipmentProfilePage from "@/pages/equipment/EquipmentUnitProfilePage";
 import EquipmentSpecsPage from "@/pages/equipment/EquipmentProfilePage";
 import TransferEquipmentPage from "@/pages/transfer/TransferEquipmentPage";
+import EquipmentDisposalPage from "@/pages/disposal/EquipmentDisposalPage";
+
 // Staff
 import StaffPage from "@/pages/staff/StaffPage";
 import StaffProfile from "@/pages/staff/StaffProfile";
@@ -122,6 +124,15 @@ const routes = [
           </PageTransition>
         ),
       },
+      {
+        path: "/app/equipment/disposal",
+        element: (
+          <PageTransition>
+            <EquipmentDisposalPage />
+          </PageTransition>
+        ),
+      },
+
       // Staff
       {
         path: "/app/staff",
