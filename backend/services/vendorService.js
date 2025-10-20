@@ -1,16 +1,45 @@
 const vendorRepository = require("../repositories/vendorRepository");
 const equipmentRepository = require("../repositories/equipmentRepository");
+const { generateTypeCode } = require("../utils/codeGenerator");
 
 const vendorService = {
+  /**
+   * Tạo vendor mới, tự sinh mã ID (VD: Technogym → TEC)
+   */
   createVendor: async (vendorData) => {
     if (!vendorData.name) {
       throw new Error("Vendor name is required");
     }
-    const existing = await vendorRepository.findById(vendorData.id);
-    if (existing) {
-      throw new Error(`Vendor with id ${vendorData.id} already exists`);
+
+    // Lấy tất cả vendor hiện có để kiểm tra trùng tên và mã
+    const existingVendors = await vendorRepository.findAll();
+
+    // Kiểm tra trùng tên (không phân biệt hoa thường)
+    const nameExists = existingVendors.some(
+      (v) =>
+        v.name.trim().toLowerCase() === vendorData.name.trim().toLowerCase()
+    );
+    if (nameExists) {
+      throw new Error(`Vendor name "${vendorData.name}" already exists`);
     }
-    return await vendorRepository.create(vendorData);
+
+    // Sinh mã vendor ID tự động
+    const existingCodes = existingVendors.map((v) => v.id);
+    const newId = generateTypeCode(vendorData.name, existingCodes);
+
+    // Tạo vendor mới
+    const newVendor = await vendorRepository.create({
+      id: newId,
+      name: vendorData.name.trim(),
+      description: vendorData.description || null,
+      contact: vendorData.contact || null,
+      address: vendorData.address || null,
+      email: vendorData.email || null,
+      phone: vendorData.phone || null,
+      created_at: new Date().toISOString(),
+    });
+
+    return newVendor;
   },
 
   getVendors: async () => {

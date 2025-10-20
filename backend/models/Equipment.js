@@ -16,7 +16,7 @@ const EquipmentModel = {
   // CREATE
   createEquipment: async (equipmentData) => {
     const item = {
-      id: equipmentData.id, // format = main_id + type_id + vendor_id + số thứ tự
+      id: equipmentData.id,
       vendor_id: equipmentData.vendor_id,
       category_type_id: equipmentData.category_type_id,
       category_main_id: equipmentData.category_main_id,

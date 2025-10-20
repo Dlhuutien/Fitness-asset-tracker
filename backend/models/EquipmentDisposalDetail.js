@@ -1,4 +1,9 @@
-const { PutCommand, QueryCommand, ScanCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const {
+  PutCommand,
+  QueryCommand,
+  ScanCommand,
+  GetCommand,
+} = require("@aws-sdk/lib-dynamodb");
 const { dynamodb } = require("../utils/aws-helper");
 const { v4: uuidv4 } = require("uuid");
 
@@ -15,6 +20,11 @@ const EquipmentDisposalDetailModel = {
     };
     await dynamodb.send(new PutCommand({ TableName: tableName, Item: item }));
     return item;
+  },
+
+  getAll: async () => {
+    const res = await dynamodb.send(new ScanCommand({ TableName: tableName }));
+    return res.Items || [];
   },
 
   getByDisposalId: async (disposal_id) => {
