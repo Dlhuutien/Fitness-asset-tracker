@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
+import { exportToExcel } from "@/services/Files";
+// import { getStatusVN } from "@/components/common/ExcelTableTools";
+
 import {
   Table,
   TableBody,
@@ -31,7 +34,7 @@ import { useNavigate } from "react-router-dom";
 import { ArrowDownUp } from "lucide-react";
 import useAuthRole from "@/hooks/useAuthRole";
 import Branch from "@/components/common/Branch";
-
+import { Upload, Download, FileDown } from "lucide-react";
 const ITEMS_PER_PAGE = 8;
 
 export default function EquipmentUnitListSection() {
@@ -46,7 +49,7 @@ export default function EquipmentUnitListSection() {
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuthRole();
-
+  const [importSummary, setImportSummary] = useState(null);
   const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
     useEquipmentData();
   const groups = [{ id: "all", name: "Tất cả nhóm" }, ...(cats || [])];
@@ -74,7 +77,6 @@ export default function EquipmentUnitListSection() {
     const LS_KEY = "fitx_seen_unit_ids";
 
     if (!initializedRef.current) {
-      // Load danh sách đã xem từ localStorage
       let saved = [];
       try {
         const raw = localStorage.getItem(LS_KEY);
@@ -83,7 +85,6 @@ export default function EquipmentUnitListSection() {
         saved = [];
       }
 
-      // Nếu có dữ liệu cũ => xác định phần mới thực sự
       if (saved.length > 0) {
         seenIdsRef.current = new Set(saved);
         const newOnes = units
@@ -96,7 +97,6 @@ export default function EquipmentUnitListSection() {
           localStorage.setItem(LS_KEY, JSON.stringify([...seenIdsRef.current]));
         }
       } else {
-        // Không có dữ liệu cũ => ghi mốc ban đầu (không đánh dấu NEW)
         seenIdsRef.current = new Set(units.map((u) => u.id));
         localStorage.setItem(LS_KEY, JSON.stringify([...seenIdsRef.current]));
       }
@@ -105,8 +105,6 @@ export default function EquipmentUnitListSection() {
       return;
     }
 
-    // Lần cập nhật sau: tìm những ID chưa thấy bao giờ
-    // Lần cập nhật sau: tìm những ID chưa thấy bao giờ
     const prev = seenIdsRef.current;
     const incoming = units.map((u) => u.id);
     const newOnes = incoming.filter((id) => !prev.has(id));
@@ -115,8 +113,6 @@ export default function EquipmentUnitListSection() {
       setNewIds((prev) => new Set([...prev, ...newOnes]));
       newOnes.forEach((id) => prev.add(id));
       localStorage.setItem(LS_KEY, JSON.stringify([...prev]));
-
-      // ✅ BẮN SỰ KIỆN CHUẨN CHO IMPORT PAGE
       console.log("📦 fitx-units-updated fired:", newOnes);
       window.dispatchEvent(
         new CustomEvent("fitx-units-updated", { detail: { newIds: newOnes } })
@@ -124,7 +120,6 @@ export default function EquipmentUnitListSection() {
     }
   }, [units]);
 
-  // Hover qua hàng => bỏ hiệu ứng NEW
   const handleHover = (id) => {
     setNewIds((prev) => {
       if (!prev.has(id)) return prev;
@@ -143,6 +138,7 @@ export default function EquipmentUnitListSection() {
     type: true,
     status: true,
     vendor: true,
+    description: true,
     created_at: true,
   });
 
@@ -152,6 +148,7 @@ export default function EquipmentUnitListSection() {
     main: [],
     type: [],
     status: [],
+    description: [],
     vendor: [],
   });
 
@@ -164,6 +161,7 @@ export default function EquipmentUnitListSection() {
       main: getUniqueValues(units, (u) => u.equipment?.main_name),
       type: getUniqueValues(units, (u) => u.equipment?.type_name),
       vendor: getUniqueValues(units, (u) => u.equipment?.vendor_name),
+      description: getUniqueValues(units, (u) => u.equipment?.description),
       status: getUniqueValues(units, (u) => getStatusVN(u.status)),
     }),
     [units]
@@ -267,6 +265,7 @@ export default function EquipmentUnitListSection() {
             className="h-9 w-52 border-gray-300 dark:border-gray-700 text-sm"
           />
 
+          {/* ... Các Select cũ ... */}
           {/* Nhóm */}
           <Select
             onValueChange={(v) => {
@@ -339,7 +338,6 @@ export default function EquipmentUnitListSection() {
             </SelectContent>
           </Select>
 
-          {/* Nút sắp xếp */}
           <Button
             onClick={() => setSortNewestFirst((p) => !p)}
             className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
@@ -349,27 +347,57 @@ export default function EquipmentUnitListSection() {
           </Button>
         </div>
 
-        {/* Hiển thị cột */}
-        <ColumnVisibilityButton
-          visibleColumns={visibleColumns}
-          setVisibleColumns={setVisibleColumns}
-          labels={{
-            id: "Mã định danh thiết bị",
-            image: "Hình ảnh",
-            name: "Tên thiết bị",
-            main: "Nhóm",
-            type: "Loại",
-            status: "Trạng thái",
-            vendor: "Nhà cung cấp",
-            created_at: "Ngày nhập",
-          }}
-        />
+        {/* ==== Export Excel + Hiển thị cột ==== */}
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => {
+              if (!filtered || filtered.length === 0) {
+                toast.warning("⚠️ Không có dữ liệu để xuất!");
+                return;
+              }
+
+              const data = filtered.map((u) => ({
+                ID: u.id,
+                "Tên thiết bị": u.equipment?.name,
+                Nhóm: u.equipment?.main_name,
+                Loại: u.equipment?.type_name,
+                "Trạng thái": getStatusVN(u.status),
+                "Nhà cung cấp": u.equipment?.vendor_name,
+                "Mô tả": u.equipment?.description || "",
+                "Ngày nhập": new Date(u.created_at).toLocaleDateString("vi-VN"),
+              }));
+
+              exportToExcel(data, "Danh_sach_thiet_bi");
+              toast.success(`✅ Đã xuất ${data.length} bản ghi ra Excel!`);
+            }}
+            className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 hover:-translate-y-[1px] transition-all duration-200"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </Button>
+
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              id: "Mã định danh thiết bị",
+              image: "Hình ảnh",
+              name: "Tên thiết bị",
+              main: "Nhóm",
+              type: "Loại",
+              status: "Trạng thái",
+              vendor: "Nhà cung cấp",
+              description: "Mô tả",
+              created_at: "Ngày nhập",
+            }}
+          />
+        </div>
       </div>
 
       {/* ==== Bảng dữ liệu ==== */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1200px] border border-gray-200 dark:border-gray-700">
+          <Table className=" border border-gray-200 dark:border-gray-700">
             <TableHeader>
               <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
                 <TableHead className="text-center border dark:border-gray-600">
@@ -459,6 +487,11 @@ export default function EquipmentUnitListSection() {
                     />
                   </TableHead>
                 )}
+                {visibleColumns.description && (
+                  <TableHead className="border dark:border-gray-600">
+                    Mô tả
+                  </TableHead>
+                )}
 
                 {visibleColumns.created_at && (
                   <TableHead className="border dark:border-gray-600 text-center">
@@ -511,18 +544,15 @@ export default function EquipmentUnitListSection() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span
-                            className={`
-                  font-semibold 
-                  ${
-                    row.branch_id === "GV"
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : row.branch_id === "Q3"
-                      ? "text-blue-600 dark:text-blue-400"
-                      : row.branch_id === "G3"
-                      ? "text-orange-600 dark:text-orange-400"
-                      : "text-gray-800 dark:text-gray-200"
-                  }
-                `}
+                            className={`font-semibold ${
+                              row.branch_id === "GV"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : row.branch_id === "Q3"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : row.branch_id === "G3"
+                                ? "text-orange-600 dark:text-orange-400"
+                                : "text-gray-800 dark:text-gray-200"
+                            }`}
                           >
                             {row.equipment?.name}
                           </span>
@@ -544,6 +574,13 @@ export default function EquipmentUnitListSection() {
 
                     {visibleColumns.vendor && (
                       <TableCell>{row.equipment?.vendor_name}</TableCell>
+                    )}
+                    {visibleColumns.description && (
+                      <TableCell>
+                        <span className="line-clamp-2 text-gray-700 dark:text-gray-300">
+                          {row.equipment?.description || "—"}
+                        </span>
+                      </TableCell>
                     )}
 
                     {visibleColumns.created_at && (
