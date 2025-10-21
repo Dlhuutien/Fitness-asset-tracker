@@ -9,9 +9,9 @@ const statusColors = {
     "bg-gradient-to-r from-amber-300 to-yellow-400 text-gray-800 font-medium border-none shadow-sm",
   "Thiết bị trong kho":
     "bg-blue-500/15 text-blue-700 border border-blue-400 dark:bg-blue-500/30 dark:text-blue-300 dark:border-blue-600",
-   "Đang vận chuyển":
+  "Đang vận chuyển":
     "bg-gradient-to-r from-sky-400/20 to-indigo-500/20 text-indigo-700 border border-indigo-400 dark:from-sky-500/20 dark:to-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500",
-    
+
   // Bảo trì
   "Đang bảo trì":
     "bg-amber-500/15 text-amber-700 border border-amber-400 dark:bg-amber-500/30 dark:text-amber-300 dark:border-amber-600",
@@ -24,7 +24,9 @@ const statusColors = {
   // 👉 đổi sang tím nhạt (violet) cho khác biệt
   "Sửa thất bại":
     "bg-violet-500/15 text-violet-700 border border-violet-400 dark:bg-violet-500/30 dark:text-violet-300 dark:border-violet-600",
-
+  // ⚙️ Thêm trạng thái mới
+  "Đã thanh lý":
+    "bg-gradient-to-r from-red-400/20 to-rose-500/20 text-rose-700 border border-rose-400 dark:from-red-600/20 dark:to-rose-700/20 dark:text-rose-300 dark:border-rose-600",
   // Nhân sự
   "Đang làm":
     "bg-indigo-500/15 text-indigo-700 border border-indigo-400 dark:bg-indigo-500/30 dark:text-indigo-300 dark:border-indigo-600",

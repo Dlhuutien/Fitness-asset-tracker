@@ -179,75 +179,78 @@ export default function EquipmentImportPage({
   };
 
   // ✅ Xác nhận nhập hàng
-// ✅ Xác nhận nhập hàng
-const handleConfirmImport = async () => {
-  try {
-    setLoadingSubmit(true);
-    if (onStartImport) onStartImport();
+  // ✅ Xác nhận nhập hàng
+  const handleConfirmImport = async () => {
+    try {
+      setLoadingSubmit(true);
+      if (onStartImport) onStartImport();
 
-    // ✅ bật overlay Loading
-    setOverlayOpen(true);
-    setOverlayMode("loading");
+      // ✅ bật overlay Loading
+      setOverlayOpen(true);
+      setOverlayMode("loading");
 
-    if (!selectedBranch) {
-      toast.error("⚠️ Vui lòng chọn chi nhánh nhập hàng!");
-      setLoadingSubmit(false);
-      return;
-    }
-
-    const items = Object.values(selectedItems).map((item) => ({
-      equipment_id: item.id,
-      branch_id: selectedBranch,
-      quantity: Number.parseInt(item.qty) || 0,
-      cost: Number.parseFloat(item.price) || 0,
-    }));
-
-    // 🧾 Gọi API tạo hóa đơn nhập hàng
-    await InvoiceService.create({ items });
-    toast.info("🧾 Đang chờ cập nhật danh sách thiết bị...");
-
-    // 🌀 Refresh SWR
-    await refreshEquipmentUnits();
-
-    // 🔁 Revalidate lần 2 sau 2s để chắc chắn SWR có data mới
-    setTimeout(() => {
-      console.log("⏳ Force refresh lần 2 equipmentUnit...");
-      refreshEquipmentUnits();
-    }, 2000);
-
-    // ✅ Auto success fallback (frontend-only)
-    // Nếu sau 3s không có event fitx-units-updated → auto chuyển success
-    const autoSuccessTimer = setTimeout(() => {
-      if (overlayMode === "loading") {
-        console.log("⚙️ Auto success fallback triggered");
-        setOverlayMode("success");
-        toast.success("🎉 Nhập hàng thành công (auto fallback)");
-
-        // ❌ Bỏ đoạn tự tắt overlay - để user chủ động bấm nút
-        // setTimeout(() => {
-        //   setOverlayOpen(false);
-        //   setOverlayMode("loading");
-        //   newFromUnitListRef.current.clear();
-        // }, 2500);
+      if (!selectedBranch) {
+        toast.error("⚠️ Vui lòng chọn chi nhánh nhập hàng!");
+        setLoadingSubmit(false);
+        return;
       }
-    }, 3000);
 
-    // ✅ Nếu event thật đến thì clear fallback
-    window.addEventListener(
-      "fitx-units-updated",
-      () => clearTimeout(autoSuccessTimer),
-      { once: true }
-    );
-  } catch (err) {
-    console.error("❌ Lỗi nhập hàng:", err);
-    toast.error("❌ Có lỗi khi tạo hóa đơn!");
-    setOverlayOpen(false);
-  } finally {
-    setLoadingSubmit(false);
-    setSelectedItems({});
-  }
-};
+      const items = Object.values(selectedItems).map((item) => {
+        const baseCost = Number.parseFloat(item.price) || 0;
+        const costWithTax = Math.round(baseCost * 1.08); // cộng 8% thuế
+        return {
+          equipment_id: item.id,
+          branch_id: selectedBranch,
+          quantity: Number.parseInt(item.qty) || 0,
+          cost: costWithTax, 
+        };
+      });
 
+      // 🧾 Gọi API tạo hóa đơn nhập hàng
+      await InvoiceService.create({ items });
+      toast.info("🧾 Đang chờ cập nhật danh sách thiết bị...");
+
+      // 🌀 Refresh SWR
+      await refreshEquipmentUnits();
+
+      // 🔁 Revalidate lần 2 sau 2s để chắc chắn SWR có data mới
+      setTimeout(() => {
+        console.log("⏳ Force refresh lần 2 equipmentUnit...");
+        refreshEquipmentUnits();
+      }, 2000);
+
+      // ✅ Auto success fallback (frontend-only)
+      // Nếu sau 3s không có event fitx-units-updated → auto chuyển success
+      const autoSuccessTimer = setTimeout(() => {
+        if (overlayMode === "loading") {
+          console.log("⚙️ Auto success fallback triggered");
+          setOverlayMode("success");
+          toast.success("🎉 Nhập hàng thành công (auto fallback)");
+
+          // ❌ Bỏ đoạn tự tắt overlay - để user chủ động bấm nút
+          // setTimeout(() => {
+          //   setOverlayOpen(false);
+          //   setOverlayMode("loading");
+          //   newFromUnitListRef.current.clear();
+          // }, 2500);
+        }
+      }, 3000);
+
+      // ✅ Nếu event thật đến thì clear fallback
+      window.addEventListener(
+        "fitx-units-updated",
+        () => clearTimeout(autoSuccessTimer),
+        { once: true }
+      );
+    } catch (err) {
+      console.error("❌ Lỗi nhập hàng:", err);
+      toast.error("❌ Có lỗi khi tạo hóa đơn!");
+      setOverlayOpen(false);
+    } finally {
+      setLoadingSubmit(false);
+      setSelectedItems({});
+    }
+  };
 
   // ===== Lọc và hiển thị =====
   const vendorEquipments = useMemo(() => {
@@ -391,6 +394,11 @@ const handleConfirmImport = async () => {
         </div>
       </div>
     );
+
+  // 💰 Tính tổng tiền và thuế
+  const totalBeforeTax = calcTotal();
+  const taxAmount = totalBeforeTax * 0.08;
+  const totalWithTax = totalBeforeTax + taxAmount;
 
   return (
     <div className="p-6 space-y-8 relative">
@@ -742,9 +750,24 @@ const handleConfirmImport = async () => {
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex justify-between items-center">
         {Object.keys(selectedItems).length ? (
           <>
-            <h3 className="font-bold text-lg text-emerald-600">
-              Tổng cộng: {calcTotal().toLocaleString()} VNĐ
-            </h3>
+            <div className="text-right space-y-1">
+              <p className="text-sm text-gray-600">
+                Tổng (chưa thuế):{" "}
+                <span className="font-semibold">
+                  {totalBeforeTax.toLocaleString()} VNĐ
+                </span>
+              </p>
+              <p className="text-sm text-gray-600">
+                Thuế (8%):{" "}
+                <span className="font-semibold">
+                  {Math.round(taxAmount).toLocaleString()} VNĐ
+                </span>
+              </p>
+              <p className="text-lg font-bold text-emerald-600">
+                Tổng cộng sau thuế: {Math.round(totalWithTax).toLocaleString()}{" "}
+                VNĐ
+              </p>
+            </div>
             <AlertDialog open={openDialog} onOpenChange={setOpenDialog}>
               <AlertDialogTrigger asChild>
                 <Button
@@ -766,7 +789,7 @@ const handleConfirmImport = async () => {
                   <AlertDialogTitle>Xác nhận nhập hàng</AlertDialogTitle>
                   <AlertDialogDescription>
                     Bạn có chắc chắn muốn nhập{" "}
-                    <b>{Object.keys(selectedItems).length}</b> thiết bị vào kho?
+                    <b>{Object.keys(selectedItems).length}</b> loại thiết bị vào kho?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
