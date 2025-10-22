@@ -24,7 +24,6 @@ const EquipmentModel = {
       name: equipmentData.name,
       image: equipmentData.image || null,
       description: equipmentData.description,
-      warranty_duration: equipmentData.warranty_duration || 1,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -185,7 +184,6 @@ const EquipmentModel = {
           #n = :name,
           image = :image,
           description = :description,
-          warranty_duration = :warranty_duration,
           updated_at = :updatedAt`,
           ExpressionAttributeNames: { "#n": "name" },
           ExpressionAttributeValues: {
@@ -196,7 +194,6 @@ const EquipmentModel = {
             ":name": cleanData.name,
             ":image": cleanData.image,
             ":description": cleanData.description,
-            ":warranty_duration": cleanData.warranty_duration,
             ":updatedAt": new Date().toISOString(),
           },
           ReturnValues: "ALL_NEW",
