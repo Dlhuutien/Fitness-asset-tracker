@@ -5,6 +5,7 @@ const {
   UpdateCommand,
   DeleteCommand,
   QueryCommand,
+  BatchGetCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const { dynamodb } = require("../utils/aws-helper");
 
@@ -65,6 +66,34 @@ const EquipmentUnitModel = {
       })
     );
     return result.Items || [];
+  },
+
+  // ⚡️ BATCH GET NHIỀU UNIT CÙNG LÚC (tối đa 100/lần)
+  batchFindByIds: async (ids = []) => {
+    if (!ids.length) return [];
+
+    const chunkSize = 100; // DynamoDB BatchGet giới hạn 100 item/lần
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      chunks.push(ids.slice(i, i + chunkSize));
+    }
+
+    const results = [];
+    for (const batch of chunks) {
+      const res = await dynamodb.send(
+        new BatchGetCommand({
+          RequestItems: {
+            [tableName]: {
+              Keys: batch.map((id) => ({ id })),
+            },
+          },
+        })
+      );
+      const items = res.Responses?.[tableName] || [];
+      results.push(...items);
+    }
+
+    return results;
   },
 
   updateUnit: async (id, data) => {
