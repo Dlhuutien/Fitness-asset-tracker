@@ -202,7 +202,8 @@ export default function EquipmentImportPage({
           equipment_id: item.id,
           branch_id: selectedBranch,
           quantity: Number.parseInt(item.qty) || 0,
-          cost: costWithTax, 
+          cost: costWithTax,
+          warranty_duration: Number(item.warranty_duration) || 0,
         };
       });
 
@@ -562,7 +563,6 @@ export default function EquipmentImportPage({
                   main_name: "Nhóm",
                   type_name: "Loại",
                   name: "Tên thiết bị",
-                  warranty_duration: "Bảo hành",
                 }}
               />
             </div>
@@ -631,20 +631,6 @@ export default function EquipmentImportPage({
                       />
                     </TableHead>
                   )}
-                  {visibleColumns.warranty_duration && (
-                    <TableHead>
-                      <HeaderFilter
-                        selfKey="warranty_duration"
-                        label="Bảo hành"
-                        values={uniqueValues.warranty_duration}
-                        selected={filters.warranty_duration}
-                        onChange={(v) =>
-                          setFilters((p) => ({ ...p, warranty_duration: v }))
-                        }
-                        controller={controller}
-                      />
-                    </TableHead>
-                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -676,9 +662,6 @@ export default function EquipmentImportPage({
                         <span>{item.name}</span>
                       </TableCell>
                     )}
-                    {visibleColumns.warranty_duration && (
-                      <TableCell>{item.warranty_duration} năm</TableCell>
-                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -708,10 +691,10 @@ export default function EquipmentImportPage({
                     <div>
                       <p className="font-semibold">{item.name}</p>
                       <p className="text-xs text-gray-500 mb-2">
-                        Mã: {item.id} | Bảo hành: {item.warranty_duration} năm
+                        Mã: {item.id}
                       </p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="grid grid-cols-3 gap-3 mt-3">
                       <div>
                         <Label className="text-xs">Giá (VNĐ)</Label>
                         <Input
@@ -734,7 +717,24 @@ export default function EquipmentImportPage({
                           className="h-8 text-sm"
                         />
                       </div>
+                      <div>
+                        <Label className="text-xs">Bảo hành (năm)</Label>{" "}
+                        <Input
+                          type="number"
+                          value={item.warranty_duration || ""}
+                          onChange={(e) =>
+                            updateField(
+                              item.id,
+                              "warranty_duration",
+                              e.target.value
+                            )
+                          }
+                          className="h-8 text-sm"
+                          placeholder="VD: 2"
+                        />
+                      </div>
                     </div>
+
                     <div className="text-red-600 font-semibold text-sm mt-2">
                       Tổng: {total.toLocaleString()} VNĐ
                     </div>
@@ -789,7 +789,8 @@ export default function EquipmentImportPage({
                   <AlertDialogTitle>Xác nhận nhập hàng</AlertDialogTitle>
                   <AlertDialogDescription>
                     Bạn có chắc chắn muốn nhập{" "}
-                    <b>{Object.keys(selectedItems).length}</b> loại thiết bị vào kho?
+                    <b>{Object.keys(selectedItems).length}</b> loại thiết bị vào
+                    kho?
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

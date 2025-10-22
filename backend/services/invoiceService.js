@@ -29,7 +29,7 @@ const invoiceService = {
 
     // 2. Loop qua items
     for (const item of data.items) {
-      const { equipment_id, branch_id, quantity, cost } = item;
+      const { equipment_id, branch_id, quantity, cost, warranty_duration } = item;
 
       // Check branch tồn tại
       const branch = await branchRepository.findById(branch_id);
@@ -43,8 +43,8 @@ const invoiceService = {
         throw new Error(`Equipment ${equipment_id} not found`);
       }
 
-      // Lấy warranty_duration từ equipment
-      const warranty_duration = Number(equipment.warranty_duration) || 0;
+      // Lấy warranty_duration từ body (ưu tiên) hoặc default = 0
+      const duration = Number(warranty_duration) || 0;
 
       // Đảm bảo Count record tồn tại cho equipment_id
       let countRecord = await countRepository.findById(equipment_id);
@@ -65,13 +65,14 @@ const invoiceService = {
           equipment_id,
           branch_id,
           cost,
+          warranty_duration: duration,
           description: "Imported via invoice",
           status: "In Stock",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           warranty_start_date: new Date().toISOString(),
           warranty_end_date: new Date(
-            new Date().setFullYear(new Date().getFullYear() + warranty_duration)
+            new Date().setFullYear(new Date().getFullYear() + duration)
           ).toISOString(),
         });
 

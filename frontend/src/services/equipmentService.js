@@ -47,7 +47,6 @@ const EquipmentService = {
         formData.append("vendor_id", String(data.vendor_id || ""));
         formData.append("category_type_id", String(data.category_type_id || ""));
         formData.append("description", String(data.description || ""));
-        formData.append("warranty_duration", String(data.warranty_duration || "2"));
 
         if (data.image instanceof File) {
           formData.append("image", data.image);
@@ -82,7 +81,6 @@ const EquipmentService = {
       formData.append("description", data.description || "");
       formData.append("vendor_id", data.vendor_id || "");
       formData.append("category_type_id", data.category_type_id || "");
-      formData.append("warranty_duration", data.warranty_duration || "2");
 
       // ⚙️ Nếu có file ảnh mới
       if (data.image instanceof File) {

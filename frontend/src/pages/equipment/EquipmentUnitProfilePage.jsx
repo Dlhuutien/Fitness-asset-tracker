@@ -266,7 +266,7 @@ export default function EquipmentProfilePage() {
                 icon={<Package size={16} />}
                 label="Thời hạn bảo hành"
                 value={
-                  eq.warranty_duration ? `${eq.warranty_duration} năm` : "—"
+                  data.warranty_duration ? `${data.warranty_duration} năm` : "—"
                 }
               />
               <InfoItem
@@ -446,7 +446,7 @@ export default function EquipmentProfilePage() {
       </div>
 
       {/* DỪNG TẠM THỜI - Chỉ hiển thị khi thiết bị đang ở trạng thái "Hoạt động" */}
-      {(data.status?.toLowerCase() === "active") &&
+      {data.status?.toLowerCase() === "active" &&
         (!isTemporarilyStopped ? (
           <div className="flex flex-col items-center justify-center gap-3 pt-4">
             <div className="w-full max-w-md flex flex-col items-center gap-2">

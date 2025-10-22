@@ -362,22 +362,6 @@ export default function EquipmentProfilePage() {
                 <p className="mt-1">{formData.description || "—"}</p>
               )}
             </div>
-
-            <div>
-              <strong>Bảo hành (năm):</strong>
-              {editing ? (
-                <Input
-                  type="number"
-                  value={formData.warranty_duration}
-                  onChange={(e) =>
-                    handleChange("warranty_duration", e.target.value)
-                  }
-                  className="mt-1 h-9"
-                />
-              ) : (
-                <p className="mt-1">{formData.warranty_duration}</p>
-              )}
-            </div>
             <p>
               <strong>Ngày tạo:</strong> {fmtDate(equipment.created_at)}
             </p>

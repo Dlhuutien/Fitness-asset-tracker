@@ -31,7 +31,6 @@ export default function EquipmentAddCardPage({ onSuccessAdd }) {
     vendor: "",
     name: "",
     description: "",
-    warranty: "2",
     image: null,
     preview: "",
   });
@@ -178,7 +177,6 @@ export default function EquipmentAddCardPage({ onSuccessAdd }) {
         vendor_id: formData.vendor,
         category_type_id: formData.type,
         description: formData.description,
-        warranty_duration: Number(formData.warranty),
         image: formData.image instanceof File ? formData.image : null,
         attributes: attrArray,
       };
@@ -562,18 +560,6 @@ export default function EquipmentAddCardPage({ onSuccessAdd }) {
               value={formData.description}
               onChange={handleChange}
               className="text-sm"
-            />
-          </div>
-
-          {/* Bảo hành */}
-          <div>
-            <Label className="text-sm">Bảo hành (năm)</Label>
-            <Input
-              type="number"
-              name="warranty"
-              value={formData.warranty}
-              onChange={handleChange}
-              className="h-9"
             />
           </div>
 
