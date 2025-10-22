@@ -11,6 +11,7 @@ const equipmentRepository = {
   findByVendorId: async (vendor_id) =>
     EquipmentModel.getByVendorId(vendor_id),
   findAllIds: async () => await EquipmentModel.getAllIds(),
+  batchFindByIds: async (ids) => await EquipmentModel.batchFindByIds(ids),
 };
 
 module.exports = equipmentRepository;
