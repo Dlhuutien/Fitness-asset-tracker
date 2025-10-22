@@ -17,6 +17,7 @@ export function getStatusVN(status) {
     "temporary urgent": "Ngừng tạm thời",
     "in progress": "Đang bảo trì",
     deleted: "Đã xóa",
+    disposed: "Đã thanh lý", // ✅ chữ thường
   };
   return map[status?.trim()?.toLowerCase()] || "Không xác định";
 }

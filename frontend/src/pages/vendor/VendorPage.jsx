@@ -1,3 +1,4 @@
+// src/pages/VendorPage.jsx
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
@@ -34,7 +35,6 @@ export default function VendorPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [goToPage, setGoToPage] = useState("");
   const [form, setForm] = useState({
     id: "",
     name: "",
@@ -44,7 +44,6 @@ export default function VendorPage() {
   const [editMode, setEditMode] = useState(false);
 
   // 🔍 Bộ lọc từng cột (Excel Filter)
-  const [selectedId, setSelectedId] = useState([]);
   const [selectedName, setSelectedName] = useState([]);
   const [selectedOrigin, setSelectedOrigin] = useState([]);
   const [selectedDesc, setSelectedDesc] = useState([]);
@@ -81,15 +80,13 @@ export default function VendorPage() {
     const matchSearch =
       !q ||
       v.name.toLowerCase().includes(q) ||
-      v.id.toLowerCase().includes(q) ||
+      v.id?.toLowerCase().includes(q) ||
       (v.description || "").toLowerCase().includes(q);
 
     const matchOrigin =
       filterOrigin === "all" ||
       v.origin.toLowerCase() === filterOrigin.toLowerCase();
 
-    const matchHeaderId =
-      selectedId.length === 0 || selectedId.includes(v.id);
     const matchHeaderName =
       selectedName.length === 0 || selectedName.includes(v.name);
     const matchHeaderOrigin =
@@ -101,7 +98,6 @@ export default function VendorPage() {
     return (
       matchSearch &&
       matchOrigin &&
-      matchHeaderId &&
       matchHeaderName &&
       matchHeaderOrigin &&
       matchHeaderDesc
@@ -126,7 +122,7 @@ export default function VendorPage() {
   };
 
   const handleSubmit = async () => {
-    if (!form.id || !form.name || !form.origin) {
+    if (!form.name || !form.origin) {
       toast.warning("⚠️ Vui lòng nhập đầy đủ các trường bắt buộc!");
       return;
     }
@@ -137,7 +133,9 @@ export default function VendorPage() {
         await VendorService.update(form.id, form);
         toast.success(`✅ Đã cập nhật nhà cung cấp "${form.name}"`);
       } else {
-        await VendorService.create(form);
+        // ✅ Bỏ ID vì backend tự generate
+        const { id, ...payload } = form;
+        await VendorService.create(payload);
         toast.success(`✅ Đã thêm nhà cung cấp "${form.name}"`);
       }
       const data = await VendorService.getAll();
@@ -189,16 +187,8 @@ export default function VendorPage() {
           <h2 className="text-lg font-semibold text-emerald-600">
             {editMode ? "✏️ Cập nhật nhà cung cấp" : "➕ Thêm nhà cung cấp mới"}
           </h2>
+
           <div className="grid md:grid-cols-2 gap-4">
-            <Input
-              placeholder="Mã (VD: MT)"
-              value={form.id}
-              onChange={(e) => handleChange("id", e.target.value.toUpperCase())}
-              disabled={editMode}
-              className={`dark:bg-gray-700 dark:text-white ${
-                editMode ? "cursor-not-allowed opacity-70" : ""
-              }`}
-            />
             <Input
               placeholder="Tên nhà cung cấp"
               value={form.name}
@@ -217,7 +207,7 @@ export default function VendorPage() {
               placeholder="Mô tả ngắn (tùy chọn)"
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
-              className="dark:bg-gray-700 dark:text-white"
+              className="dark:bg-gray-700 dark:text-white md:col-span-2"
             />
           </div>
 
@@ -318,15 +308,7 @@ export default function VendorPage() {
                   <TableHead>#</TableHead>
 
                   {visibleColumns.id && (
-                    <TableHead>
-                      <HeaderFilter
-                        selfKey="id"
-                        label="Mã"
-                        values={getUniqueValues(vendors, "id")}
-                        selected={selectedId}
-                        onChange={setSelectedId}
-                      />
-                    </TableHead>
+                    <TableHead className="text-center">Mã</TableHead>
                   )}
 
                   {visibleColumns.name && (
@@ -391,7 +373,7 @@ export default function VendorPage() {
                         {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                       </TableCell>
                       {visibleColumns.id && (
-                        <TableCell className="font-semibold text-emerald-600">
+                        <TableCell className="font-semibold text-emerald-600 text-center">
                           {v.id}
                         </TableCell>
                       )}

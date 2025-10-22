@@ -23,8 +23,9 @@ const STATUS_MAP = {
   ready: "Bảo trì thành công",
   failed: "Bảo trì thất bại",
   moving: "Đang di chuyển",
-  "in stock": "Trong kho",
+  "in stock": "Thiết bị trong kho",
   deleted: "Đã xóa",
+  disposed: "Đã thanh lý",
 };
 
 export default function EquipmentProfilePage() {
@@ -444,49 +445,50 @@ export default function EquipmentProfilePage() {
         )}
       </div>
 
-      {/* DỪNG TẠM THỜI */}
-      {!isTemporarilyStopped ? (
-        <div className="flex flex-col items-center justify-center gap-3 pt-4">
-          <div className="w-full max-w-md flex flex-col items-center gap-2">
-            <input
-              type="text"
-              placeholder="Nhập lý do tạm dừng thiết bị..."
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm 
-          dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 
-          focus:ring-amber-400 outline-none transition-all"
-            />
+      {/* DỪNG TẠM THỜI - Chỉ hiển thị khi thiết bị đang ở trạng thái "Hoạt động" */}
+      {(data.status?.toLowerCase() === "active") &&
+        (!isTemporarilyStopped ? (
+          <div className="flex flex-col items-center justify-center gap-3 pt-4">
+            <div className="w-full max-w-md flex flex-col items-center gap-2">
+              <input
+                type="text"
+                placeholder="Nhập lý do tạm dừng thiết bị..."
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm 
+        dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 
+        focus:ring-amber-400 outline-none transition-all"
+              />
 
-            <Button
-              onClick={handleCreateMaintenance}
-              disabled={loading}
-              className="bg-gradient-to-r from-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-300 
-          text-gray-800 font-semibold px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all 
-          disabled:opacity-70 disabled:cursor-not-allowed w-full"
-            >
-              ⚙️ Dừng tạm thời
-            </Button>
-          </div>
+              <Button
+                onClick={handleCreateMaintenance}
+                disabled={loading}
+                className="bg-gradient-to-r from-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-300 
+        text-gray-800 font-semibold px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all 
+        disabled:opacity-70 disabled:cursor-not-allowed w-full"
+              >
+                ⚙️ Dừng tạm thời
+              </Button>
+            </div>
 
-          {successMsg && (
-            <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
-              {successMsg}
-            </div>
-          )}
-          {errorMsg && (
-            <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
-              {errorMsg}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="text-center pt-4">
-          <div className="inline-block px-4 py-2 text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-lg shadow-sm">
-            ⚠️ Thiết bị hiện đang ở trạng thái <b>“Ngừng tạm thời”</b>.
+            {successMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+                {successMsg}
+              </div>
+            )}
+            {errorMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+                {errorMsg}
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="text-center pt-4">
+            <div className="inline-block px-4 py-2 text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-lg shadow-sm">
+              ⚠️ Thiết bị hiện đang ở trạng thái <b>“Ngừng tạm thời”</b>.
+            </div>
+          </div>
+        ))}
     </motion.div>
   );
 }
