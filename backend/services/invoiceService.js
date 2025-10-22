@@ -103,7 +103,7 @@ const invoiceService = {
     const invoices = branchFilter
       ? await invoiceRepository.findByBranch(branchFilter)
       : await invoiceRepository.findAll();
-      
+
     const result = [];
 
     for (const inv of invoices) {
@@ -227,80 +227,99 @@ const invoiceService = {
   },
 
   // ======================================================
-  // LẤY TOÀN BỘ CHI TIẾT HÓA ĐƠN (/invoice/details)
+  // ⚡ LẤY TOÀN BỘ CHI TIẾT HÓA ĐƠN (TỐI ƯU SONG SONG + BATCH)
   // ======================================================
   getAllInvoiceDetails: async (branchFilter = null) => {
-    // 🔍 Nếu có filter chi nhánh → query theo GSI
+    console.time("⚡ getAllInvoiceDetails total");
+
+    // 1️⃣ Lấy invoice theo chi nhánh (nếu có)
     const invoices = branchFilter
       ? await invoiceRepository.findByBranch(branchFilter)
       : await invoiceRepository.findAll();
+    if (!invoices.length) return [];
+
+    // 2️⃣ Lấy toàn bộ invoice_detail 1 lần
     const allDetails = await invoiceDetailRepository.findAll();
-    const combined = [];
+    if (!allDetails.length) return [];
 
-    for (const detail of allDetails) {
-      const invoice = invoices.find((inv) => inv.id === detail.invoice_id);
-      if (!invoice) continue;
+    // 3️⃣ Gom map nhanh để tra invoice_id → invoice
+    const invoiceMap = Object.fromEntries(invoices.map((i) => [i.id, i]));
 
-      // Lấy tên người tạo hóa đơn
-      let userName = "Chưa có thông tin";
-      if (invoice.user_id) {
-        try {
-          const user = await userRepository.getUserBySub(invoice.user_id);
-          userName =
-            user?.attributes?.name ||
-            user?.UserAttributes?.find(
-              (a) => a.Name === "name" || a.Name === "custom:name"
-            )?.Value ||
-            user?.username ||
-            user?.Username ||
-            "Chưa có thông tin";
-        } catch (err) {
-          console.warn(
-            `⚠️ Không lấy được user ${invoice.user_id}:`,
-            err.message
-          );
-        }
-      }
+    // 4️⃣ Gom tất cả user_id từ invoices (loại trùng)
+    const userSubs = [
+      ...new Set(invoices.map((i) => i.user_id).filter(Boolean)),
+    ];
 
-      // 🧩 Lấy thông tin thiết bị
-      const unit = await equipmentUnitRepository.findById(
-        detail.equipment_unit_id
-      );
+    // Song song lấy toàn bộ user
+    const users = await Promise.all(
+      userSubs.map((sub) => userRepository.getUserBySub(sub))
+    );
+    const userMap = Object.fromEntries(userSubs.map((s, i) => [s, users[i]]));
 
-      let equipmentName = "Chưa có thông tin";
-      if (unit?.equipment_id) {
-        const eq = await equipmentRepository.findById(unit.equipment_id);
-        equipmentName = eq?.name || "Chưa có thông tin";
-      }
+    // 5️⃣ Gom toàn bộ equipment_unit_id từ chi tiết
+    const unitIds = [...new Set(allDetails.map((d) => d.equipment_unit_id))];
+    const units = unitIds.length
+      ? await equipmentUnitRepository.batchFindByIds(unitIds)
+      : [];
 
-      // ✅ Cấu trúc chuẩn có thêm equipment_name
-      combined.push({
-        invoice: {
-          id: invoice.id,
-          total: invoice.total,
-          user_id: invoice.user_id,
-          created_at: invoice.created_at,
-          updated_at: invoice.updated_at,
-          user_name: userName,
-        },
-        detail: {
-          ...detail,
-          equipment_name: equipmentName,
-          equipment_unit: {
-            ...unit,
-            equipment_name: equipmentName,
+    // Gom equipment_id để lấy tên thiết bị
+    const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+    const equipments = equipmentIds.length
+      ? await equipmentRepository.batchFindByIds(equipmentIds)
+      : [];
+
+    // Tạo map lookup
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+
+    // 6️⃣ Kết hợp dữ liệu cực nhanh O(1)
+    const combined = allDetails
+      .map((detail) => {
+        const invoice = invoiceMap[detail.invoice_id];
+        if (!invoice) return null;
+
+        const user = userMap[invoice.user_id];
+        const userName =
+          user?.attributes?.name ||
+          user?.UserAttributes?.find(
+            (a) => a.Name === "name" || a.Name === "custom:name"
+          )?.Value ||
+          user?.username ||
+          user?.Username ||
+          "Chưa có thông tin";
+
+        const unit = unitMap[detail.equipment_unit_id];
+        const eq = unit ? equipmentMap[unit.equipment_id] : null;
+        const equipmentName = eq?.name || "Chưa có thông tin";
+
+        return {
+          invoice: {
+            id: invoice.id,
+            total: invoice.total,
+            user_id: invoice.user_id,
+            created_at: invoice.created_at,
+            updated_at: invoice.updated_at,
+            user_name: userName,
           },
-        },
-      });
-    }
+          detail: {
+            ...detail,
+            equipment_name: equipmentName,
+            equipment_unit: unit
+              ? { ...unit, equipment_name: equipmentName }
+              : null,
+          },
+        };
+      })
+      .filter(Boolean);
 
-    // 🔄 Sắp xếp mới nhất
+    // 7️⃣ Sắp xếp theo ngày tạo mới nhất
     combined.sort(
       (a, b) =>
         new Date(b.invoice.created_at || 0) -
         new Date(a.invoice.created_at || 0)
     );
 
+    console.timeEnd("⚡ getAllInvoiceDetails total");
     return combined;
   },
 };

@@ -4,6 +4,7 @@ const branchRepository = require("../repositories/branchRepository");
 const equipmentUnitRepository = require("../repositories/equipmentUnitRepository");
 const userRepository = require("../repositories/userRepository");
 const equipmentService = require("./equipmentService");
+const equipmentRepository = require("../repositories/equipmentRepository");
 
 const equipmentTransferService = {
   // ===================================================
@@ -109,198 +110,238 @@ const equipmentTransferService = {
   },
 
   // ===================================================
-  // 🔍 GET ALL TRANSFERS (kèm details + unit info)
+  // 🔍 GET ALL TRANSFERS (BatchGet + Parallel)
   // ===================================================
   getTransfers: async (branchFilter = null) => {
+    console.time("⚡ getTransfers total");
+
+    // 1️⃣ Lấy danh sách transfers
     const transfers = branchFilter
       ? await equipmentTransferRepository.findByBranch(branchFilter)
       : await equipmentTransferRepository.findAll();
-    const results = [];
 
-    for (const t of transfers) {
-      const details = await equipmentTransferDetailRepository.findByTransferId(
-        t.id
-      );
+    if (!transfers.length) return [];
 
-      const detailsWithUnits = [];
-      for (const d of details) {
-        const unit = await equipmentUnitRepository.findById(
-          d.equipment_unit_id
-        );
-        let equipmentName = null;
+    // 2️⃣ Lấy toàn bộ details song song
+    const allDetails = await Promise.all(
+      transfers.map((t) =>
+        equipmentTransferDetailRepository.findByTransferId(t.id)
+      )
+    );
+    const flatDetails = allDetails.flat();
 
-        if (unit?.equipment_id) {
-          const equipment = await equipmentService.getEquipmentById(
-            unit.equipment_id
-          );
-          equipmentName = equipment?.name || null;
-        }
+    // 3️⃣ Gom toàn bộ unit_id & equipment_id duy nhất
+    const unitIds = [...new Set(flatDetails.map((d) => d.equipment_unit_id))];
+    const units = unitIds.length
+      ? await equipmentUnitRepository.batchFindByIds(unitIds)
+      : [];
+    const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+    const equipments = equipmentIds.length
+      ? await equipmentRepository.batchFindByIds(equipmentIds)
+      : [];
 
-        detailsWithUnits.push({
+    // 4️⃣ Tạo map lookup nhanh
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+
+    // 5️⃣ Gom danh sách user (duyệt + nhận)
+    const userSubs = [
+      ...new Set(
+        transfers.flatMap((t) => [t.approved_by, t.receiver_id]).filter(Boolean)
+      ),
+    ];
+    const userResults = await Promise.all(
+      userSubs.map((sub) => userRepository.getUserBySub(sub))
+    );
+    const userMap = Object.fromEntries(
+      userSubs.map((sub, i) => [sub, userResults[i]])
+    );
+
+    // 6️⃣ Map detail theo transfer_id
+    const detailMap = {};
+    transfers.forEach((t, i) => {
+      detailMap[t.id] = allDetails[i] || [];
+    });
+
+    // 7️⃣ Ghép dữ liệu cuối
+    const results = transfers.map((t) => {
+      const details = detailMap[t.id].map((d) => {
+        const unit = unitMap[d.equipment_unit_id];
+        const eq = equipmentMap[unit?.equipment_id];
+        return {
           ...d,
           equipment_unit: {
             ...unit,
-            equipment_name: equipmentName,
+            equipment_name: eq?.name || null,
           },
-        });
-      }
-
-      // 🔹 Lấy tên người yêu cầu & người nhận (nếu có)
-      let approvedByName = null;
-      let receiverName = null;
-
-      if (t.approved_by) {
-        const approvedUser = await userRepository.getUserBySub(t.approved_by);
-        approvedByName =
-          approvedUser?.attributes?.name || approvedUser?.username || null;
-      }
-
-      if (t.receiver_id) {
-        const receiverUser = await userRepository.getUserBySub(t.receiver_id);
-        receiverName =
-          receiverUser?.attributes?.name || receiverUser?.username || null;
-      }
-
-      results.push({
-        ...t,
-        approved_by_name: approvedByName,
-        receiver_name: receiverName,
-        details: detailsWithUnits,
+        };
       });
-    }
 
+      const approvedByUser = userMap[t.approved_by];
+      const receiverUser = userMap[t.receiver_id];
+
+      return {
+        ...t,
+        approved_by_name:
+          approvedByUser?.attributes?.name || approvedByUser?.username || null,
+        receiver_name:
+          receiverUser?.attributes?.name || receiverUser?.username || null,
+        details,
+      };
+    });
+
+    console.timeEnd("⚡ getTransfers total");
     return results;
   },
 
+  // ===================================================
+  // 🔍 GET TRANSFERS BY STATUS (BatchGet + Parallel)
+  // ===================================================
   getTransfersByStatus: async (status, branchFilter = null) => {
-    // 🟢 Lấy toàn bộ transfer có cùng status
-    const transfers = await equipmentTransferRepository.findAllByStatus(status);
+    console.time("⚡ getTransfersByStatus total");
 
-    // 🟡 Nếu có branchFilter (admin, technician...), thì lọc lại
-    const filteredTransfers = branchFilter
+    // 1️⃣ Lấy transfer theo status + lọc branch
+    const transfers = await equipmentTransferRepository.findAllByStatus(status);
+    const filtered = branchFilter
       ? transfers.filter(
           (t) =>
             t.from_branch_id === branchFilter || t.to_branch_id === branchFilter
         )
       : transfers;
+    if (!filtered.length) return [];
 
-    const results = [];
+    // 2️⃣ Lấy toàn bộ details song song
+    const allDetails = await Promise.all(
+      filtered.map((t) =>
+        equipmentTransferDetailRepository.findByTransferId(t.id)
+      )
+    );
+    const flatDetails = allDetails.flat();
 
-    for (const t of filteredTransfers) {
-      // 🧩 Lấy danh sách chi tiết
-      const details = await equipmentTransferDetailRepository.findByTransferId(
-        t.id
-      );
+    // 3️⃣ Gom toàn bộ unit_id + equipment_id
+    const unitIds = [...new Set(flatDetails.map((d) => d.equipment_unit_id))];
+    const units = unitIds.length
+      ? await equipmentUnitRepository.batchFindByIds(unitIds)
+      : [];
+    const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+    const equipments = equipmentIds.length
+      ? await equipmentRepository.batchFindByIds(equipmentIds)
+      : [];
 
-      // Join với EquipmentUnit để lấy thông tin đầy đủ
-      const detailsWithUnits = [];
-      for (const d of details) {
-        const unit = await equipmentUnitRepository.findById(
-          d.equipment_unit_id
-        );
-        let equipmentName = null;
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
 
-        if (unit?.equipment_id) {
-          const equipment = await equipmentService.getEquipmentById(
-            unit.equipment_id
-          );
-          equipmentName = equipment?.name || null;
-        }
+    // 4️⃣ Gom user chung
+    const userSubs = [
+      ...new Set(
+        filtered.flatMap((t) => [t.approved_by, t.receiver_id]).filter(Boolean)
+      ),
+    ];
+    const userResults = await Promise.all(
+      userSubs.map((sub) => userRepository.getUserBySub(sub))
+    );
+    const userMap = Object.fromEntries(
+      userSubs.map((sub, i) => [sub, userResults[i]])
+    );
 
-        detailsWithUnits.push({
+    // 5️⃣ Map detail theo transfer_id
+    const detailMap = {};
+    filtered.forEach((t, i) => {
+      detailMap[t.id] = allDetails[i] || [];
+    });
+
+    // 6️⃣ Kết hợp dữ liệu
+    const results = filtered.map((t) => {
+      const details = detailMap[t.id].map((d) => {
+        const unit = unitMap[d.equipment_unit_id];
+        const eq = equipmentMap[unit?.equipment_id];
+        return {
           ...d,
           equipment_unit: {
             ...unit,
-            equipment_name: equipmentName,
+            equipment_name: eq?.name || null,
           },
-        });
-      }
-
-      // 🔹 Lấy tên người yêu cầu và người nhận
-      let approvedByName = null;
-      let receiverName = null;
-
-      if (t.approved_by) {
-        const approvedUser = await userRepository.getUserBySub(t.approved_by);
-        approvedByName =
-          approvedUser?.attributes?.name || approvedUser?.username || null;
-      }
-
-      if (t.receiver_id) {
-        const receiverUser = await userRepository.getUserBySub(t.receiver_id);
-        receiverName =
-          receiverUser?.attributes?.name || receiverUser?.username || null;
-      }
-
-      results.push({
-        ...t,
-        approved_by_name: approvedByName,
-        receiver_name: receiverName,
-        details: detailsWithUnits,
+        };
       });
-    }
 
+      const approvedByUser = userMap[t.approved_by];
+      const receiverUser = userMap[t.receiver_id];
+
+      return {
+        ...t,
+        approved_by_name:
+          approvedByUser?.attributes?.name || approvedByUser?.username || null,
+        receiver_name:
+          receiverUser?.attributes?.name || receiverUser?.username || null,
+        details,
+      };
+    });
+
+    console.timeEnd("⚡ getTransfersByStatus total");
     return results;
   },
 
   // ===================================================
-  // 🔎 GET ONE TRANSFER BY ID (kèm details + unit info)
+  // 🔍 GET ONE TRANSFER BY ID (BatchGet Units + Equipments)
   // ===================================================
   getTransferById: async (id) => {
+    console.time("⚡ getTransferById total");
+
     const transfer = await equipmentTransferRepository.findById(id);
     if (!transfer) throw new Error("EquipmentTransfer not found");
 
+    // 1️⃣ Lấy toàn bộ details của transfer
     const details = await equipmentTransferDetailRepository.findByTransferId(
       id
     );
+    if (!details.length) return { ...transfer, details: [] };
 
-    // Join với EquipmentUnit để lấy thông tin đầy đủ
-    const detailsWithUnits = [];
-    for (const d of details) {
-      const unit = await equipmentUnitRepository.findById(d.equipment_unit_id);
-      let equipmentName = null;
+    // 2️⃣ BatchGet toàn bộ Units
+    const unitIds = details.map((d) => d.equipment_unit_id);
+    const units = await equipmentUnitRepository.batchFindByIds(unitIds);
 
-      if (unit?.equipment_id) {
-        const equipment = await equipmentService.getEquipmentById(
-          unit.equipment_id
-        );
-        equipmentName = equipment?.name || null;
-      }
+    // 3️⃣ BatchGet toàn bộ Equipments
+    const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+    const equipments = await equipmentRepository.batchFindByIds(equipmentIds);
 
-      detailsWithUnits.push({
+    // 4️⃣ Tạo map nhanh
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+
+    // 5️⃣ Ghép dữ liệu
+    const detailsWithUnits = details.map((d) => {
+      const unit = unitMap[d.equipment_unit_id];
+      const eq = equipmentMap[unit?.equipment_id];
+      return {
         ...d,
         equipment_unit: {
           ...unit,
-          equipment_name: equipmentName,
+          equipment_name: eq?.name || null,
         },
-      });
-    }
+      };
+    });
 
-    let approvedByName = null;
-    let receiverName = null;
+    // 6️⃣ Song song lấy user
+    const [approvedByUser, receiverUser] = await Promise.all([
+      transfer.approved_by
+        ? userRepository.getUserBySub(transfer.approved_by)
+        : null,
+      transfer.receiver_id
+        ? userRepository.getUserBySub(transfer.receiver_id)
+        : null,
+    ]);
 
-    if (transfer.approved_by) {
-      const approvedUser = await userRepository.getUserBySub(
-        transfer.approved_by
-      );
-      approvedByName =
-        approvedUser?.attributes?.name || approvedUser?.username || null;
-    }
-
-    if (transfer.receiver_id) {
-      const receiverUser = await userRepository.getUserBySub(
-        transfer.receiver_id
-      );
-      receiverName =
-        receiverUser?.attributes?.name || receiverUser?.username || null;
-    }
-
-    return {
+    const result = {
       ...transfer,
-      approved_by_name: approvedByName,
-      receiver_name: receiverName,
+      approved_by_name:
+        approvedByUser?.attributes?.name || approvedByUser?.username || null,
+      receiver_name:
+        receiverUser?.attributes?.name || receiverUser?.username || null,
       details: detailsWithUnits,
     };
+
+    console.timeEnd("⚡ getTransferById total");
+    return result;
   },
 
   // ===================================================

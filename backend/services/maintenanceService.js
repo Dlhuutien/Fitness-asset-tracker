@@ -111,151 +111,188 @@ const maintenanceService = {
     };
   },
 
+  // =======================================================
+  // ⚡ GET ALL MAINTENANCE (song song + batch)
+  // =======================================================
   getAll: async (branchFilter = null) => {
-    const maintenances = branchFilter
-      ? await maintenanceRepository.findByBranch(branchFilter)
-      : await maintenanceRepository.findAll();
-    const allInvoices = await maintenanceInvoiceRepository.findAll();
+    console.time("⚡ getAll maintenances total");
 
-    const result = [];
+    // 1️⃣ Lấy tất cả maintenance và invoice song song
+    const [maintenances, allInvoices] = await Promise.all([
+      branchFilter
+        ? maintenanceRepository.findByBranch(branchFilter)
+        : maintenanceRepository.findAll(),
+      maintenanceInvoiceRepository.findAll(),
+    ]);
 
-    for (const m of maintenances) {
-      // 🧾 Lấy danh sách hóa đơn bảo trì liên quan
-      const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
+    if (!maintenances.length) return [];
 
-      // 🧰 Lấy tên thiết bị
-      let equipmentName = "Chưa có thông tin";
-      if (m.equipment_unit_id) {
-        const unit = await equipmentUnitRepository.findById(
-          m.equipment_unit_id
-        );
-        if (unit?.equipment_id) {
-          const eq = await equipmentRepository.findById(unit.equipment_id);
-          equipmentName = eq?.name || "Chưa có thông tin";
-        }
-      }
+    // 2️⃣ Gom toàn bộ ID cần dùng
+    const unitIds = [...new Set(maintenances.map((m) => m.equipment_unit_id))];
+    const assignedUserIds = maintenances
+      .map((m) => m.assigned_by)
+      .filter(Boolean);
+    const techUserIds = maintenances.map((m) => m.user_id).filter(Boolean);
+    const userIds = [...new Set([...assignedUserIds, ...techUserIds])];
 
-      // 👤 Người yêu cầu
-      let requestedByName = "Chưa có thông tin";
-      if (m.assigned_by) {
-        const reqUser = await userRepository.getUserBySub(m.assigned_by);
-        requestedByName =
-          reqUser?.attributes?.name ||
-          reqUser?.UserAttributes?.find(
-            (a) => a.Name === "name" || a.Name === "custom:name"
-          )?.Value ||
-          reqUser?.username ||
-          reqUser?.Username ||
-          "Chưa có thông tin";
-      }
+    // 3️⃣ Lấy unit, equipment, user song song
+    const [units, users] = await Promise.all([
+      unitIds.length ? equipmentUnitRepository.batchFindByIds(unitIds) : [],
+      Promise.all(userIds.map((sub) => userRepository.getUserBySub(sub))),
+    ]);
 
-      // 👨‍🔧 Kỹ thuật viên
-      let technicianName = "Chưa có thông tin";
-      if (m.user_id) {
-        const techUser = await userRepository.getUserBySub(m.user_id);
-        technicianName =
-          techUser?.attributes?.name ||
-          techUser?.UserAttributes?.find(
-            (a) => a.Name === "name" || a.Name === "custom:name"
-          )?.Value ||
-          techUser?.username ||
-          techUser?.Username ||
-          "Chưa có thông tin";
-      }
+    // Tạo map user và unit
+    const userMap = Object.fromEntries(userIds.map((id, i) => [id, users[i]]));
+    const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+    const equipments = equipmentIds.length
+      ? await equipmentRepository.batchFindByIds(equipmentIds)
+      : [];
 
-      // 🧩 Push kết quả đầy đủ
-      result.push({
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+
+    // 4️⃣ Map invoices theo maintenance_id
+    const invoiceMap = {};
+    allInvoices.forEach((inv) => {
+      if (!invoiceMap[inv.maintenance_id]) invoiceMap[inv.maintenance_id] = [];
+      invoiceMap[inv.maintenance_id].push(inv);
+    });
+
+    // 5️⃣ Kết hợp dữ liệu nhanh O(1)
+    const result = maintenances.map((m) => {
+      const invoices = invoiceMap[m.id] || [];
+      const unit = unitMap[m.equipment_unit_id];
+      const eq = unit ? equipmentMap[unit.equipment_id] : null;
+      const equipmentName = eq?.name || "Chưa có thông tin";
+
+      const reqUser = userMap[m.assigned_by];
+      const techUser = userMap[m.user_id];
+
+      const requestedByName =
+        reqUser?.attributes?.name ||
+        reqUser?.UserAttributes?.find(
+          (a) => a.Name === "name" || a.Name === "custom:name"
+        )?.Value ||
+        reqUser?.username ||
+        reqUser?.Username ||
+        "Chưa có thông tin";
+
+      const technicianName =
+        techUser?.attributes?.name ||
+        techUser?.UserAttributes?.find(
+          (a) => a.Name === "name" || a.Name === "custom:name"
+        )?.Value ||
+        techUser?.username ||
+        techUser?.Username ||
+        "Chưa có thông tin";
+
+      return {
         ...m,
         invoices,
         requested_by_name: requestedByName,
         technician_name: technicianName,
         equipment_name: equipmentName,
-      });
-    }
+      };
+    });
 
-    // Sắp xếp mới nhất trước
+    // 6️⃣ Sắp xếp mới nhất
     result.sort(
       (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
     );
 
+    console.timeEnd("⚡ getAll maintenances total");
     return result;
   },
 
+  // =======================================================
+  // ⚡ GET ALL RESULT MAINTENANCE (song song + batch)
+  // =======================================================
   getAllResult: async (branchFilter = null) => {
-    // Lấy tất cả maintenance
-    const maintenances = branchFilter
-      ? await maintenanceRepository.findByBranch(branchFilter)
-      : await maintenanceRepository.findAll();
+    console.time("⚡ getAllResult maintenances total");
 
-    // 🧩 Chỉ lấy những maintenance có result !== undefined/null
+    // 1️⃣ Lấy tất cả maintenance và invoices song song
+    const [maintenances, allInvoices] = await Promise.all([
+      branchFilter
+        ? maintenanceRepository.findByBranch(branchFilter)
+        : maintenanceRepository.findAll(),
+      maintenanceInvoiceRepository.findAll(),
+    ]);
+
+    // Chỉ lấy những maintenance có result true/false
     const filtered = maintenances.filter(
       (m) => m.result === true || m.result === false
     );
+    if (!filtered.length) return [];
 
-    const allInvoices = await maintenanceInvoiceRepository.findAll();
-    const result = [];
+    // 2️⃣ Gom các ID cần thiết
+    const unitIds = [...new Set(filtered.map((m) => m.equipment_unit_id))];
+    const userIds = [
+      ...new Set(
+        filtered.flatMap((m) => [m.assigned_by, m.user_id]).filter(Boolean)
+      ),
+    ];
 
-    for (const m of filtered) {
-      const invoices = allInvoices.filter((inv) => inv.maintenance_id === m.id);
+    // 3️⃣ Lấy unit, user, equipment song song
+    const [units, users] = await Promise.all([
+      unitIds.length ? equipmentUnitRepository.batchFindByIds(unitIds) : [],
+      Promise.all(userIds.map((id) => userRepository.getUserBySub(id))),
+    ]);
+    const userMap = Object.fromEntries(userIds.map((id, i) => [id, users[i]]));
 
-      // Lấy tên thiết bị
-      let equipmentName = "Chưa có thông tin";
-      if (m.equipment_unit_id) {
-        const unit = await equipmentUnitRepository.findById(
-          m.equipment_unit_id
-        );
-        if (unit?.equipment_id) {
-          const eq = await equipmentRepository.findById(unit.equipment_id);
-          equipmentName = eq?.name || "Chưa có thông tin";
-        }
-      }
+    const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+    const equipments = equipmentIds.length
+      ? await equipmentRepository.batchFindByIds(equipmentIds)
+      : [];
 
-      // Người yêu cầu
-      let requestedByName = "Chưa có thông tin";
-      if (m.assigned_by) {
-        const reqUser = await userRepository.getUserBySub(m.assigned_by);
-        requestedByName =
-          reqUser?.attributes?.name ||
-          reqUser?.UserAttributes?.find(
-            (a) => a.Name === "name" || a.Name === "custom:name"
-          )?.Value ||
-          reqUser?.username ||
-          reqUser?.Username ||
-          "Chưa có thông tin";
-      }
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
 
-      // Kỹ thuật viên
-      let technicianName = "Chưa có thông tin";
-      if (m.user_id) {
-        const techUser = await userRepository.getUserBySub(m.user_id);
-        technicianName =
-          techUser?.attributes?.name ||
-          techUser?.UserAttributes?.find(
-            (a) => a.Name === "name" || a.Name === "custom:name"
-          )?.Value ||
-          techUser?.username ||
-          techUser?.Username ||
-          "Chưa có thông tin";
-      }
+    // 4️⃣ Map invoices theo maintenance_id
+    const invoiceMap = {};
+    allInvoices.forEach((inv) => {
+      if (!invoiceMap[inv.maintenance_id]) invoiceMap[inv.maintenance_id] = [];
+      invoiceMap[inv.maintenance_id].push(inv);
+    });
 
-      // Gán nhãn kết quả
+    // 5️⃣ Gộp dữ liệu cuối
+    const result = filtered.map((m) => {
+      const invoices = invoiceMap[m.id] || [];
+      const unit = unitMap[m.equipment_unit_id];
+      const eq = unit ? equipmentMap[unit.equipment_id] : null;
+      const equipmentName = eq?.name || "Chưa có thông tin";
+
+      const reqUser = userMap[m.assigned_by];
+      const techUser = userMap[m.user_id];
+
+      const requestedByName =
+        reqUser?.attributes?.name ||
+        reqUser?.username ||
+        reqUser?.Username ||
+        "Chưa có thông tin";
+
+      const technicianName =
+        techUser?.attributes?.name ||
+        techUser?.username ||
+        techUser?.Username ||
+        "Chưa có thông tin";
+
       const resultText = m.result ? "Thành công" : "Thất bại";
 
-      result.push({
+      return {
         ...m,
         invoices,
         requested_by_name: requestedByName,
         technician_name: technicianName,
         equipment_name: equipmentName,
         result_text: resultText,
-      });
-    }
+      };
+    });
 
-    // Sắp xếp theo ngày kết thúc mới nhất
     result.sort(
       (a, b) => new Date(b.end_date || 0) - new Date(a.end_date || 0)
     );
 
+    console.timeEnd("⚡ getAllResult maintenances total");
     return result;
   },
 

@@ -9,6 +9,7 @@ const equipmentUnitRepository = {
   delete: async (id) => EquipmentUnitModel.deleteUnit(id),
   findByEquipmentId: async (equipment_id) =>
     EquipmentUnitModel.getByEquipmentId(equipment_id),
+  batchFindByIds: async (ids) => EquipmentUnitModel.batchFindByIds(ids),
 };
 
 module.exports = equipmentUnitRepository;
