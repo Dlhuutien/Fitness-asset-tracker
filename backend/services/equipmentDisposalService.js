@@ -67,70 +67,97 @@ const equipmentDisposalService = {
 
   // 🧩 Lấy tất cả đợt thanh lý (kèm chi tiết)
   getAll: async (branchFilter = null) => {
-    const disposals = branchFilter
-      ? await equipmentDisposalRepository.findByBranch(branchFilter)
-      : await equipmentDisposalRepository.findAll();
+    console.time("⚡ getAll disposals total");
 
-    const result = [];
+    // 1️⃣ Lấy tất cả disposal và chi tiết song song
+    const [disposals, allDetails] = await Promise.all([
+      branchFilter
+        ? equipmentDisposalRepository.findByBranch(branchFilter)
+        : equipmentDisposalRepository.findAll(),
+      equipmentDisposalDetailRepository.findAll(),
+    ]);
 
-    for (const d of disposals) {
-      // 1️⃣ Lấy tên người thực hiện
-      let userName = "Chưa có thông tin";
-      try {
-        const user = await userRepository.getUserBySub(d.user_id);
-        userName =
-          user?.attributes?.name ||
-          user?.UserAttributes?.find(
-            (a) => a.Name === "name" || a.Name === "custom:name"
-          )?.Value ||
-          user?.username ||
-          user?.Username ||
-          "Chưa có thông tin";
-      } catch {}
+    if (!disposals.length) return [];
 
-      // 2️⃣ Lấy tên chi nhánh
-      const branch = await branchRepository.findById(d.branch_id);
-      const branchName = branch?.name || d.branch_id;
+    // 2️⃣ Gom ID cần thiết
+    const userIds = [
+      ...new Set(disposals.map((d) => d.user_id).filter(Boolean)),
+    ];
+    const branchIds = [
+      ...new Set(disposals.map((d) => d.branch_id).filter(Boolean)),
+    ];
 
-      // 3️⃣ Lấy danh sách thiết bị chi tiết
-      const details = await equipmentDisposalDetailRepository.findByDisposalId(
-        d.id
-      );
-      const detailsWithInfo = [];
+    // Gom tất cả unit_id từ detail
+    const disposalIds = new Set(disposals.map((d) => d.id));
+    const relatedDetails = allDetails.filter((det) =>
+      disposalIds.has(det.disposal_id)
+    );
 
-      for (const det of details) {
-        const unit = await equipmentUnitRepository.findById(
-          det.equipment_unit_id
-        );
-        let equipmentName = "Chưa có thông tin";
-        let costOriginal = 0;
+    const unitIds = [
+      ...new Set(relatedDetails.map((d) => d.equipment_unit_id)),
+    ];
 
-        if (unit?.equipment_id) {
-          const eq = await equipmentRepository.findById(unit.equipment_id);
-          equipmentName = eq?.name || "Chưa có thông tin";
-          costOriginal = eq?.cost || unit?.cost || 0;
-        }
+    // 3️⃣ Lấy user, branch, unit song song
+    const [users, branches, units] = await Promise.all([
+      Promise.all(userIds.map((id) => userRepository.getUserBySub(id))),
+      Promise.all(branchIds.map((id) => branchRepository.findById(id))),
+      unitIds.length ? equipmentUnitRepository.batchFindByIds(unitIds) : [],
+    ]);
 
-        detailsWithInfo.push({
-          ...det,
-          equipment_name: equipmentName,
-          cost_original: costOriginal,
-        });
-      }
+    // Map hóa
+    const userMap = Object.fromEntries(userIds.map((id, i) => [id, users[i]]));
+    const branchMap = Object.fromEntries(branches.map((b) => [b.id, b]));
+    const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
 
-      result.push({
-        ...d,
-        user_name: userName,
-        branch_name: branchName,
-        details: detailsWithInfo,
+    // Gom tất cả equipment_id
+    const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+    const equipments = equipmentIds.length
+      ? await equipmentRepository.batchFindByIds(equipmentIds)
+      : [];
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+
+    // Gom detail theo disposal_id
+    const detailMap = {};
+    for (const det of relatedDetails) {
+      if (!detailMap[det.disposal_id]) detailMap[det.disposal_id] = [];
+      const unit = unitMap[det.equipment_unit_id];
+      const eq = unit ? equipmentMap[unit.equipment_id] : null;
+
+      detailMap[det.disposal_id].push({
+        ...det,
+        equipment_name: eq?.name || "Chưa có thông tin",
+        cost_original: eq?.cost || unit?.cost || 0,
       });
     }
 
-    // 🔄 Sort theo ngày mới nhất
+    // 4️⃣ Tạo result
+    const result = disposals.map((d) => {
+      const user = userMap[d.user_id];
+      const branch = branchMap[d.branch_id];
+
+      const userName =
+        user?.attributes?.name ||
+        user?.UserAttributes?.find(
+          (a) => a.Name === "name" || a.Name === "custom:name"
+        )?.Value ||
+        user?.username ||
+        user?.Username ||
+        "Chưa có thông tin";
+
+      return {
+        ...d,
+        user_name: userName,
+        branch_name: branch?.name || d.branch_id,
+        details: detailMap[d.id] || [],
+      };
+    });
+
+    // 5️⃣ Sort theo ngày mới nhất
     result.sort(
       (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
     );
 
+    console.timeEnd("⚡ getAll disposals total");
     return result;
   },
 
