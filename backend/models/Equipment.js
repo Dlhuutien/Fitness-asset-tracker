@@ -18,7 +18,6 @@ const EquipmentModel = {
   createEquipment: async (equipmentData) => {
     const item = {
       id: equipmentData.id,
-      vendor_id: equipmentData.vendor_id,
       category_type_id: equipmentData.category_type_id,
       category_main_id: equipmentData.category_main_id,
       name: equipmentData.name,
@@ -122,19 +121,6 @@ const EquipmentModel = {
     return res.Items || [];
   },
 
-  // QUERY theo vendor_id
-  getByVendorId: async (vendor_id) => {
-    const res = await dynamodb.send(
-      new QueryCommand({
-        TableName: tableName,
-        IndexName: "vendor_id-index",
-        KeyConditionExpression: "vendor_id = :id",
-        ExpressionAttributeValues: { ":id": vendor_id },
-      })
-    );
-    return res.Items || [];
-  },
-
   // ⚡️ BATCH GET NHIỀU EQUIPMENT CÙNG LÚC (tối đa 100 mỗi batch)
   batchFindByIds: async (ids = []) => {
     if (!ids.length) return [];
@@ -166,16 +152,14 @@ const EquipmentModel = {
   // UPDATE
   updateEquipment: async (id, equipmentData) => {
     try {
-      // ✅ Xử lý trước: nếu vendor_id hoặc category_type_id rỗng -> bỏ qua không update
+      // ✅ Xử lý trước: nếu category_type_id rỗng -> bỏ qua không update
       const cleanData = { ...equipmentData };
-      if (!cleanData.vendor_id) delete cleanData.vendor_id;
       if (!cleanData.category_type_id) delete cleanData.category_type_id;
       const res = await dynamodb.send(
         new UpdateCommand({
           TableName: tableName,
           Key: { id },
           UpdateExpression: `set 
-          ${cleanData.vendor_id ? "vendor_id = :vendor_id," : ""}
           ${
             cleanData.category_type_id
               ? "category_type_id = :category_type_id,"
@@ -187,7 +171,6 @@ const EquipmentModel = {
           updated_at = :updatedAt`,
           ExpressionAttributeNames: { "#n": "name" },
           ExpressionAttributeValues: {
-            ...(cleanData.vendor_id && { ":vendor_id": cleanData.vendor_id }),
             ...(cleanData.category_type_id && {
               ":category_type_id": cleanData.category_type_id,
             }),

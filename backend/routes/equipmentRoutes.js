@@ -25,9 +25,6 @@ router.get("/attribute/:id", equipmentController.getEquipmentAttributeById);
 // Read by category_type_id
 router.get("/categoryType/:category_type_id", equipmentController.getByCategoryTypeId);
 
-// Read by vendor_id
-router.get("/vendor/:vendor_id", equipmentController.getByVendorId);
-
 // Update (admin only)
 router.put(
   "/:id",

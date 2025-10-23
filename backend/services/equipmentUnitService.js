@@ -23,8 +23,18 @@ const equipmentUnitService = {
     // 3️⃣ ⚡ Lấy toàn bộ thiết bị 1 lượt (BatchGet)
     const equipments = await equipmentRepository.batchFindByIds(equipmentIds);
 
+    // Gom vendor_id từ unit để join vendor nhanh
+    const vendorIds = [
+      ...new Set(units.map((u) => u.vendor_id).filter(Boolean)),
+    ];
+    const vendors = vendorIds.length
+      ? await Promise.all(vendorIds.map((id) => vendorRepository.findById(id)))
+      : [];
+    const vendorMap = Object.fromEntries(
+      vendorIds.map((id, i) => [id, vendors[i]])
+    );
+
     // 4️⃣ Cache tạm vendor/type/main để tránh query trùng
-    const vendorCache = {};
     const typeCache = {};
     const mainCache = {};
 
@@ -32,13 +42,6 @@ const equipmentUnitService = {
     const enrichedEquipments = await Promise.all(
       equipments.map(async (eq) => {
         if (!eq) return null;
-
-        // Vendor cache
-        let vendor = vendorCache[eq.vendor_id];
-        if (!vendor) {
-          vendor = await vendorRepository.findById(eq.vendor_id);
-          vendorCache[eq.vendor_id] = vendor;
-        }
 
         // Type cache
         let type = typeCache[eq.category_type_id];
@@ -61,7 +64,6 @@ const equipmentUnitService = {
 
         return {
           ...eq,
-          vendor_name: vendor?.name || null,
           type_name: type?.name || null,
           main_name: main?.name || null,
         };
@@ -76,6 +78,7 @@ const equipmentUnitService = {
     // 7️⃣ Gộp vào kết quả cuối
     const result = units.map((u) => ({
       ...u,
+      vendor_name: vendorMap[u.vendor_id]?.name || null,
       equipment: equipmentMap[u.equipment_id] || null,
     }));
 
@@ -89,12 +92,15 @@ const equipmentUnitService = {
     const unit = await equipmentUnitRepository.findById(id);
     if (!unit) throw new Error("Equipment Unit not found");
 
+    const vendor = unit.vendor_id
+      ? await vendorRepository.findById(unit.vendor_id)
+      : null;
+
     // 2️⃣ Lấy thông tin thiết bị tương ứng
     const eq = await equipmentRepository.findById(unit.equipment_id);
     if (!eq) throw new Error("Equipment not found");
 
-    // 3️⃣ Join vendor, type, main
-    const vendor = await vendorRepository.findById(eq.vendor_id);
+    // 3️⃣ Join type, main
     const type = await categoryTypeRepository.findById(eq.category_type_id);
     const main = type
       ? await categoryMainRepository.findById(type.category_main_id)
@@ -115,7 +121,6 @@ const equipmentUnitService = {
     // 5️⃣ Gộp dữ liệu thiết bị
     const equipment = {
       ...eq,
-      vendor_name: vendor ? vendor.name : null,
       type_name: type ? type.name : null,
       main_name: main ? main.name : null,
       attributes,
@@ -124,6 +129,7 @@ const equipmentUnitService = {
     // 6️⃣ Gộp dữ liệu cuối cùng
     return {
       ...unit,
+      vendor_name: vendor?.name || null,
       equipment,
     };
   },
@@ -145,10 +151,12 @@ const equipmentUnitService = {
   // Lấy tất cả theo thiết bị
   getUnitsByEquipmentId: async (equipment_id) => {
     const units = await equipmentUnitRepository.findByEquipmentId(equipment_id);
+    if (!units?.length) return [];
+
     const eq = await equipmentRepository.findById(equipment_id);
     if (!eq) throw new Error("Equipment not found");
 
-    const vendor = await vendorRepository.findById(eq.vendor_id);
+    // Lấy type & main của thiết bị
     const type = await categoryTypeRepository.findById(eq.category_type_id);
     const main = type
       ? await categoryMainRepository.findById(type.category_main_id)
@@ -156,12 +164,27 @@ const equipmentUnitService = {
 
     const equipment = {
       ...eq,
-      vendor_name: vendor ? vendor.name : null,
       type_name: type ? type.name : null,
       main_name: main ? main.name : null,
     };
 
-    return units.map((u) => ({ ...u, equipment }));
+    // Gom vendor_id từ units
+    const vendorIds = [
+      ...new Set(units.map((u) => u.vendor_id).filter(Boolean)),
+    ];
+    const vendors = vendorIds.length
+      ? await Promise.all(vendorIds.map((id) => vendorRepository.findById(id)))
+      : [];
+    const vendorMap = Object.fromEntries(
+      vendorIds.map((id, i) => [id, vendors[i]])
+    );
+
+    // Gộp vendor_name + equipment vào từng unit
+    return units.map((u) => ({
+      ...u,
+      vendor_name: vendorMap[u.vendor_id]?.name || null,
+      equipment,
+    }));
   },
 };
 

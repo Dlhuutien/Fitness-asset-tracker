@@ -8,8 +8,6 @@ const equipmentRepository = {
   delete: async (id) => await EquipmentModel.deleteEquipment(id),
   findByCategoryTypeId: async (category_type_id) =>
     EquipmentModel.getByCategoryTypeId(category_type_id),
-  findByVendorId: async (vendor_id) =>
-    EquipmentModel.getByVendorId(vendor_id),
   findAllIds: async () => await EquipmentModel.getAllIds(),
   batchFindByIds: async (ids) => await EquipmentModel.batchFindByIds(ids),
 };

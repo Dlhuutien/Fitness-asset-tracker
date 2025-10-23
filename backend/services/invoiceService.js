@@ -5,6 +5,7 @@ const invoiceDetailRepository = require("../repositories/invoiceDetailRepository
 const branchRepository = require("../repositories/branchRepository");
 const countRepository = require("../repositories/countRepository");
 const userRepository = require("../repositories/userRepository");
+const vendorRepository = require("../repositories/vendorRepository");
 
 const invoiceService = {
   createInvoice: async (data) => {
@@ -29,7 +30,14 @@ const invoiceService = {
 
     // 2. Loop qua items
     for (const item of data.items) {
-      const { equipment_id, branch_id, quantity, cost, warranty_duration } = item;
+      const {
+        equipment_id,
+        branch_id,
+        quantity,
+        cost,
+        warranty_duration,
+        vendor_id,
+      } = item;
 
       // Check branch tồn tại
       const branch = await branchRepository.findById(branch_id);
@@ -41,6 +49,12 @@ const invoiceService = {
       const equipment = await equipmentRepository.findById(equipment_id);
       if (!equipment) {
         throw new Error(`Equipment ${equipment_id} not found`);
+      }
+
+      // Check vendor tồn tại
+      const vendor = await vendorRepository.findById(vendor_id);
+      if (!vendor) {
+        throw new Error(`Vendor ${vendor_id} not found`);
       }
 
       // Lấy warranty_duration từ body (ưu tiên) hoặc default = 0
@@ -65,6 +79,7 @@ const invoiceService = {
           equipment_id,
           branch_id,
           cost,
+          vendor_id: vendor_id,
           warranty_duration: duration,
           description: "Imported via invoice",
           status: "In Stock",
@@ -269,6 +284,17 @@ const invoiceService = {
       ? await equipmentRepository.batchFindByIds(equipmentIds)
       : [];
 
+    // Gom vendor_id từ tất cả units
+    const vendorIds = [
+      ...new Set(units.map((u) => u.vendor_id).filter(Boolean)),
+    ];
+    const vendors = vendorIds.length
+      ? await Promise.all(vendorIds.map((id) => vendorRepository.findById(id)))
+      : [];
+    const vendorMap = Object.fromEntries(
+      vendorIds.map((id, i) => [id, vendors[i]])
+    );
+
     // Tạo map lookup
     const unitMap = Object.fromEntries(units.map((u) => [u.id, u]));
     const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
@@ -292,6 +318,9 @@ const invoiceService = {
         const unit = unitMap[detail.equipment_unit_id];
         const eq = unit ? equipmentMap[unit.equipment_id] : null;
         const equipmentName = eq?.name || "Chưa có thông tin";
+        const vendorName = unit?.vendor_id
+          ? vendorMap[unit.vendor_id]?.name || "Chưa có thông tin"
+          : null;
 
         return {
           invoice: {
@@ -306,7 +335,7 @@ const invoiceService = {
             ...detail,
             equipment_name: equipmentName,
             equipment_unit: unit
-              ? { ...unit, equipment_name: equipmentName }
+              ? { ...unit, equipment_name: equipmentName, vendor_name: vendorName, }
               : null,
           },
         };

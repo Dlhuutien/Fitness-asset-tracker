@@ -1,5 +1,4 @@
 const equipmentRepository = require("../repositories/equipmentRepository");
-const vendorRepository = require("../repositories/vendorRepository");
 const categoryTypeRepository = require("../repositories/categoryTypeRepository");
 const categoryMainRepository = require("../repositories/categoryMainRepository");
 const attributeValueRepository = require("../repositories/attributeValueRepository");
@@ -8,16 +7,11 @@ const { generateEquipmentCode } = require("../utils/codeGenerator");
 
 const equipmentService = {
   createEquipment: async (data) => {
-    if (!data.name || !data.vendor_id || !data.category_type_id) {
-      throw new Error(
-        "Equipment name, vendor_id, category_type_id are required"
-      );
+    if (!data.name || !data.category_type_id) {
+      throw new Error("Equipment name và category_type_id là bắt buộc");
     }
 
-    // Lấy vendor + type + main
-    const vendor = await vendorRepository.findById(data.vendor_id);
-    if (!vendor) throw new Error(`Vendor ${data.vendor_id} does not exist`);
-
+    // Lấy type + main
     const categoryType = await categoryTypeRepository.findById(
       data.category_type_id
     );
@@ -38,7 +32,6 @@ const equipmentService = {
     // Sinh ID: $vendor$main$type-$name
     const newId = generateEquipmentCode(
       {
-        vendorId: data.vendor_id,
         mainId: categoryMain.id,
         typeId: data.category_type_id,
         name: data.name,
@@ -46,7 +39,7 @@ const equipmentService = {
       existingIds
     );
 
-    // Check trùng ID 
+    // Check trùng ID
     const existing = await equipmentRepository.findById(newId);
     if (existing) throw new Error(`Equipment with id ${newId} already exists`);
 
@@ -99,30 +92,15 @@ const equipmentService = {
 
     const result = [];
     for (const eq of equipments) {
-      const vendor = await vendorRepository.findById(eq.vendor_id);
       const type = await categoryTypeRepository.findById(eq.category_type_id);
       const main = type
         ? await categoryMainRepository.findById(type.category_main_id)
         : null;
 
-      // const attrValues = await attributeValueRepository.findByEquipmentId(
-      //   eq.id
-      // );
-      // const attrs = [];
-      // for (const av of attrValues) {
-      //   const attr = await attributeRepository.findById(av.attribute_id);
-      //   attrs.push({
-      //     attribute: attr ? attr.name : av.attribute_id,
-      //     value: av.value,
-      //   });
-      // }
-
       result.push({
         ...eq,
-        vendor_name: vendor ? vendor.name : null,
         type_name: type ? type.name : null,
         main_name: main ? main.name : null,
-        // attributes: attrs,
       });
     }
 
@@ -133,7 +111,6 @@ const equipmentService = {
     const equipment = await equipmentRepository.findById(id);
     if (!equipment) throw new Error("Equipment not found");
 
-    const vendor = await vendorRepository.findById(equipment.vendor_id);
     const type = await categoryTypeRepository.findById(
       equipment.category_type_id
     );
@@ -153,7 +130,6 @@ const equipmentService = {
 
     return {
       ...equipment,
-      vendor_name: vendor ? vendor.name : null,
       type_name: type ? type.name : null,
       main_name: main ? main.name : null,
       // attributes: attrs,
@@ -164,7 +140,6 @@ const equipmentService = {
     const equipment = await equipmentRepository.findById(id);
     if (!equipment) throw new Error("Equipment not found");
 
-    const vendor = await vendorRepository.findById(equipment.vendor_id);
     const type = await categoryTypeRepository.findById(
       equipment.category_type_id
     );
@@ -184,7 +159,6 @@ const equipmentService = {
 
     return {
       ...equipment,
-      vendor_name: vendor ? vendor.name : null,
       type_name: type ? type.name : null,
       main_name: main ? main.name : null,
       attributes: attrs,
@@ -197,7 +171,6 @@ const equipmentService = {
     );
     return Promise.all(
       equipments.map(async (eq) => {
-        const vendor = await vendorRepository.findById(eq.vendor_id);
         const type = await categoryTypeRepository.findById(eq.category_type_id);
         const main = type
           ? await categoryMainRepository.findById(type.category_main_id)
@@ -218,41 +191,6 @@ const equipmentService = {
 
         return {
           ...eq,
-          vendor_name: vendor ? vendor.name : null,
-          type_name: type ? type.name : null,
-          main_name: main ? main.name : null,
-          attributes: attrs,
-        };
-      })
-    );
-  },
-
-  getEquipmentsByVendorId: async (vendor_id) => {
-    const equipments = await equipmentRepository.findByVendorId(vendor_id);
-    return Promise.all(
-      equipments.map(async (eq) => {
-        const vendor = await vendorRepository.findById(eq.vendor_id);
-        const type = await categoryTypeRepository.findById(eq.category_type_id);
-        const main = type
-          ? await categoryMainRepository.findById(type.category_main_id)
-          : null;
-
-        const attrValues = await attributeValueRepository.findByEquipmentId(
-          eq.id
-        );
-        const attrs = await Promise.all(
-          attrValues.map(async (av) => {
-            const attr = await attributeRepository.findById(av.attribute_id);
-            return {
-              attribute: attr ? attr.name : av.attribute_id,
-              value: av.value,
-            };
-          })
-        );
-
-        return {
-          ...eq,
-          vendor_name: vendor ? vendor.name : null,
           type_name: type ? type.name : null,
           main_name: main ? main.name : null,
           attributes: attrs,
