@@ -22,6 +22,8 @@ const {
   AdminDisableUserCommand,
   AdminListGroupsForUserCommand,
   AdminRemoveUserFromGroupCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
 } = require("@aws-sdk/client-cognito-identity-provider");
 
 const now = () => new Date().toISOString();
@@ -199,6 +201,59 @@ const UserModel = {
     );
 
     return { message: "Password changed successfully", resp };
+  },
+
+  forgotPassword: async ({ username, email }) => {
+    if (!username || !email) {
+      throw new Error("username and email are required");
+    }
+
+    // ⚙️ Kiểm tra xem email của user có khớp trong Cognito không
+    let userResp;
+    try {
+      userResp = await cip.send(
+        new AdminGetUserCommand({
+          UserPoolId: USER_POOL_ID,
+          Username: username,
+        })
+      );
+    } catch (err) {
+      throw new Error("User not found");
+    }
+
+    const emailAttr = userResp.UserAttributes.find((a) => a.Name === "email");
+    if (!emailAttr || emailAttr.Value.toLowerCase() !== email.toLowerCase()) {
+      throw new Error("Email does not match this account");
+    }
+
+    // ✅ Gửi mã đặt lại mật khẩu
+    const params = {
+      ClientId: CLIENT_ID,
+      Username: username,
+      SecretHash: secretHash(username),
+    };
+
+    const out = await cip.send(new ForgotPasswordCommand(params));
+
+    return {
+      message: "Password reset code sent to your email",
+      delivery: out.CodeDeliveryDetails,
+    };
+  },
+
+  confirmForgotPassword: async ({ username, code, newPassword }) => {
+    if (!username || !code || !newPassword) {
+      throw new Error("username, code, and newPassword are required");
+    }
+    const params = {
+      ClientId: CLIENT_ID,
+      Username: username,
+      ConfirmationCode: code,
+      Password: newPassword,
+      SecretHash: secretHash(username),
+    };
+    await cip.send(new ConfirmForgotPasswordCommand(params));
+    return { message: "Password reset successfully" };
   },
 
   updateUserAttributes: async ({ accessToken, attributes }) => {
@@ -462,7 +517,7 @@ const UserModel = {
 
     return { message: `Role of ${username} set to ${newRole}` };
   },
-  
+
   // =====================================
   // Lấy email của user
   // =====================================
@@ -494,7 +549,7 @@ const UserModel = {
       if (userRoles.some((r) => roles.includes(r))) {
         const emailAttr = user.Attributes.find((a) => a.Name === "email");
         const subAttr = user.Attributes.find((a) => a.Name === "sub");
-        
+
         if (emailAttr) {
           emails.push({
             username: user.Username,

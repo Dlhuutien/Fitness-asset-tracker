@@ -17,6 +17,8 @@
    - `POST /auth/signin` — Sign in
    - `POST /auth/refresh` — Refresh token
    - `POST /auth/firstLogin` — NEW_PASSWORD_REQUIRED (first login change password)
+   - `POST /auth/forgotPassword` — Gửi mã xác nhận quên mật khẩu
+   - `POST /auth/confirmForgotPassword` — Xác nhận mã và đặt lại mật khẩu mới
 
 3. [User APIs (`/user`)](#user-apis-user)
 
@@ -143,9 +145,9 @@
 
 17. [Dashboard APIs (`/dashboard`)](#dashboard-apis-dashboard)
 
-    * `GET /dashboard/statistics` — Thống kê tổng hợp (theo tháng / quý / năm)
-    * `GET /dashboard/equipment-hierarchy` — Cấu trúc phân cấp nhóm thiết bị
-    * `GET /dashboard/statistics/trend` — Biểu đồ xu hướng (theo tháng / quý / tuần)
+    - `GET /dashboard/statistics` — Thống kê tổng hợp (theo tháng / quý / năm)
+    - `GET /dashboard/equipment-hierarchy` — Cấu trúc phân cấp nhóm thiết bị
+    - `GET /dashboard/statistics/trend` — Biểu đồ xu hướng (theo tháng / quý / tuần)
 
 ---
 
@@ -296,6 +298,58 @@ Response (200):
   "refreshToken": "<refreshToken>",
   "expiresIn": 3600,
   "tokenType": "Bearer"
+}
+```
+
+---
+
+### POST `/auth/forgotPassword`
+
+Gửi mã xác nhận đặt lại mật khẩu (Cognito ForgotPassword).
+Chỉ gửi được nếu **username và email khớp** với dữ liệu trong Cognito.
+
+**Request body (JSON):**
+
+```json
+{
+  "username": "Username123",
+  "email": "examp@gmail.com"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "message": "Password reset code sent to your email",
+  "delivery": {
+    "Destination": "ex***@gmail.com",
+    "DeliveryMedium": "EMAIL",
+    "AttributeName": "email"
+  }
+}
+```
+
+### POST `/auth/confirmForgotPassword`
+
+Xác nhận mã quên mật khẩu và đặt lại mật khẩu mới.
+Dùng sau khi đã nhận được mã trong email từ `/auth/forgotPassword`.
+
+**Request body (JSON):**
+
+```json
+{
+  "username": "Username123",
+  "code": "123456",
+  "newPassword": "NewPass@2025"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "message": "Password reset successfully"
 }
 ```
 
@@ -2831,21 +2885,29 @@ gồm số lượng thiết bị, bảo trì, thanh lý, nhân viên, chi phí, 
 ### **Các trường hợp gọi API**
 
 ### 1. Super-admin xem **toàn hệ thống** trong tháng 10/2025 Không giới hạn chi nhánh
+
 ```
 /dashboard/statistics?type=month&year=2025&month=10
 ```
+
 ### 2. Super-admin xem **chi nhánh Gò Vấp** theo quý 3/2025
+
 ```
 /dashboard/statistics?type=quarter&year=2025&quarter=3&branch_id=GV
 ```
+
 ### 3. Admin chi nhánh G3 xem thống kê tháng 10 (`branchFilterMiddleware` tự động giới hạn theo chi nhánh G3)
+
 ```
 /dashboard/statistics?type=month&year=2025&month=10
 ```
+
 ### 4. Super-admin xem theo năm (Tổng hợp cả năm)
+
 ```
 /dashboard/statistics?type=year&year=2025
 ```
+
 ---
 
 **Response Example**
@@ -2903,22 +2965,29 @@ gồm: **Nhóm chính → Loại → Dòng thiết bị → Số lượng unit h
 `admin`: Chỉ xem chi nhánh của mình
 
 ---
+
 ### **Các trường hợp gọi API**
 
 ### 1. Super-admin xem **toàn hệ thống** Gộp tất cả chi nhánh
+
 ```
 /dashboard/equipment-hierarchy
 ```
+
 ### 2. Super-admin xem **chi nhánh G3** Lọc branch_id = "G3"
+
 ```
 /dashboard/equipment-hierarchy?branch_id=G3
 ```
+
 ### 3. Admin chi nhánh G3 xem riêng của mình (Middleware tự động lọc branch_id = G3)
+
 ```
 /dashboard/equipment-hierarchy
 ```
 
 ---
+
 ### 📤 **Response Example**
 
 ```json
@@ -2975,6 +3044,7 @@ gồm: **Nhóm chính → Loại → Dòng thiết bị → Số lượng unit h
   }
 ]
 ```
+
 ---
 
 # **Dashboard API**
@@ -2988,6 +3058,7 @@ Với tháng hiện hành, các tuần **chưa tới** sẽ **tự động ẩn*
 ---
 
 ### **Query Params**
+
 `type` = `"month"` | `"quarter"` | `"week"`: Kiểu thống kê theo thời gian
 `branch_id`:Lọc theo chi nhánh cụ thể (chỉ dành cho super-admin)
 
@@ -3146,4 +3217,5 @@ Với tháng hiện hành, các tuần **chưa tới** sẽ **tự động ẩn*
   }
 ]
 ```
+
 ---
