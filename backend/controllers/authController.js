@@ -1,4 +1,4 @@
-const authService = require('../services/authService');
+const authService = require("../services/authService");
 
 exports.signup = async (req, res) => {
   try {
@@ -39,6 +39,24 @@ exports.refresh = async (req, res) => {
 exports.firstLoginChangePassword = async (req, res) => {
   try {
     const result = await authService.firstLoginChangePassword(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.name, message: err.message });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  try {
+    const result = await authService.forgotPassword(req.body);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.name, message: err.message });
+  }
+};
+
+exports.confirmForgotPassword = async (req, res) => {
+  try {
+    const result = await authService.confirmForgotPassword(req.body);
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.name, message: err.message });

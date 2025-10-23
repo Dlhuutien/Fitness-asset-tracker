@@ -1,4 +1,4 @@
-const userRepository = require('../repositories/userRepository');
+const userRepository = require("../repositories/userRepository");
 
 const authService = {
   signUp: async (data) => {
@@ -9,12 +9,14 @@ const authService = {
   },
 
   confirmSignUp: async (data) => {
-    if (!data.username || !data.code) throw new Error("username and code required");
+    if (!data.username || !data.code)
+      throw new Error("username and code required");
     return await userRepository.confirmSignUp(data);
   },
 
   signIn: async (data) => {
-    if (!data.username || !data.password) throw new Error("username and password required");
+    if (!data.username || !data.password)
+      throw new Error("username and password required");
     return await userRepository.signIn(data);
   },
 
@@ -28,6 +30,17 @@ const authService = {
       throw new Error("username, newPassword, and session are required");
     }
     return await userRepository.firstLoginChangePassword(data);
+  },
+
+  forgotPassword: async (data) => {
+    if (!data.username) throw new Error("username is required");
+    return await userRepository.forgotPassword(data);
+  },
+
+  confirmForgotPassword: async (data) => {
+    if (!data.username || !data.code || !data.newPassword)
+      throw new Error("username, code, and newPassword are required");
+    return await userRepository.confirmForgotPassword(data);
   },
 };
 

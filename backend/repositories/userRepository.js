@@ -9,8 +9,11 @@ const userRepository = {
   signIn: async (data) => UserModel.signIn(data),
   refreshToken: async (data) => UserModel.refreshToken(data),
   getUserInfo: async (data) => UserModel.getUserInfo(data),
-  firstLoginChangePassword: async (data) => UserModel.firstLoginChangePassword(data),
+  firstLoginChangePassword: async (data) =>
+    UserModel.firstLoginChangePassword(data),
   changePassword: async (data) => UserModel.changePassword(data),
+  forgotPassword: async (data) => UserModel.forgotPassword(data),
+  confirmForgotPassword: async (data) => UserModel.confirmForgotPassword(data),
   updateUserAttributes: async (data) => UserModel.updateUserAttributes(data),
 
   // ===========================
@@ -19,7 +22,8 @@ const userRepository = {
   adminCreateUser: async (data) => UserModel.adminCreateUser(data),
   setUserRole: async (data) => UserModel.adminSetUserRole(data),
   updateUserStatus: async (data) => UserModel.updateUserStatus(data),
-  adminUpdateUserAttributes: async (data) => UserModel.adminUpdateUserAttributes(data),
+  adminUpdateUserAttributes: async (data) =>
+    UserModel.adminUpdateUserAttributes(data),
   listUsers: async (data) => UserModel.listUsers(data),
 
   // ===========================

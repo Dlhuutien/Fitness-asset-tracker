@@ -70,11 +70,11 @@ function generateTypeCode(name, existingCodes = []) {
  * =============================
  * Tạo mã code thiết bị (Equipment ID)
  * =============================
- * Cấu trúc: $vendor$main$type-$nameCode
+ * Cấu trúc: $main$type-$nameCode
  * nameCode được sinh tự động theo tên (2–3 ký tự)
  */
-function generateEquipmentCode({ vendorId, mainId, typeId, name }, existingIds = []) {
-  if (!vendorId || !mainId || !typeId || !name) return "UNK";
+function generateEquipmentCode({ mainId, typeId, name }, existingIds = []) {
+  if ( !mainId || !typeId || !name) return "UNK";
 
   // 🔹 Sinh nameCode từ tên thiết bị
   const cleaned = name.trim().toUpperCase().replace(/[^A-Z0-9\s]/g, "");
@@ -88,13 +88,13 @@ function generateEquipmentCode({ vendorId, mainId, typeId, name }, existingIds =
   }
 
   // 🔹 Ghép ID tổng thể
-  let baseId = `${vendorId}${mainId}${typeId}-${nameCode}`;
+  let baseId = `${mainId}${typeId}-${nameCode}`;
 
   // 🔹 Nếu bị trùng → sinh biến thể
   if (existingIds.includes(baseId)) {
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (let ch of alphabet) {
-      const variant = `${vendorId}${mainId}${typeId}-${nameCode}${ch}`;
+      const variant = `${mainId}${typeId}-${nameCode}${ch}`;
       if (!existingIds.includes(variant)) {
         return variant;
       }

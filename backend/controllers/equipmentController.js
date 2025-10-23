@@ -116,16 +116,6 @@ const equipmentController = {
     }
   },
 
-  getByVendorId: async (req, res) => {
-    try {
-      const items = await equipmentService.getEquipmentsByVendorId(
-        req.params.vendor_id
-      );
-      res.json(items);
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
 };
 
 module.exports = equipmentController;
