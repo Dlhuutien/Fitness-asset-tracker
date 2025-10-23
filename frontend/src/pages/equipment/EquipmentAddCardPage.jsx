@@ -19,6 +19,7 @@ import EquipmentTypeQuickAdd from "@/components/panel/addCardEquipment/Equipment
 import VendorService from "@/services/vendorService";
 import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
 import AttributeService from "@/services/attributeService";
+import TypeAttributeService from "@/services/typeAttributeService";
 import EquipmentService from "@/services/equipmentService";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -60,6 +61,8 @@ export default function EquipmentAddCardPage({ onSuccessAdd }) {
   const [successMsg, setSuccessMsg] = useState("");
   const [searchAttr, setSearchAttr] = useState("");
 
+  const [typeAttributes, setTypeAttributes] = useState([]);
+
   // ===== Fetch dữ liệu từ API =====
   useEffect(() => {
     const fetchData = async () => {
@@ -80,6 +83,31 @@ export default function EquipmentAddCardPage({ onSuccessAdd }) {
     };
     fetchData();
   }, []);
+
+  // ===== Khi chọn loại thiết bị => load các attribute mặc định =====
+  useEffect(() => {
+    if (!formData.type) {
+      setTypeAttributes([]); // chưa chọn loại => clear
+      setSelectedAttrs({}); // clear phần nhập
+      return;
+    }
+
+    const fetchTypeAttributes = async () => {
+      try {
+        const data = await TypeAttributeService.getAttributesByType(
+          formData.type
+        );
+        setTypeAttributes(data || []);
+        // Khi đổi loại, reset phần nhập
+        setSelectedAttrs({});
+      } catch (err) {
+        console.error("❌ Lỗi khi tải attribute theo loại:", err);
+        toast.error("Không thể tải thông số kỹ thuật cho loại này.");
+      }
+    };
+
+    fetchTypeAttributes();
+  }, [formData.type]);
 
   // ===== Handlers =====
   const handleChange = (e) => {
@@ -121,35 +149,76 @@ export default function EquipmentAddCardPage({ onSuccessAdd }) {
     setTimeout(() => setSpinClearInputs(false), 600);
   };
 
-  // ===== Thêm attribute mới (với check trùng + gọi API) =====
+  // ===== Thêm attribute mới (check trùng + auto link vào Type nếu có) =====
   const addNewAttribute = async () => {
-    const trimmed = newAttr.trim().toLowerCase();
+    const trimmed = newAttr.trim();
     if (!trimmed) {
       setErrorMsg("Vui lòng nhập tên thông số.");
       return;
     }
 
-    // check trùng
-    const exists = attributes.some((a) => a.name.toLowerCase() === trimmed);
-    if (exists) {
-      setErrorMsg(`Thông số "${newAttr}" đã tồn tại.`);
-      return;
-    }
-
+    const lower = trimmed.toLowerCase();
     setLoadingAdd(true);
     setErrorMsg("");
     setSuccessMsg("");
 
     try {
-      const created = await AttributeService.create({ name: newAttr });
-      setAttributes((prev) => [...prev, created]);
-      setSuccessMsg(`Đã thêm thông số "${newAttr}" thành công.`);
+      // 🔍 Kiểm tra xem attribute đã tồn tại chưa
+      const existingAttr = attributes.find(
+        (a) => a.name.toLowerCase() === lower
+      );
+
+      let attrToUse = existingAttr;
+
+      // ✅ Nếu chưa tồn tại → tạo mới attribute
+      if (!existingAttr) {
+        const created = await AttributeService.create({ name: trimmed });
+        setAttributes((prev) => [...prev, created]);
+        attrToUse = created;
+        console.log("✅ Đã tạo Attribute mới:", created);
+      } else {
+        console.log("ℹ️ Attribute đã tồn tại, dùng lại:", existingAttr);
+      }
+
+      // ✅ Nếu có chọn loại → gắn attribute này vào loại
+      if (formData.type && attrToUse) {
+        try {
+          await TypeAttributeService.addAttributeToType(
+            formData.type,
+            attrToUse.id
+          );
+          const updatedTypeAttrs =
+            await TypeAttributeService.getAttributesByType(formData.type);
+          setTypeAttributes(updatedTypeAttrs || []);
+          setSuccessMsg(
+            existingAttr
+              ? `Đã gắn thông số "${trimmed}" vào loại thiết bị.`
+              : `Đã thêm và gắn thông số "${trimmed}" vào loại thiết bị.`
+          );
+        } catch (linkErr) {
+          console.error("❌ Lỗi khi gắn attribute vào loại:", linkErr);
+          setSuccessMsg(
+            existingAttr
+              ? `Đã có thông số "${trimmed}" nhưng gắn vào loại thất bại.`
+              : `Đã thêm "${trimmed}" nhưng chưa gắn vào loại do lỗi.`
+          );
+        }
+      } else if (!formData.type) {
+        setSuccessMsg(
+          existingAttr
+            ? `Thông số "${trimmed}" đã tồn tại (chưa gắn vì chưa chọn loại).`
+            : `Đã thêm thông số "${trimmed}" thành công.`
+        );
+      }
+
       setNewAttr("");
       setShowAddAttr(false);
     } catch (err) {
-      console.error("Lỗi khi thêm attribute:", err);
+      console.error("❌ Lỗi khi thêm attribute:", err);
       setErrorMsg(
-        typeof err === "string" ? err : "Không thể thêm thông số mới."
+        typeof err === "string"
+          ? err
+          : err?.message || "Không thể thêm thông số mới."
       );
     } finally {
       setLoadingAdd(false);
@@ -595,159 +664,177 @@ export default function EquipmentAddCardPage({ onSuccessAdd }) {
             Thông số kỹ thuật
           </h3>
 
-          {/* Checkbox attributes */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="text-sm font-medium">Chọn thông số</h4>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={clearAllChecked}
-                className="text-xs flex items-center gap-1"
-              >
-                <RotateCcw
-                  className={`w-4 h-4 ${
-                    spinClearChecked ? "animate-spin" : ""
-                  }`}
-                />
-                Clear Checked
-              </Button>
-            </div>
-
-            {/* Thanh tìm kiếm & nút chọn tất cả */}
-            <div className="flex items-center gap-2 mb-3">
-              <Input
-                placeholder="Tìm kiếm thông số..."
-                value={searchAttr}
-                onChange={(e) => setSearchAttr(e.target.value)}
-                className="h-8 text-sm flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setSelectedAttrs(
-                    Object.fromEntries(
-                      filteredAttributes.map((a) => [a.name, ""])
-                    )
-                  )
-                }
-                className="text-xs"
-              >
-                Chọn tất cả
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
-              {filteredAttributes.map((attr) => (
-                <label
-                  key={attr.id}
-                  className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
-                    selectedAttrs[attr.name] !== undefined
-                      ? "bg-emerald-50 dark:bg-gray-700"
-                      : ""
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedAttrs[attr.name] !== undefined}
-                    onChange={() => toggleAttr(attr.name)}
-                  />
-                  {attr.name}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Input giá trị thông số */}
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="text-sm font-medium">Giá trị thông số</h4>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={clearAllInputs}
-                className="text-xs flex items-center gap-1"
-              >
-                <RotateCcw
-                  className={`w-4 h-4 ${spinClearInputs ? "animate-spin" : ""}`}
-                />
-                Clear Inputs
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-2 border rounded-md">
-              {Object.entries(selectedAttrs).map(([attr, val]) => (
-                <div key={attr}>
-                  <Label className="text-sm">{attr}</Label>
-                  <Input
-                    placeholder={`Nhập ${attr}`}
-                    value={val}
-                    onChange={(e) =>
-                      setSelectedAttrs((prev) => ({
-                        ...prev,
-                        [attr]: e.target.value,
-                      }))
-                    }
-                    className="h-9 text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Thêm attribute mới */}
-          <div className="pt-2 border-t">
-            {!showAddAttr ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAddAttr(true)}
-                className="flex items-center gap-2 text-sm"
-              >
-                <PlusCircle className="w-4 h-4" /> Thêm thông số mới
-              </Button>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <div className="flex gap-2 items-center">
-                  <Input
-                    placeholder="Nhập tên thông số"
-                    value={newAttr}
-                    onChange={(e) => setNewAttr(e.target.value)}
-                    className="h-9 text-sm"
-                  />
-                  <Button
-                    type="button"
-                    onClick={addNewAttribute}
-                    disabled={loadingAdd}
-                    className="h-9 text-sm bg-emerald-500 hover:bg-emerald-600"
-                  >
-                    {loadingAdd ? "Đang thêm..." : "Thêm"}
-                  </Button>
+          {formData.type ? (
+            <>
+              {/* Checkbox attributes */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-sm font-medium">Chọn thông số</h4>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    onClick={() => {
-                      setShowAddAttr(false);
-                      setNewAttr("");
-                    }}
+                    onClick={clearAllChecked}
+                    className="text-xs flex items-center gap-1"
                   >
-                    Hủy
+                    <RotateCcw
+                      className={`w-4 h-4 ${
+                        spinClearChecked ? "animate-spin" : ""
+                      }`}
+                    />
+                    Clear Checked
                   </Button>
                 </div>
 
-                {errorMsg && <p className="text-red-500 text-xs">{errorMsg}</p>}
-                {successMsg && (
-                  <p className="text-emerald-500 text-xs">{successMsg}</p>
+                {/* Thanh tìm kiếm & nút chọn tất cả */}
+                <div className="flex items-center gap-2 mb-3">
+                  <Input
+                    placeholder="Tìm kiếm thông số..."
+                    value={searchAttr}
+                    onChange={(e) => setSearchAttr(e.target.value)}
+                    className="h-8 text-sm flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setSelectedAttrs(
+                        Object.fromEntries(
+                          (formData.type
+                            ? typeAttributes
+                            : filteredAttributes
+                          ).map((a) => [a.name, ""])
+                        )
+                      )
+                    }
+                    className="text-xs"
+                  >
+                    Chọn tất cả
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto border rounded-md p-3">
+                  {(formData.type ? typeAttributes : filteredAttributes).map(
+                    (attr) => (
+                      <label
+                        key={attr.id}
+                        className={`flex items-center gap-2 text-sm px-2 py-1 rounded cursor-pointer ${
+                          selectedAttrs[attr.name] !== undefined
+                            ? "bg-emerald-50 dark:bg-gray-700"
+                            : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedAttrs[attr.name] !== undefined}
+                          onChange={() => toggleAttr(attr.name)}
+                        />
+                        {attr.name}
+                      </label>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Input giá trị thông số */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="text-sm font-medium">Giá trị thông số</h4>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearAllInputs}
+                    className="text-xs flex items-center gap-1"
+                  >
+                    <RotateCcw
+                      className={`w-4 h-4 ${
+                        spinClearInputs ? "animate-spin" : ""
+                      }`}
+                    />
+                    Clear Inputs
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto p-2 border rounded-md">
+                  {Object.entries(selectedAttrs).map(([attr, val]) => (
+                    <div key={attr}>
+                      <Label className="text-sm">{attr}</Label>
+                      <Input
+                        placeholder={`Nhập ${attr}`}
+                        value={val}
+                        onChange={(e) =>
+                          setSelectedAttrs((prev) => ({
+                            ...prev,
+                            [attr]: e.target.value,
+                          }))
+                        }
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Thêm attribute mới */}
+              <div className="pt-2 border-t">
+                {!showAddAttr ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAddAttr(true)}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <PlusCircle className="w-4 h-4" /> Thêm thông số mới
+                  </Button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        placeholder="Nhập tên thông số"
+                        value={newAttr}
+                        onChange={(e) => setNewAttr(e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                      <Button
+                        type="button"
+                        onClick={addNewAttribute}
+                        disabled={loadingAdd}
+                        className="h-9 text-sm bg-emerald-500 hover:bg-emerald-600"
+                      >
+                        {loadingAdd ? "Đang thêm..." : "Thêm"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddAttr(false);
+                          setNewAttr("");
+                        }}
+                      >
+                        Hủy
+                      </Button>
+                    </div>
+
+                    {errorMsg && (
+                      <p className="text-red-500 text-xs">{errorMsg}</p>
+                    )}
+                    {successMsg && (
+                      <p className="text-emerald-500 text-xs">{successMsg}</p>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          ) : (
+            <p className="text-gray-400 text-center text-sm py-10">
+              ⚙️ Hãy chọn <b>loại thiết bị</b> để hiển thị thông số kỹ thuật
+              tương ứng.
+            </p>
+          )}
         </div>
 
         {/* Submit */}

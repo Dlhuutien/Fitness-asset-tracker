@@ -19,6 +19,7 @@ const equipmentTransferRoutes = require("./routes/equipmentTransferRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const equipmentDisposalRoutes = require("./routes/equipmentDisposalRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const typeAttributeRoutes = require("./routes/typeAttributeRoute");
 
 const app = express();
 app.use(cors());
@@ -40,6 +41,7 @@ app.use("/categoryMain", categoryMainRoutes);
 app.use("/categoryType", categoryTypeRoutes);
 app.use("/equipment", equipmentRoutes);
 app.use("/attribute", attributeRoutes);
+app.use("/type-attribute", typeAttributeRoutes);
 app.use("/attributeValue", attributeValueRoutes);
 app.use("/invoice", invoiceRoutes);
 app.use("/equipmentUnit", equipmentUnitRoutes);
