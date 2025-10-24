@@ -19,8 +19,8 @@ import CategoryTypeService from "@/services/categoryTypeService";
 import VendorService from "@/services/vendorService";
 import EquipmentService from "@/services/equipmentService";
 
-import EquipmentGroupQuickAdd from "@/components/panel/addCardEquipment/EquipmentGroupQuickAdd";
-import EquipmentTypeQuickAdd from "@/components/panel/addCardEquipment/EquipmentTypeQuickAdd";
+import EquipmentGroupQuickAdd from "@/components/panel/addCardEquipment/QuickGroup";
+import EquipmentTypeQuickAdd from "@/components/panel/addCardEquipment/QuickType";
 import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
 
 export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
@@ -89,8 +89,7 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
       return toast.warning("⚠️ Vui lòng chọn nhà cung cấp!");
     if (!formData.group)
       return toast.warning("⚠️ Vui lòng chọn nhóm thiết bị!");
-    if (!formData.type)
-      return toast.warning("⚠️ Vui lòng chọn loại thiết bị!");
+    if (!formData.type) return toast.warning("⚠️ Vui lòng chọn loại thiết bị!");
     if (!formData.name) return toast.warning("⚠️ Nhập tên thiết bị!");
 
     try {
@@ -261,7 +260,11 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
                   <div
                     key={g.id}
                     onClick={() =>
-                      setFormData((prev) => ({ ...prev, group: g.id, type: "" }))
+                      setFormData((prev) => ({
+                        ...prev,
+                        group: g.id,
+                        type: "",
+                      }))
                     }
                     className={`border rounded-lg overflow-hidden cursor-pointer transition-all shadow-sm hover:shadow-md ${
                       formData.group === g.id
@@ -315,7 +318,8 @@ export default function EquipmentQuickAdd({ open, onClose, onSuccess }) {
                 size="icon"
                 variant="outline"
                 onClick={async () => {
-                  const data = await CategoryTypeService.getAllWithDisplayName();
+                  const data =
+                    await CategoryTypeService.getAllWithDisplayName();
                   setTypes(data || []);
                   toast.success("🔄 Danh sách loại thiết bị đã làm mới!");
                 }}

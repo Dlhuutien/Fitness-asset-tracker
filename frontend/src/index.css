@@ -178,6 +178,30 @@ body {
   }
 }
 
+/* Hiệu ứng trượt panel Add Equipment */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.35s ease-out;
+}
+
+/* Hiệu ứng nền mờ khi mở panel (đã escape /) */
+[data-state="open"] > .fixed.inset-0.bg-background\/80 {
+  backdrop-filter: blur(6px);
+}
+
+
+
+
 /* Animation class */
 .animate-slide-in {
   animation: slide-in-right 0.4s ease forwards;
@@ -226,3 +250,4 @@ body {
   scrollbar-color: #10b981 transparent;
   scrollbar-width: thin;
 }
+
