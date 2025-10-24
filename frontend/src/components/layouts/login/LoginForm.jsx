@@ -20,6 +20,7 @@ import {
   SuccessAlert,
   ErrorAlert,
   ServerErrorAlert,
+  DisabledUserAlert,
 } from "./LoginAlert";
 
 // ✅ Schema cho đăng nhập
@@ -32,7 +33,9 @@ const loginSchema = z.object({
 const newPassSchema = z
   .object({
     newPassword: z.string().min(8, "Mật khẩu mới phải ít nhất 8 ký tự"),
-    confirmPassword: z.string().min(8, "Xác nhận mật khẩu phải ít nhất 8 ký tự"),
+    confirmPassword: z
+      .string()
+      .min(8, "Xác nhận mật khẩu phải ít nhất 8 ký tự"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
     message: "Mật khẩu xác nhận không khớp",
@@ -79,7 +82,9 @@ export default function LoginForm() {
       }
     } catch (err) {
       console.error("Đăng nhập thất bại:", err);
-      if (
+      if (err.message?.includes("User is disabled")) {
+        setAlert("disabled");
+      } else if (
         err.message?.includes("NetworkError") ||
         err.code === "ERR_NETWORK" ||
         err.message?.includes("ECONNREFUSED")
@@ -126,7 +131,13 @@ export default function LoginForm() {
       <Card className="p-10 rounded-3xl bg-gradient-to-br from-gray-900/70 via-gray-800/50 to-gray-900/70 border border-white/10 backdrop-blur-2xl shadow-[0_0_30px_rgba(0,255,180,0.15)] w-[420px] mx-auto">
         <CardHeader>
           <CardTitle className="text-center text-3xl font-extrabold bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            {newUser ? "Chào mừng đăng nhập lần đầu!" : <>Welcome to <span className="text-cyan-400">FITX</span></>}
+            {newUser ? (
+              "Chào mừng đăng nhập lần đầu!"
+            ) : (
+              <>
+                Welcome to <span className="text-cyan-400">FITX</span>
+              </>
+            )}
           </CardTitle>
         </CardHeader>
 
@@ -148,7 +159,9 @@ export default function LoginForm() {
                   className="relative min-h-[64px]"
                   animate={errors.username ? shake : {}}
                 >
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2">📧</div>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                    📧
+                  </div>
                   <Input
                     placeholder="Username"
                     className="!pl-14"
@@ -167,7 +180,9 @@ export default function LoginForm() {
                   className="relative min-h-[64px]"
                   animate={errors.password ? shake : {}}
                 >
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2">🔒</div>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                    🔒
+                  </div>
                   <Input
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
@@ -198,7 +213,8 @@ export default function LoginForm() {
 
               <CardFooter className="flex justify-between text-sm text-gray-400 mt-2">
                 <label className="flex items-center gap-2">
-                  <input type="checkbox" className="accent-cyan-400" /> Lưu đăng nhập
+                  <input type="checkbox" className="accent-cyan-400" /> Lưu đăng
+                  nhập
                 </label>
                 <a href="#" className="hover:text-cyan-400">
                   Quên mật khẩu?
@@ -247,9 +263,7 @@ export default function LoginForm() {
                   />
                   <button
                     type="button"
-                    onClick={() =>
-                      setShowConfirmPassword(!showConfirmPassword)
-                    }
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition"
                   >
                     {showConfirmPassword ? "🙈" : "👁️"}
@@ -279,6 +293,10 @@ export default function LoginForm() {
       <ErrorAlert open={alert === "error"} setOpen={() => setAlert(null)} />
       <ServerErrorAlert
         open={alert === "server_error"}
+        setOpen={() => setAlert(null)}
+      />
+      <DisabledUserAlert
+        open={alert === "disabled"}
         setOpen={() => setAlert(null)}
       />
     </>
