@@ -18,7 +18,6 @@ import EquipmentService from "@/services/equipmentService";
 import InvoiceService from "@/services/invoiceService";
 import { toast } from "sonner";
 import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
-import EquipmentQuickAdd from "@/components/panel/importEquipment/EquipmentQuickAdd";
 import BranchService from "@/services/branchService";
 import useAuthRole from "@/hooks/useAuthRole";
 
@@ -585,15 +584,6 @@ export default function EquipmentImportPage({
         onSuccess={(newVendor) => {
           setVendors((prev) => [...prev, newVendor]);
           setSelectedVendor(newVendor.id);
-        }}
-      />
-      <EquipmentQuickAdd
-        open={openQuickAddEquipment}
-        onClose={() => setOpenQuickAddEquipment(false)}
-        vendorId={selectedVendor}
-        onSuccess={(newEq) => {
-          setEquipments((prev) => [...prev, newEq]);
-          toast.success("🎉 Thiết bị mới đã được thêm!");
         }}
       />
 
