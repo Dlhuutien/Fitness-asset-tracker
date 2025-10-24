@@ -49,7 +49,7 @@ const menuItems = [
       { label: "Danh mục loại", path: "/app/equipment/type" },
       { label: "Danh mục dòng", path: "/app/equipment/list" },
       { label: "Danh mục thiết bị", path: "/app/equipment/unit" },
-      { label: "Nhập thiết bị", path: "/app/equipment/import" },
+      // { label: "Nhập thiết bị", path: "/app/equipment/import" },
       { label: "Chuyển thiết bị", path: "/app/equipment/transfer" },
       { label: "Bảo trì thiết bị", path: "/app/maintenance" },
       { label: "Thanh lý thiết bị", path: "/app/equipment/disposal" },

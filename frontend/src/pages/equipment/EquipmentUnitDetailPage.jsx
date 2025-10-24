@@ -227,7 +227,7 @@ export default function EquipmentProfilePage() {
               <InfoItem
                 icon={<Factory size={16} />}
                 label="Nhà cung cấp"
-                value={eq.vendor_name}
+                value={data.vendor_name}
               />
               <InfoItem
                 icon={<Building2 size={16} />}
