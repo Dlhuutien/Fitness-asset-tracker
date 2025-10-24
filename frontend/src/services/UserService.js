@@ -75,9 +75,9 @@ const UserService = {
    * PUT /user/set-role
    * Body: { username, role }
    */
-  async setRole(username, role) {
+  async setRole(username, newRole) {
     try {
-      const res = await axios.put(`${API}user/set-role`, { username, role });
+      const res = await axios.put(`${API}user/set-role`, { username, newRole, });
       return res.data;
     } catch (err) {
       console.error(

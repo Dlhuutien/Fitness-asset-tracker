@@ -65,6 +65,8 @@ import "echarts-liquidfill";
 import Particles from "react-tsparticles";
 import { loadFull } from "tsparticles";
 import { Toaster, toast } from "sonner";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import Status from "@/components/common/Status";
 
 /* ============================== Fake Data + Generators ============================== */
 const monthNames = [
@@ -150,7 +152,7 @@ function genPieStatus(range = "month") {
       : [60, 25, 15];
   return [
     { name: "Hoạt động", value: base[0] },
-    { name: "Ngừng khẩn cấp", value: base[1] },
+    { name: "Ngừng tạm thời", value: base[1] },
     { name: "Đang bảo trì", value: base[2] },
   ];
 }
@@ -211,7 +213,7 @@ function genActivities() {
       id: 3,
       time: "09:42",
       icon: <AlertTriangle className="w-4 h-4" />,
-      text: "Rowing #231 báo Ngừng khẩn cấp",
+      text: "Rowing #231 báo Ngừng tạm thời",
     },
     {
       id: 4,
@@ -277,6 +279,8 @@ function useAnimatedNumber(value, duration = 0.8) {
 
 /* ============================== ECharts options ============================== */
 function useLavaOption(percent) {
+  const color =
+    percent > 0.8 ? "#10b981" : percent > 0.5 ? "#facc15" : "#ef4444";
   return useMemo(
     () => ({
       series: [
@@ -284,15 +288,15 @@ function useLavaOption(percent) {
           type: "liquidFill",
           data: [percent, percent * 0.92, percent * 0.84],
           radius: "80%",
-          color: ["#ef4444", "#f97316", "#facc15"],
+          color: [color],
           backgroundStyle: { color: "transparent" },
           outline: {
             borderDistance: 0,
-            itemStyle: { borderWidth: 2, borderColor: "#ef4444" },
+            itemStyle: { borderWidth: 2, borderColor: color },
           },
           label: {
             fontSize: 18,
-            color: "#fff",
+            color: "#000000ff",
             formatter: () => `Hoạt động\n${Math.round(percent * 100)}%`,
           },
         },
@@ -306,6 +310,55 @@ function useLavaOption(percent) {
 export default function DashboardPage() {
   const [range, setRange] = useState("month"); // month | quarter | year
   const [tab, setTab] = useState("overview"); // overview | charts | maintenance | activity
+
+  const STATUS_MAP_VN = {
+    Active: "Hoạt động",
+    Inactive: "Ngưng sử dụng",
+    "Temporary Urgent": "Ngừng tạm thời",
+    "In Progress": "Đang bảo trì",
+    "In Stock": "Thiết bị trong kho",
+    Moving: "Đang vận chuyển",
+    Ready: "Bảo trì thành công",
+    Failed: "Bảo trì thất bại",
+  };
+
+  // 🎨 Bảng màu giống Status.jsx
+  const STATUS_COLOR_HEX = {
+    "Hoạt động": "#10b981",
+    "Ngưng sử dụng": "#9ca3af",
+    "Ngừng tạm thời": "#fbbf24",
+    "Thiết bị trong kho": "#3b82f6",
+    "Đang vận chuyển": "#6366f1",
+    "Đang bảo trì": "#f59e0b",
+    "Bảo trì thành công": "#22c55e",
+    "Bảo trì thất bại": "#ef4444",
+  };
+
+  // 🗓️ Xác định thời gian hiện hành
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1; // 1-12
+  const currentQuarter = Math.floor((currentMonth - 1) / 3) + 1;
+
+  // 📊 Gọi API dashboard theo thời gian thực
+  const {
+    statistics,
+    trend,
+    hierarchy,
+    statLoading,
+    trendLoading,
+    hierarchyLoading,
+  } = useDashboardData({
+    type: range,
+    year: currentYear,
+    month: range === "month" ? currentMonth : undefined,
+    quarter: range === "quarter" ? currentQuarter : undefined,
+  });
+
+  const readyCount = statistics?.summary?.equipmentStatusCount?.Ready || 0;
+  const totalEquipments = statistics?.summary?.totalEquipments || 1; // tránh chia 0
+  const readyRate = Math.round((readyCount / totalEquipments) * 100);
+
   const [collapse, setCollapse] = useState({
     charts: false,
     maintenance: false,
@@ -342,21 +395,11 @@ export default function DashboardPage() {
   const onlineDisplay = useAnimatedNumber(online);
 
   // gauge %
-  const [gauge, setGauge] = useState(0.72);
-  useEffect(() => {
-    const id = setInterval(
-      () =>
-        setGauge((v) =>
-          clamp(
-            Math.round((v + (Math.random() - 0.5) * 0.08) * 100) / 100,
-            0.35,
-            0.95
-          )
-        ),
-      6000
-    );
-    return () => clearInterval(id);
-  }, []);
+  // 🧮 Tính tỉ lệ thiết bị Active / tổng
+  const activeCount = statistics?.summary?.equipmentStatusCount?.Active || 0;
+  const gauge = Math.min(1, activeCount / totalEquipments);
+
+  // Tạo biểu đồ Lava
   const lavaOption = useLavaOption(gauge);
 
   // particles
@@ -376,16 +419,17 @@ export default function DashboardPage() {
   // toast demo
   const urgentCount = 6;
   useEffect(() => {
-    toast.warning("⚠️ Có 6 thiết bị đang Ngừng khẩn cấp!");
+    toast.warning("⚠️ Có 6 thiết bị đang Ngừng tạm thời!");
   }, []);
 
   // totals
   const totals = {
-    devices: range === "year" ? 1260 : range === "quarter" ? 345 : 120,
-    staff: 25,
-    vendors: 8,
-    revenue:
-      range === "year" ? "245M ₫" : range === "quarter" ? "63M ₫" : "21.5M ₫",
+    devices: statistics?.summary?.totalEquipments || 0,
+    staff: statistics?.summary?.totalStaff || 0,
+    vendors: statistics?.summary?.totalVendors || 0,
+    revenue: `${Math.round(
+      (statistics?.summary?.importCost || 0) / 1_000_000
+    )}M ₫`,
   };
 
   // notifications dropdown
@@ -430,7 +474,7 @@ export default function DashboardPage() {
     } = props;
     return (
       <g>
-        <text
+        {/* <text
           x={cx}
           y={cy - 4}
           textAnchor="middle"
@@ -439,8 +483,8 @@ export default function DashboardPage() {
           style={{ fontWeight: 700 }}
         >
           {payload.name}
-        </text>
-        <text
+        </text> */}
+        {/* <text
           x={cx}
           y={cy + 14}
           textAnchor="middle"
@@ -448,7 +492,7 @@ export default function DashboardPage() {
           style={{ fontSize: 12 }}
         >
           {value}
-        </text>
+        </text> */}
         <Sector // hiệu ứng scale nhẹ
           cx={cx}
           cy={cy}
@@ -597,52 +641,6 @@ export default function DashboardPage() {
             <Button className="bg-sky-600 hover:bg-sky-700 text-white flex items-center gap-2">
               <FileBarChart2 size={16} /> Xuất báo cáo
             </Button>
-
-            {/* Notifications */}
-            <div ref={notifRef} className="relative">
-              <button
-                onClick={() => setOpenNotif((v) => !v)}
-                className="relative w-10 h-10 rounded-full bg-white/70 dark:bg-white/10 border border-white/20 flex items-center justify-center hover:scale-105 transition"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 text-[10px] bg-rose-500 text-white w-5 h-5 rounded-full flex items-center justify-center shadow">
-                  3
-                </span>
-              </button>
-              <AnimatePresence>
-                {openNotif && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="absolute right-0 mt-2 w-80 rounded-xl bg-white dark:bg-[#1e1e1e] 
-                     border border-gray-200/60 dark:border-white/10 shadow-lg 
-                     overflow-hidden z-[999]"
-                  >
-                    <div className="p-3 text-sm font-semibold border-b border-gray-200/60 dark:border-white/10">
-                      Thông báo
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      <NotifItem
-                        icon="alert"
-                        text="5 thiết bị ngừng khẩn cấp"
-                        time="1 phút trước"
-                      />
-                      <NotifItem
-                        icon="user"
-                        text="Nhân viên B cập nhật chứng chỉ"
-                        time="15 phút trước"
-                      />
-                      <NotifItem
-                        icon="doc"
-                        text="Báo cáo tháng đã sẵn sàng"
-                        time="1 giờ trước"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
         </div>
       </motion.div>
@@ -653,7 +651,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-3">
             <AlertTriangle className="text-amber-500" />
             <p className="text-amber-800 dark:text-amber-200 text-sm">
-              Có <b>{urgentCount}</b> thiết bị đang <b>Ngừng khẩn cấp</b>. Vui
+              Có <b>{urgentCount}</b> thiết bị đang <b>Ngừng tạm thời</b>. Vui
               lòng kiểm tra sớm.
             </p>
           </div>
@@ -715,7 +713,7 @@ export default function DashboardPage() {
               />
               <GlassStat
                 title="Nhân viên"
-                value="25"
+                value={String(totals.staff)}
                 subtitle="+3 trong tháng này"
                 icon={Users}
                 color="from-blue-400/30 to-indigo-600/30"
@@ -723,7 +721,7 @@ export default function DashboardPage() {
               />
               <GlassStat
                 title="Nhà cung cấp"
-                value="8"
+                value={String(totals.vendors)}
                 subtitle="Ổn định"
                 icon={Truck}
                 color="from-indigo-400/30 to-purple-600/30"
@@ -765,7 +763,12 @@ export default function DashboardPage() {
                     <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
                         <Pie
-                          data={donut}
+                          data={Object.entries(
+                            statistics?.summary?.equipmentStatusCount || {}
+                          ).map(([key, value]) => ({
+                            name: STATUS_MAP_VN[key] || key,
+                            value,
+                          }))}
                           dataKey="value"
                           nameKey="name"
                           cx="50%"
@@ -773,30 +776,38 @@ export default function DashboardPage() {
                           innerRadius={64}
                           outerRadius={110}
                           label
-                          activeIndex={activePie} // ✅ UPGRADE
+                          activeIndex={activePie}
                           activeShape={renderActiveShape}
                           onMouseEnter={(_, idx) => setActivePie(idx)}
                         >
-                          {donut.map((e, i) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                          ))}
+                          {Object.entries(
+                            statistics?.summary?.equipmentStatusCount || {}
+                          ).map(([key], i) => {
+                            const vn = STATUS_MAP_VN[key] || key;
+                            const color =
+                              STATUS_COLOR_HEX[vn] || COLORS[i % COLORS.length];
+                            return <Cell key={i} fill={color} />;
+                          })}
                         </Pie>
                         <Legend />
                         <Tooltip
+                          wrapperStyle={{ zIndex: 9999 }}
                           contentStyle={{
-                            background: "#111827",
+                            background: "#ffffffff",
                             borderRadius: 8,
-                            color: "#fff",
+                            color: "#000000ff",
                             border: "none",
                           }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
+
+                  {/* Tổng thiết bị hiển thị giữa biểu đồ */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                        {totalPie}
+                        {statistics?.summary?.totalEquipments || 0}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         tổng thiết bị
@@ -1136,28 +1147,60 @@ export default function DashboardPage() {
                 </div>
               </ChartCard>
 
-              <ChartCard title="Tỷ lệ trạng thái (Donut)" collapsible>
-                <div className="max-h-[360px] overflow-y-auto rounded">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={donut}
-                        dataKey="value"
-                        nameKey="name"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={58}
-                        outerRadius={100}
-                        label
-                      >
-                        {donut.map((e, i) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Legend />
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
+              <ChartCard title="Tỷ lệ trạng thái thiết bị (Donut)" collapsible>
+                <div className="relative">
+                  <div className="max-h-[340px] overflow-y-auto rounded">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={Object.entries(
+                            statistics?.summary?.equipmentStatusCount || {}
+                          ).map(([name, value]) => ({
+                            name,
+                            value,
+                          }))}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={64}
+                          outerRadius={110}
+                          label
+                          activeIndex={activePie}
+                          activeShape={renderActiveShape}
+                          onMouseEnter={(_, idx) => setActivePie(idx)}
+                        >
+                          {Object.entries(
+                            statistics?.summary?.equipmentStatusCount || {}
+                          ).map((_, i) => (
+                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Legend />
+                        <Tooltip
+                          wrapperStyle={{ zIndex: 9999 }}
+                          contentStyle={{
+                            background: "#ffffffff",
+                            borderRadius: 8,
+                            color: "#000000ff",
+                            border: "none",
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Tổng thiết bị hiển thị giữa biểu đồ */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {statistics?.summary?.totalEquipments || 0}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        tổng thiết bị
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </ChartCard>
 
@@ -1171,8 +1214,8 @@ export default function DashboardPage() {
                       endAngle={0}
                       data={[
                         {
-                          name: "ready",
-                          value: Math.round((0.55 + gauge * 0.3) * 100),
+                          name: "Ready",
+                          value: readyRate,
                         },
                       ]}
                     >
@@ -1188,10 +1231,10 @@ export default function DashboardPage() {
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                        {Math.round((0.55 + gauge * 0.3) * 100)}%
+                        {readyRate}%
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        ready for operation
+                        Thiết bị sẵn sàng
                       </div>
                     </div>
                   </div>
@@ -1541,7 +1584,7 @@ function QuickActions({ onCelebrate }) {
       </button>
       <a
         href="/app/maintenance/urgent"
-        title="Bảo trì khẩn cấp"
+        title="Bảo trì tạm thời"
         className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-red-500 text-white flex items-center justify-center shadow-lg hover:shadow-amber-500/40 transition"
       >
         <Wrench className="w-6 h-6" />

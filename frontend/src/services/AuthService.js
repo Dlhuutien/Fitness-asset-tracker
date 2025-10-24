@@ -168,6 +168,35 @@ const AuthService = {
       throw err.response?.data || err;
     }
   },
+
+  /**
+   * 🔐 User tự đổi mật khẩu
+   * POST /user/change-password
+   * Body: { oldPassword, newPassword }
+   */
+  async changePassword(oldPassword, newPassword) {
+    try {
+      const auth = AuthService.getAuth();
+      if (!auth?.accessToken) throw new Error("Chưa đăng nhập");
+
+      const res = await axios.post(
+        `${API}user/change-password`,
+        { oldPassword, newPassword },
+        {
+          headers: {
+            Authorization: `Bearer ${auth.accessToken}`,
+          },
+        }
+      );
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi khi đổi mật khẩu:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
 };
 
 export default AuthService;
