@@ -11,10 +11,14 @@ const vendorService = {
       throw new Error("Vendor name is required");
     }
 
-    // Lấy tất cả vendor hiện có để kiểm tra trùng tên và mã
+    if (!vendorData.origin) {
+      throw new Error("Vendor origin (country) is required");
+    }
+
+    // 🔍 Lấy tất cả vendor hiện có để kiểm tra trùng tên và mã
     const existingVendors = await vendorRepository.findAll();
 
-    // Kiểm tra trùng tên (không phân biệt hoa thường)
+    // ⚠️ Kiểm tra trùng tên (không phân biệt hoa thường)
     const nameExists = existingVendors.some(
       (v) =>
         v.name.trim().toLowerCase() === vendorData.name.trim().toLowerCase()
@@ -23,20 +27,16 @@ const vendorService = {
       throw new Error(`Vendor name "${vendorData.name}" already exists`);
     }
 
-    // Sinh mã vendor ID tự động
+    // 🧠 Sinh mã vendor ID tự động (dựa trên tên)
     const existingCodes = existingVendors.map((v) => v.id);
     const newId = generateTypeCode(vendorData.name, existingCodes);
 
-    // Tạo vendor mới
+    // 🧾 Dữ liệu vendor đồng bộ với VendorModel
     const newVendor = await vendorRepository.create({
       id: newId,
       name: vendorData.name.trim(),
+      origin: vendorData.origin.trim().toUpperCase(),
       description: vendorData.description || null,
-      contact: vendorData.contact || null,
-      address: vendorData.address || null,
-      email: vendorData.email || null,
-      phone: vendorData.phone || null,
-      created_at: new Date().toISOString(),
     });
 
     return newVendor;

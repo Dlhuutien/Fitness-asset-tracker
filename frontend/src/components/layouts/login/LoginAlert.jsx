@@ -25,7 +25,7 @@ export function LoadingAlert({ open, setOpen }) {
               className="w-14 h-14 mx-auto mb-4 border-4 border-cyan-400 border-t-transparent rounded-full"
             />
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-xl text-white">Đang đăng nhập...</AlertDialogTitle>
+              <AlertDialogTitle className="text-xl text-white">Đang xử lý...</AlertDialogTitle>
               <AlertDialogDescription className="mt-2 text-gray-300">
                 Vui lòng chờ trong giây lát.
               </AlertDialogDescription>

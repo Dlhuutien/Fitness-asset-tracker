@@ -25,6 +25,9 @@ import {
   HeaderFilter,
   getUniqueValues,
 } from "@/components/common/ExcelTableTools";
+import CountrySelect from "@/components/common/CountrySelect";
+import countryList from "react-select-country-list";
+import Flag from "react-world-flags";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -42,6 +45,8 @@ export default function VendorPage() {
     description: "",
   });
   const [editMode, setEditMode] = useState(false);
+  const [saveMessage, setSaveMessage] = useState({ text: "", type: "" });
+  const [formError, setFormError] = useState("");
 
   // 🔍 Bộ lọc từng cột (Excel Filter)
   const [selectedName, setSelectedName] = useState([]);
@@ -111,6 +116,16 @@ export default function VendorPage() {
     currentPage * ITEMS_PER_PAGE
   );
 
+  // 🔹 Dùng thư viện react-select-country-list để tìm mã quốc gia
+  const getCountryCode = (countryName) => {
+    if (!countryName) return null;
+    const countries = countryList().getData();
+    const match = countries.find(
+      (c) => c.label.toLowerCase() === countryName.toLowerCase()
+    );
+    return match ? match.value : null;
+  };
+
   // ✏️ Form handlers
   const handleChange = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -119,28 +134,54 @@ export default function VendorPage() {
   const resetForm = () => {
     setForm({ id: "", name: "", origin: "", description: "" });
     setEditMode(false);
+    setSaveMessage({ text: "", type: "" });
   };
 
   const handleSubmit = async () => {
-    if (!form.name || !form.origin) {
-      toast.warning("⚠️ Vui lòng nhập đầy đủ các trường bắt buộc!");
+    if (!form.name.trim()) {
+      toast.warning("⚠️ Vui lòng nhập tên nhà cung cấp!");
+      setFormError("⚠️ Vui lòng nhập tên nhà cung cấp!");
       return;
     }
+    if (!form.origin) {
+      toast.warning("⚠️ Vui lòng chọn quốc gia!");
+      setFormError("⚠️ Vui lòng chọn quốc gia!");
+      return;
+    }
+    setFormError("");
 
     try {
       setLoading(true);
       if (editMode) {
-        await VendorService.update(form.id, form);
+        const payload = {
+          name: form.name.trim(),
+          origin: form.origin.trim().toUpperCase(),
+          description: form.description || null,
+        };
+        await VendorService.update(form.id, payload);
         toast.success(`✅ Đã cập nhật nhà cung cấp "${form.name}"`);
+        setSaveMessage({
+          text: "Đã cập nhật nhà cung cấp thành công!",
+          type: "success",
+        });
       } else {
-        // ✅ Bỏ ID vì backend tự generate
-        const { id, ...payload } = form;
+        const payload = {
+          name: form.name.trim(),
+          origin: form.origin.trim().toUpperCase(),
+          description: form.description || null,
+        };
         await VendorService.create(payload);
         toast.success(`✅ Đã thêm nhà cung cấp "${form.name}"`);
+        setSaveMessage({
+          text: "Đã thêm nhà cung cấp mới thành công!",
+          type: "success",
+        });
       }
       const data = await VendorService.getAll();
       setVendors(data);
       resetForm();
+      // Tự động ẩn thông báo sau 3 giây
+      setTimeout(() => setSaveMessage({ text: "", type: "" }), 3000);
     } catch (err) {
       console.error("❌ Lỗi khi lưu vendor:", err);
       toast.error(
@@ -148,6 +189,10 @@ export default function VendorPage() {
           err.response?.data?.message || err.message || "Không thể lưu vendor"
         }`
       );
+      setSaveMessage({
+        text: err.response?.data?.message || "Không thể lưu nhà cung cấp!",
+        type: "error",
+      });
     } finally {
       setLoading(false);
     }
@@ -195,13 +240,9 @@ export default function VendorPage() {
               onChange={(e) => handleChange("name", e.target.value)}
               className="dark:bg-gray-700 dark:text-white"
             />
-            <Input
-              placeholder="Quốc gia"
+            <CountrySelect
               value={form.origin}
-              onChange={(e) =>
-                handleChange("origin", e.target.value.toUpperCase())
-              }
-              className="dark:bg-gray-700 dark:text-white"
+              onChange={(val) => handleChange("origin", val)}
             />
             <Input
               placeholder="Mô tả ngắn (tùy chọn)"
@@ -241,6 +282,24 @@ export default function VendorPage() {
               )}
             </Button>
           </div>
+          {saveMessage.text && (
+            <p
+              className={`text-sm mt-3 transition ${
+                saveMessage.type === "success"
+                  ? "text-emerald-600"
+                  : saveMessage.type === "error"
+                  ? "text-red-500"
+                  : "text-amber-500 animate-pulse"
+              }`}
+            >
+              {saveMessage.text}
+            </p>
+          )}
+          {formError && (
+            <p className="text-sm text-red-500 mt-2 animate-pulse">
+              {formError}
+            </p>
+          )}
         </div>
 
         {/* Bộ lọc */}
@@ -381,8 +440,19 @@ export default function VendorPage() {
                       {visibleColumns.origin && (
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Globe2 className="w-4 h-4 text-gray-500" />
-                            {v.origin}
+                            {v.origin ? (
+                              <>
+                                <Flag
+                                  code={getCountryCode(v.origin)}
+                                  className="w-6 h-4 rounded-sm border border-gray-300 dark:border-gray-600 shadow-sm"
+                                />
+                                <span className="font-medium">{v.origin}</span>
+                              </>
+                            ) : (
+                              <span className="text-gray-400 italic">
+                                Chưa có
+                              </span>
+                            )}
                           </div>
                         </TableCell>
                       )}
