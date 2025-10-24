@@ -197,6 +197,48 @@ const AuthService = {
       throw err.response?.data || err;
     }
   },
+  /**
+   * 🚨 Gửi mã xác nhận đặt lại mật khẩu
+   * POST /auth/forgotPassword
+   */
+  async forgotPassword(username, email) {
+    try {
+      const res = await axios.post(`${API}auth/forgotPassword`, {
+        username,
+        email,
+      });
+      console.log("✅ Mã xác nhận đã được gửi:", res.data);
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi gửi mã quên mật khẩu:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * 🔑 Xác nhận mã quên mật khẩu và đặt lại mật khẩu mới
+   * POST /auth/confirmForgotPassword
+   */
+  async confirmForgotPassword(username, code, newPassword) {
+    try {
+      const res = await axios.post(`${API}auth/confirmForgotPassword`, {
+        username,
+        code,
+        newPassword,
+      });
+      console.log("✅ Đặt lại mật khẩu thành công:", res.data);
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi xác nhận mã quên mật khẩu:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
 };
 
 export default AuthService;

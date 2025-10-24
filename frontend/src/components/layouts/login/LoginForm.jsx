@@ -22,6 +22,7 @@ import {
   ServerErrorAlert,
   DisabledUserAlert,
 } from "./LoginAlert";
+import { toast } from "sonner";
 
 // ✅ Schema cho đăng nhập
 const loginSchema = z.object({
@@ -49,7 +50,20 @@ export default function LoginForm() {
   const [shakeKey, setShakeKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState(null);
-  const [newUser, setNewUser] = useState(false);
+  const [newUser, setNewUser] = useState(null);
+  const [forgotStep, setForgotStep] = useState(1); // 1: nhập user+email, 2: nhập code+pass
+  const [view, setView] = useState("login"); // "login" | "newpass" | "forgot"
+  const [forgotForm, setForgotForm] = useState({
+    username: "",
+    email: "",
+    code: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [forgotError, setForgotError] = useState("");
+  const [showForgotNew, setShowForgotNew] = useState(false);
+  const [showForgotConfirm, setShowForgotConfirm] = useState(false);
+
   const navigate = useNavigate();
 
   const {
@@ -69,9 +83,11 @@ export default function LoginForm() {
     try {
       setLoading(true);
       const data = await AuthService.signin(values.username, values.password);
+
       if (data.mode === "new_password_required") {
         console.log("⚠️ Cần đổi mật khẩu lần đầu");
-        setNewUser(true);
+        // 👉 Lưu session và username để dùng khi gọi firstLogin
+        setNewUser({ username: data.username, session: data.session });
         reset();
       } else {
         setAlert("success");
@@ -103,19 +119,92 @@ export default function LoginForm() {
   const onSubmitNewPassword = async (values) => {
     try {
       setLoading(true);
-      const result = await AuthService.confirmNewPassword(
-        "username",
-        values.newPassword
+      const result = await AuthService.firstLogin(
+        newUser.username,
+        values.newPassword,
+        newUser.session
       );
-      console.log("✅ Đổi mật khẩu thành công:", result);
+      console.log("✅ Đổi mật khẩu lần đầu thành công:", result);
+
       setAlert("success");
       setTimeout(() => {
-        setNewUser(false);
-        navigate("/app");
-      }, 1500);
+        toast.success("Vui lòng đăng nhập lại bằng mật khẩu mới.");
+        setNewUser(null);
+        setView("login"); // quay lại form login
+      }, 1800);
     } catch (err) {
       console.error("❌ Lỗi đổi mật khẩu:", err);
       setAlert("error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Gửi mã xác nhận
+  const handleSendForgotCode = async () => {
+    setForgotError(""); // clear lỗi cũ
+
+    if (!forgotForm.username || !forgotForm.email) {
+      setForgotError("Vui lòng nhập đầy đủ Username và Email");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await AuthService.forgotPassword(
+        forgotForm.username,
+        forgotForm.email
+      );
+      toast.success(res.message || "Đã gửi mã xác nhận tới email");
+      console.log("✅ forgotPassword response:", res);
+      setForgotStep(2);
+    } catch (err) {
+      console.error("❌ Lỗi gửi mã quên mật khẩu:", err);
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        "Không gửi được mã. Kiểm tra lại thông tin.";
+      setForgotError(message); // ⚡ gán vào state để render ra màn hình
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Xác nhận mã và đổi mật khẩu
+  const handleConfirmForgot = async () => {
+    if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+      toast.error("Mật khẩu xác nhận không khớp");
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await AuthService.confirmForgotPassword(
+        forgotForm.username,
+        forgotForm.code,
+        forgotForm.newPassword
+      );
+      toast.success(res.message || "Đặt lại mật khẩu thành công!");
+      console.log("✅ confirmForgotPassword response:", res);
+      setView("login");
+      setForgotStep(1);
+      setForgotForm({
+        username: "",
+        email: "",
+        code: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (err) {
+      console.error("❌ Lỗi xác nhận mã:", err);
+
+      const message =
+        err?.message ||
+        err?.response?.data?.message ||
+        "Mã xác nhận không hợp lệ, vui lòng thử lại.";
+
+      setForgotError(message); // ⚡ Gán lỗi để hiển thị ra FE
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -143,7 +232,8 @@ export default function LoginForm() {
 
         {/* Hiệu ứng chuyển form */}
         <AnimatePresence mode="wait">
-          {!newUser ? (
+          {/* === LOGIN FORM === */}
+          {view === "login" && !newUser && (
             <motion.form
               key="login-form"
               onSubmit={handleSubmit(onSubmit)}
@@ -152,7 +242,7 @@ export default function LoginForm() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.35, ease: "easeInOut" }}
             >
-              <CardContent className="space-y-8">
+              <CardContent className="space-y-8 text-black dark:text-white">
                 {/* Username */}
                 <motion.div
                   key={`username-${shakeKey}`}
@@ -212,16 +302,19 @@ export default function LoginForm() {
               </CardContent>
 
               <CardFooter className="flex justify-between text-sm text-gray-400 mt-2">
-                <label className="flex items-center gap-2">
-                  <input type="checkbox" className="accent-cyan-400" /> Lưu đăng
-                  nhập
-                </label>
-                <a href="#" className="hover:text-cyan-400">
+                <a
+                  href="#"
+                  onClick={() => setView("forgot")}
+                  className="hover:text-cyan-400"
+                >
                   Quên mật khẩu?
                 </a>
               </CardFooter>
             </motion.form>
-          ) : (
+          )}
+
+          {/* === NEW PASSWORD (lần đầu đăng nhập) === */}
+          {newUser && view === "login" && (
             <motion.form
               key="newpass-form"
               onSubmit={handleSubmitNew(onSubmitNewPassword)}
@@ -230,7 +323,7 @@ export default function LoginForm() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.35, ease: "easeInOut" }}
             >
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-6 text-black dark:text-white">
                 {/* Mật khẩu mới */}
                 <div className="relative">
                   <Input
@@ -283,6 +376,129 @@ export default function LoginForm() {
                 </Button>
               </CardContent>
             </motion.form>
+          )}
+
+          {/* === FORGOT PASSWORD === */}
+          {view === "forgot" && (
+            <motion.div
+              key="forgot-form"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              className="space-y-6 text-black dark:text-white"
+            >
+              {forgotStep === 1 ? (
+                <>
+                  <Input
+                    placeholder="Username"
+                    value={forgotForm.username}
+                    onChange={(e) =>
+                      setForgotForm((f) => ({ ...f, username: e.target.value }))
+                    }
+                  />
+                  <Input
+                    placeholder="Email"
+                    type="email"
+                    value={forgotForm.email}
+                    onChange={(e) =>
+                      setForgotForm((f) => ({ ...f, email: e.target.value }))
+                    }
+                  />
+                  <Button
+                    onClick={handleSendForgotCode}
+                    className="w-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-blue-500"
+                  >
+                    {loading ? "Đang gửi..." : "Gửi mã xác nhận"}
+                  </Button>
+                  {forgotError && (
+                    <p className="text-red-500 text-sm text-center">
+                      {forgotError}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setView("login")}
+                    className="text-sm text-gray-500 hover:text-cyan-400"
+                  >
+                    ← Quay lại đăng nhập
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Mã xác nhận"
+                    value={forgotForm.code}
+                    onChange={(e) =>
+                      setForgotForm((f) => ({ ...f, code: e.target.value }))
+                    }
+                  />
+                  {/* Mật khẩu mới */}
+                  <div className="relative">
+                    <Input
+                      placeholder="Mật khẩu mới"
+                      type={showForgotNew ? "text" : "password"}
+                      value={forgotForm.newPassword}
+                      onChange={(e) =>
+                        setForgotForm((f) => ({
+                          ...f,
+                          newPassword: e.target.value,
+                        }))
+                      }
+                      className="!pr-14"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotNew(!showForgotNew)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition"
+                    >
+                      {showForgotNew ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+
+                  {/* Xác nhận mật khẩu mới */}
+                  <div className="relative">
+                    <Input
+                      placeholder="Xác nhận mật khẩu mới"
+                      type={showForgotConfirm ? "text" : "password"}
+                      value={forgotForm.confirmPassword}
+                      onChange={(e) =>
+                        setForgotForm((f) => ({
+                          ...f,
+                          confirmPassword: e.target.value,
+                        }))
+                      }
+                      className="!pr-14"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowForgotConfirm(!showForgotConfirm)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-cyan-400 transition"
+                    >
+                      {showForgotConfirm ? "🙈" : "👁️"}
+                    </button>
+                  </div>
+                  <Button
+                    onClick={handleConfirmForgot}
+                    className="w-full bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-500"
+                  >
+                    {loading ? "Đang xác nhận..." : "Xác nhận đặt lại mật khẩu"}
+                  </Button>
+                  {forgotError && (
+                    <p className="text-red-500 text-sm text-center mt-2">
+                      {forgotError}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep(1)}
+                    className="text-sm text-gray-500 hover:text-cyan-400"
+                  >
+                    ← Nhập lại Username & Email
+                  </button>
+                </>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
       </Card>

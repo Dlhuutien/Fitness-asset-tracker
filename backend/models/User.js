@@ -286,7 +286,7 @@ const UserModel = {
         Username: username,
         UserAttributes: [
           { Name: "email", Value: email },
-          { Name: "email_verified", Value: "false" },
+          { Name: "email_verified", Value: "true" },
           { Name: "name", Value: extra.name || "" },
           { Name: "gender", Value: extra.gender || "" },
           { Name: "phone_number", Value: extra.phone_number || "" },
