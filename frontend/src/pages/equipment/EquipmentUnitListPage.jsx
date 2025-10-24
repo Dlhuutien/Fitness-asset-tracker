@@ -1,9 +1,8 @@
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import { exportToExcel } from "@/services/Files";
-// import { getStatusVN } from "@/components/common/ExcelTableTools";
-
 import {
   Table,
   TableBody,
@@ -31,13 +30,13 @@ import Status from "@/components/common/Status";
 import BranchService from "@/services/branchService";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 import { useNavigate } from "react-router-dom";
-import { ArrowDownUp } from "lucide-react";
+import { ArrowDownUp, Download } from "lucide-react";
 import useAuthRole from "@/hooks/useAuthRole";
-import Branch from "@/components/common/Branch";
-import { Upload, Download, FileDown } from "lucide-react";
+
 const ITEMS_PER_PAGE = 8;
 
 export default function EquipmentUnitListSection() {
+  // 🧠 State & hooks
   const [activeGroup, setActiveGroup] = useState("all");
   const [activeBranch, setActiveBranch] = useState("all");
   const [activeStatus, setActiveStatus] = useState("all");
@@ -49,13 +48,14 @@ export default function EquipmentUnitListSection() {
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuthRole();
-  const [importSummary, setImportSummary] = useState(null);
+
+  // ⚙️ Dữ liệu thiết bị
   const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
     useEquipmentData();
   const groups = [{ id: "all", name: "Tất cả nhóm" }, ...(cats || [])];
   const units = eqUnits || [];
 
-  // ===== Lấy danh sách chi nhánh =====
+  // 🏢 Lấy danh sách chi nhánh
   useEffect(() => {
     (async () => {
       try {
@@ -67,13 +67,12 @@ export default function EquipmentUnitListSection() {
     })();
   }, []);
 
-  // ===== Theo dõi thiết bị NEW (và nhớ vào localStorage) =====
+  // ✨ Theo dõi thiết bị mới (highlight NEW)
   const seenIdsRef = useRef(new Set());
   const initializedRef = useRef(false);
 
   useEffect(() => {
     if (!Array.isArray(units) || units.length === 0) return;
-
     const LS_KEY = "fitx_seen_unit_ids";
 
     if (!initializedRef.current) {
@@ -92,7 +91,7 @@ export default function EquipmentUnitListSection() {
           .filter((id) => !seenIdsRef.current.has(id));
 
         if (newOnes.length > 0) {
-          setNewIds((prev) => new Set([...prev, ...newOnes]));
+          setNewIds(new Set([...newOnes]));
           newOnes.forEach((id) => seenIdsRef.current.add(id));
           localStorage.setItem(LS_KEY, JSON.stringify([...seenIdsRef.current]));
         }
@@ -100,7 +99,6 @@ export default function EquipmentUnitListSection() {
         seenIdsRef.current = new Set(units.map((u) => u.id));
         localStorage.setItem(LS_KEY, JSON.stringify([...seenIdsRef.current]));
       }
-
       initializedRef.current = true;
       return;
     }
@@ -113,7 +111,6 @@ export default function EquipmentUnitListSection() {
       setNewIds((prev) => new Set([...prev, ...newOnes]));
       newOnes.forEach((id) => prev.add(id));
       localStorage.setItem(LS_KEY, JSON.stringify([...prev]));
-      console.log("📦 fitx-units-updated fired:", newOnes);
       window.dispatchEvent(
         new CustomEvent("fitx-units-updated", { detail: { newIds: newOnes } })
       );
@@ -129,7 +126,7 @@ export default function EquipmentUnitListSection() {
     });
   };
 
-  // ===== Hiển thị cột & Filter =====
+  // ⚙️ Hiển thị cột & Filter
   const [visibleColumns, setVisibleColumns] = useState({
     id: true,
     image: true,
@@ -137,7 +134,6 @@ export default function EquipmentUnitListSection() {
     main: true,
     type: true,
     status: true,
-    vendor: true,
     description: true,
     created_at: true,
   });
@@ -149,7 +145,6 @@ export default function EquipmentUnitListSection() {
     type: [],
     status: [],
     description: [],
-    vendor: [],
   });
 
   const controller = useGlobalFilterController();
@@ -160,46 +155,42 @@ export default function EquipmentUnitListSection() {
       name: getUniqueValues(units, (u) => u.equipment?.name),
       main: getUniqueValues(units, (u) => u.equipment?.main_name),
       type: getUniqueValues(units, (u) => u.equipment?.type_name),
-      vendor: getUniqueValues(units, (u) => u.equipment?.vendor_name),
       description: getUniqueValues(units, (u) => u.equipment?.description),
       status: getUniqueValues(units, (u) => getStatusVN(u.status)),
     }),
     [units]
   );
 
-  // ===== Lọc & Sắp xếp =====
+  // 🔍 Lọc & Sắp xếp
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (units || [])
       .filter((u) => {
-        const name = u.equipment?.name?.trim() || "";
-        const main = u.equipment?.main_name?.trim() || "";
-        const type = u.equipment?.type_name?.trim() || "";
-        const vendor = u.equipment?.vendor_name?.trim() || "";
-        const id = u.id?.trim() || "";
+        const name = u.equipment?.name?.toLowerCase() || "";
+        const main = u.equipment?.main_name?.toLowerCase() || "";
+        const type = u.equipment?.type_name?.toLowerCase() || "";
+        const id = u.id?.toLowerCase() || "";
         const statusVN = getStatusVN(u.status);
         const branchId = u.branch_id || "";
 
         const matchSearch =
           !q ||
-          name.toLowerCase().includes(q) ||
-          vendor.toLowerCase().includes(q) ||
-          type.toLowerCase().includes(q) ||
-          id.toLowerCase().includes(q);
+          name.includes(q) ||
+          type.includes(q) ||
+          id.includes(q) ||
+          statusVN.includes(q);
 
         const matchGroup = activeGroup === "all" || main === activeGroup;
         const matchBranch = activeBranch === "all" || branchId === activeBranch;
         const matchStatus = activeStatus === "all" || statusVN === activeStatus;
 
         const matchColumn = {
-          id: filters.id.length === 0 || filters.id.includes(id),
-          name: filters.name.length === 0 || filters.name.includes(name),
-          main: filters.main.length === 0 || filters.main.includes(main),
-          type: filters.type.length === 0 || filters.type.includes(type),
+          id: filters.id.length === 0 || filters.id.includes(u.id),
+          name: filters.name.length === 0 || filters.name.includes(u.equipment?.name),
+          main: filters.main.length === 0 || filters.main.includes(u.equipment?.main_name),
+          type: filters.type.length === 0 || filters.type.includes(u.equipment?.type_name),
           status:
             filters.status.length === 0 || filters.status.includes(statusVN),
-          vendor:
-            filters.vendor.length === 0 || filters.vendor.includes(vendor),
         };
 
         return (
@@ -225,7 +216,7 @@ export default function EquipmentUnitListSection() {
     sortNewestFirst,
   ]);
 
-  // ===== Phân trang =====
+  // 📄 Phân trang
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const currentData = filtered.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
@@ -241,163 +232,122 @@ export default function EquipmentUnitListSection() {
 
   return (
     <div className="p-4 space-y-4 font-jakarta">
-      <style>{`
-        @keyframes rowPulse {
-          0% { background-color: rgba(16,185,129,0.15); }
-          50% { background-color: rgba(16,185,129,0.28); }
-          100% { background-color: rgba(16,185,129,0.15); }
+{/* 🧩 Toolbar */}
+<div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+  <div className="flex flex-wrap items-center gap-2">
+    {/* 🏷️ Tiêu đề + Tìm kiếm */}
+    <div className="flex items-center gap-2">
+      <h2 className="text-base md:text-lg font-semibold text-emerald-600 mr-2">
+        Danh sách chi tiết từng thiết bị
+      </h2>
+
+      <Input
+        placeholder="Tìm kiếm..."
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setCurrentPage(1);
+        }}
+        className="pl-8 h-9 w-64 border-gray-300 dark:border-gray-700 text-sm"
+      />
+    </div>
+
+    {/* 🏢 Chi nhánh (nếu super admin) */}
+    {isSuperAdmin && (
+      <Select
+        onValueChange={(v) => {
+          setActiveBranch(v);
+          setCurrentPage(1);
+        }}
+        defaultValue="all"
+      >
+        <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+          <SelectValue placeholder="Chi nhánh" />
+        </SelectTrigger>
+        <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+          <SelectItem value="all" className="text-sm">
+            Tất cả chi nhánh
+          </SelectItem>
+          {branches.map((b) => (
+            <SelectItem key={b.id} value={b.id} className="text-sm">
+              {b.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )}
+
+    {/* 🔽 Sắp xếp */}
+    <Button
+      onClick={() => setSortNewestFirst((p) => !p)}
+      className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
+    >
+      <ArrowDownUp size={16} />
+      {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
+    </Button>
+
+    {/* 📦 Export Excel (đưa kế nút sắp xếp) */}
+    <Button
+      onClick={() => {
+        if (!filtered || filtered.length === 0) {
+          toast.warning("⚠️ Không có dữ liệu để xuất!");
+          return;
         }
-        .animate-rowPulse {
-          animation: rowPulse 1.2s ease-in-out infinite;
-        }
-      `}</style>
 
-      {/* ==== Toolbar ==== */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <Input
-            placeholder="🔍 Tìm kiếm"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-9 w-52 border-gray-300 dark:border-gray-700 text-sm"
-          />
+        const data = filtered.map((u) => ({
+          ID: u.id,
+          "Tên thiết bị": u.equipment?.name,
+          Nhóm: u.equipment?.main_name,
+          Loại: u.equipment?.type_name,
+          "Trạng thái": getStatusVN(u.status),
+          "Mô tả": u.equipment?.description || "",
+          "Ngày nhập": new Date(u.created_at).toLocaleDateString("vi-VN"),
+        }));
 
-          {/* ... Các Select cũ ... */}
-          {/* Nhóm */}
-          <Select
-            onValueChange={(v) => {
-              setActiveGroup(v);
-              setCurrentPage(1);
-            }}
-            defaultValue="all"
-          >
-            <SelectTrigger className="h-9 w-36 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-              <SelectValue placeholder="Nhóm" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-              {groups.map((g) => (
-                <SelectItem
-                  key={g.id}
-                  value={g.id === "all" ? "all" : g.name}
-                  className="text-sm"
-                >
-                  {g.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        exportToExcel(data, "Danh_sach_thiet_bi");
+        toast.success(`✅ Đã xuất ${data.length} bản ghi ra Excel!`);
+      }}
+      className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 hover:-translate-y-[1px] transition-all duration-200"
+    >
+      <Download className="w-4 h-4" />
+      Export Excel
+    </Button>
+  </div>
 
-          {/* Chi nhánh — chỉ hiển thị nếu là super-admin */}
-          {isSuperAdmin && (
-            <Select
-              onValueChange={(v) => {
-                setActiveBranch(v);
-                setCurrentPage(1);
-              }}
-              defaultValue="all"
-            >
-              <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-                <SelectValue placeholder="Chi nhánh" />
-              </SelectTrigger>
-              <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-                <SelectItem value="all" className="text-sm">
-                  Tất cả chi nhánh
-                </SelectItem>
-                {branches.map((b) => (
-                  <SelectItem key={b.id} value={b.id} className="text-sm">
-                    {b.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+  {/* 📥 Nút Nhập thiết bị + Hiển thị cột */}
+  <div className="flex items-center gap-3">
+    <Button
+      onClick={() => {
+        // 🔥 TODO: mở modal nhập file Excel (import)
+        toast.info("🧩 Tính năng nhập thiết bị sắp ra mắt!");
+      }}
+      className="flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium rounded-lg shadow hover:opacity-90 hover:-translate-y-[1px] transition-all"
+    >
+      📥 Nhập thiết bị
+    </Button>
 
-          {/* Trạng thái */}
-          <Select
-            onValueChange={(v) => {
-              setActiveStatus(v);
-              setCurrentPage(1);
-            }}
-            defaultValue="all"
-          >
-            <SelectTrigger className="h-9 w-48 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-              <SelectValue placeholder="Tất cả trạng thái" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-              <SelectItem value="all" className="text-sm">
-                Tất cả trạng thái
-              </SelectItem>
-              {uniqueValues.status.map((s) => (
-                <SelectItem key={s} value={s} className="text-sm">
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <ColumnVisibilityButton
+      visibleColumns={visibleColumns}
+      setVisibleColumns={setVisibleColumns}
+      labels={{
+        id: "Mã định danh thiết bị",
+        image: "Hình ảnh",
+        name: "Tên thiết bị",
+        main: "Nhóm",
+        type: "Loại",
+        status: "Trạng thái",
+        description: "Mô tả",
+        created_at: "Ngày nhập",
+      }}
+    />
+  </div>
+</div>
 
-          <Button
-            onClick={() => setSortNewestFirst((p) => !p)}
-            className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
-          >
-            <ArrowDownUp size={16} />
-            {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
-          </Button>
-        </div>
 
-        {/* ==== Export Excel + Hiển thị cột ==== */}
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={() => {
-              if (!filtered || filtered.length === 0) {
-                toast.warning("⚠️ Không có dữ liệu để xuất!");
-                return;
-              }
-
-              const data = filtered.map((u) => ({
-                ID: u.id,
-                "Tên thiết bị": u.equipment?.name,
-                Nhóm: u.equipment?.main_name,
-                Loại: u.equipment?.type_name,
-                "Trạng thái": getStatusVN(u.status),
-                "Nhà cung cấp": u.equipment?.vendor_name,
-                "Mô tả": u.equipment?.description || "",
-                "Ngày nhập": new Date(u.created_at).toLocaleDateString("vi-VN"),
-              }));
-
-              exportToExcel(data, "Danh_sach_thiet_bi");
-              toast.success(`✅ Đã xuất ${data.length} bản ghi ra Excel!`);
-            }}
-            className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 hover:-translate-y-[1px] transition-all duration-200"
-          >
-            <Download className="w-4 h-4" />
-            Export Excel
-          </Button>
-
-          <ColumnVisibilityButton
-            visibleColumns={visibleColumns}
-            setVisibleColumns={setVisibleColumns}
-            labels={{
-              id: "Mã định danh thiết bị",
-              image: "Hình ảnh",
-              name: "Tên thiết bị",
-              main: "Nhóm",
-              type: "Loại",
-              status: "Trạng thái",
-              vendor: "Nhà cung cấp",
-              description: "Mô tả",
-              created_at: "Ngày nhập",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* ==== Bảng dữ liệu ==== */}
+      {/* 📊 Bảng dữ liệu */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
-          <Table className=" border border-gray-200 dark:border-gray-700">
+          <Table className="border border-gray-200 dark:border-gray-700">
             <TableHeader>
               <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
                 <TableHead className="text-center border dark:border-gray-600">
@@ -408,7 +358,7 @@ export default function EquipmentUnitListSection() {
                   <TableHead className="border dark:border-gray-600">
                     <HeaderFilter
                       selfKey="id"
-                      label="Mã thiết bị"
+                      label="Mã định danh thiết bị"
                       values={uniqueValues.id}
                       selected={filters.id}
                       onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
@@ -469,24 +419,14 @@ export default function EquipmentUnitListSection() {
                       label="Trạng thái"
                       values={uniqueValues.status}
                       selected={filters.status}
-                      onChange={(v) => setFilters((p) => ({ ...p, status: v }))}
+                      onChange={(v) =>
+                        setFilters((p) => ({ ...p, status: v }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
                 )}
 
-                {visibleColumns.vendor && (
-                  <TableHead className="border dark:border-gray-600">
-                    <HeaderFilter
-                      selfKey="vendor"
-                      label="Nhà cung cấp"
-                      values={uniqueValues.vendor}
-                      selected={filters.vendor}
-                      onChange={(v) => setFilters((p) => ({ ...p, vendor: v }))}
-                      controller={controller}
-                    />
-                  </TableHead>
-                )}
                 {visibleColumns.description && (
                   <TableHead className="border dark:border-gray-600">
                     Mô tả
@@ -511,7 +451,7 @@ export default function EquipmentUnitListSection() {
                     onClick={() => navigate(`/app/equipment/${row.id}`)}
                     className={`text-sm transition cursor-pointer ${
                       isNew
-                        ? "animate-rowPulse"
+                        ? "bg-emerald-50 dark:bg-emerald-800/30 animate-pulse"
                         : "hover:bg-gray-50 dark:hover:bg-gray-700"
                     }`}
                   >
@@ -542,26 +482,16 @@ export default function EquipmentUnitListSection() {
 
                     {visibleColumns.name && (
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`font-semibold ${
-                              row.branch_id === "GV"
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : row.branch_id === "Q3"
-                                ? "text-blue-600 dark:text-blue-400"
-                                : row.branch_id === "G3"
-                                ? "text-orange-600 dark:text-orange-400"
-                                : "text-gray-800 dark:text-gray-200"
-                            }`}
-                          >
-                            {row.equipment?.name}
-                          </span>
-                        </div>
+                        <span className="font-semibold text-gray-800 dark:text-gray-100">
+                          {row.equipment?.name}
+                        </span>
                       </TableCell>
                     )}
+
                     {visibleColumns.main && (
                       <TableCell>{row.equipment?.main_name}</TableCell>
                     )}
+
                     {visibleColumns.type && (
                       <TableCell>{row.equipment?.type_name}</TableCell>
                     )}
@@ -572,9 +502,6 @@ export default function EquipmentUnitListSection() {
                       </TableCell>
                     )}
 
-                    {visibleColumns.vendor && (
-                      <TableCell>{row.equipment?.vendor_name}</TableCell>
-                    )}
                     {visibleColumns.description && (
                       <TableCell>
                         <span className="line-clamp-2 text-gray-700 dark:text-gray-300">
@@ -595,7 +522,7 @@ export default function EquipmentUnitListSection() {
           </Table>
         </div>
 
-        {/* ===== Pagination ===== */}
+        {/* 📦 Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
           <div className="flex items-center gap-2 text-sm">
             <span className="dark:text-gray-200">Đi đến:</span>

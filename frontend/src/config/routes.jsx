@@ -2,44 +2,49 @@ import { Navigate } from "react-router-dom";
 import DashboardLayout from "@/components/layouts/dashboard/DashboardLayout";
 import PageTransition from "@/components/common/PageTransition";
 
-// Pages
-import DashboardPage from "@/pages/DashboardPage";
+// 🧩 Auth
 import LoginPage from "@/pages/LoginPage";
 
-// Equipment
-import EquipmentAddGroupPage from "@/pages/equipment/EquipmentAddCardPage";
-import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
-import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
-import EquipmentProfilePage from "@/pages/equipment/EquipmentUnitProfilePage";
-import EquipmentSpecsPage from "@/pages/equipment/EquipmentProfilePage";
-import TransferEquipmentPage from "@/pages/transfer/TransferEquipmentPage";
-import EquipmentDisposalPage from "@/pages/disposal/EquipmentDisposalPage";
+// 🏠 Dashboard
+import DashboardPage from "@/pages/DashboardPage";
 
-// Staff
+// 🏋️ Equipment
+import EquipmentGroupPage from "@/pages/equipment/EquipmentGroupPage";
+import EquipmentTypePage from "@/pages/equipment/EquipmentTypePage";
+import EquipmentSectionPage from "@/pages/equipment/EquipmentSectionPage";
+import EquipmentUnitListPage from "@/pages/equipment/EquipmentUnitListPage";
+import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
+import EquipmentProfilePage from "@/pages/equipment/EquipmentProfilePage";
+import EquipmentUnitProfilePage from "@/pages/equipment/EquipmentUnitDetailPage";
+import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
+import EquipmentDisposalPage from "@/pages/disposal/EquipmentDisposalPage";
+import TransferEquipmentPage from "@/pages/transfer/TransferEquipmentPage";
+
+// 🧰 Maintenance
+import MaintenancePage from "@/pages/maintenance/MaintenancePage";
+
+// 🧾 Invoice
+import InvoicePage from "@/pages/invoice/InvoicePage";
+
+// 🏭 Vendor
+import VendorPage from "@/pages/vendor/VendorPage";
+
+// 👥 Staff
 import StaffPage from "@/pages/staff/StaffPage";
 import StaffProfile from "@/pages/staff/StaffProfile";
 import AddStaffPage from "@/pages/staff/AddStaffPage";
 
-// Vendor
-import VendorPage from "@/pages/vendor/VendorPage";
-
-// Invoice
-import InvoicePage from "@/pages/invoice/InvoicePage";
-
-// Maintenance
-import MaintenancePage from "@/pages/maintenance/MaintenancePage";
-
-// Profile user
-import UserProfile from "@/pages/userProfile/UserProfile";
-
-//Branch
+// 🏢 Branch
 import BranchPage from "@/pages/branch/branchListPage";
 
+// 👤 User Profile
+import UserProfile from "@/pages/userProfile/UserProfile";
+
+// 🔔 Notification
 import NotificationScreen from "@/pages/NotificationScreen";
-import EquipmentDirectoryPage from "@/pages/equipment/EquipmentDirectoryPage";
 
 const routes = [
-  // Auth
+  // 🔐 Auth
   {
     path: "/login",
     element: (
@@ -48,16 +53,13 @@ const routes = [
       </PageTransition>
     ),
   },
-  {
-    path: "/",
-    element: <Navigate to="/login" replace />,
-  },
+  { path: "/", element: <Navigate to="/login" replace /> },
 
-  // Dashboard layout
+  // 🧱 Dashboard Layout
   {
     element: <DashboardLayout />,
     children: [
-      // Dashboard
+      // 🏠 Dashboard
       {
         path: "/app",
         element: (
@@ -67,44 +69,36 @@ const routes = [
         ),
       },
 
-      // Equipment
+      // 🏋️ Equipment Management
       {
-        path: "/app/equipment/directory",
+        path: "/app/equipment/group",
         element: (
           <PageTransition>
-            <EquipmentDirectoryPage />
+            <EquipmentGroupPage />
           </PageTransition>
         ),
       },
       {
-        path: "/app/equipment/:id",
+        path: "/app/equipment/type",
         element: (
           <PageTransition>
-            <EquipmentProfilePage />
+            <EquipmentTypePage />
           </PageTransition>
         ),
       },
       {
-        path: "/app/equipment/specs/:id",
+        path: "/app/equipment/list",
         element: (
           <PageTransition>
-            <EquipmentSpecsPage />
+            <EquipmentSectionPage />
           </PageTransition>
         ),
       },
       {
-        path: "/app/equipment/add-group",
+        path: "/app/equipment/unit",
         element: (
           <PageTransition>
-            <EquipmentAddGroupPage />
-          </PageTransition>
-        ),
-      },
-      {
-        path: "/app/equipment/add-card",
-        element: (
-          <PageTransition>
-            <EquipmentAddCardPage />
+            <EquipmentUnitListPage />
           </PageTransition>
         ),
       },
@@ -132,8 +126,62 @@ const routes = [
           </PageTransition>
         ),
       },
+      {
+        path: "/app/equipment/add-card",
+        element: (
+          <PageTransition>
+            <EquipmentAddCardPage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/equipment/:id",
+        element: (
+          <PageTransition>
+            <EquipmentUnitProfilePage />
+          </PageTransition>
+        ),
+      },
+      {
+        path: "/app/equipment/specs/:id",
+        element: (
+          <PageTransition>
+            <EquipmentProfilePage />
+          </PageTransition>
+        ),
+      },
 
-      // Staff
+      // 🧰 Maintenance
+      {
+        path: "/app/maintenance",
+        element: (
+          <PageTransition>
+            <MaintenancePage />
+          </PageTransition>
+        ),
+      },
+
+      // 🧾 Invoice
+      {
+        path: "/app/invoice",
+        element: (
+          <PageTransition>
+            <InvoicePage />
+          </PageTransition>
+        ),
+      },
+
+      // 🏭 Vendor
+      {
+        path: "/app/vendor",
+        element: (
+          <PageTransition>
+            <VendorPage />
+          </PageTransition>
+        ),
+      },
+
+      // 👥 Staff
       {
         path: "/app/staff",
         element: (
@@ -150,7 +198,6 @@ const routes = [
           </PageTransition>
         ),
       },
-
       {
         path: "/app/staff/:id",
         element: (
@@ -159,17 +206,8 @@ const routes = [
           </PageTransition>
         ),
       },
-      // Vendor
-      {
-        path: "/app/vendor",
-        element: (
-          <PageTransition>
-            <VendorPage />
-          </PageTransition>
-        ),
-      },
 
-      // Branch
+      // 🏢 Branch
       {
         path: "/app/branch",
         element: (
@@ -179,32 +217,17 @@ const routes = [
         ),
       },
 
-      // Invoice
-      {
-        path: "/app/invoice",
-        element: (
-          <PageTransition>
-            <InvoicePage />
-          </PageTransition>
-        ),
-      },
-
-      // Maintenance
-      {
-        path: "/app/maintenance",
-        element: (
-          <PageTransition>
-            <MaintenancePage />
-          </PageTransition>
-        ),
-      },
-
-      // User Profile
+      // 👤 User Profile
       {
         path: "/userProfile",
-        element: <UserProfile />,
+        element: (
+          <PageTransition>
+            <UserProfile />
+          </PageTransition>
+        ),
       },
 
+      // 🔔 Notification
       {
         path: "/notifications",
         element: (

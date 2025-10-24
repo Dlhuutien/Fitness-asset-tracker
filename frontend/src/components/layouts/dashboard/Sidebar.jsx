@@ -33,54 +33,57 @@ export default function Sidebar() {
     return () => observer.disconnect();
   }, []);
 
-  const menuItems = [
-    {
-      key: "dashboard",
-      label: "Dashboard",
-      icon: LayoutDashboard,
-      path: "/app",
-    },
-    {
-      key: "equipment",
-      label: "Quản lý thiết bị",
-      icon: Dumbbell,
-      children: [
-        { label: "Danh mục thiết bị", path: "/app/equipment/directory" },
-        // { label: "Tạo thông tin thiết bị", path: "/app/equipment/add-group" },
-        { label: "Nhập thiết bị", path: "/app/equipment/import" },
-        { label: "Bảo trì thiết bị", path: "/app/maintenance" },
-        { label: "Vận chuyển thiết bị", path: "/app/equipment/transfer" },
-        { label: "Thanh lý thiết bị", path: "/app/equipment/disposal" },
-      ],
-    },
-    {
-      key: "staff",
-      label: "Quản lý nhân viên",
-      icon: Users,
-      children: [
-        { label: "Danh sách nhân viên", path: "/app/staff" },
-        { label: "Thêm nhân viên", path: "/app/staff/add" },
-      ],
-    },
-    {
-      key: "vendor",
-      label: "Quản lý thông tin nhà cung cấp",
-      icon: Truck,
-      path: "/app/vendor",
-    },
-    {
-      key: "branch",
-      label: "Quản lý chi nhánh",
-      icon: Building2,
-      path: "/app/branch",
-    },
-    {
-      key: "invoice",
-      label: "Danh sách hóa đơn",
-      icon: BarChart3,
-      path: "/app/invoice",
-    },
-  ];
+const menuItems = [
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    path: "/app",
+  },
+  {
+    key: "equipment",
+    label: "Quản lý thiết bị",
+    icon: Dumbbell,
+    children: [
+      { label: "Danh mục nhóm", path: "/app/equipment/group" },
+      { label: "Danh mục loại", path: "/app/equipment/type" },
+      { label: "Danh mục dòng", path: "/app/equipment/list" },
+      { label: "Danh mục thiết bị", path: "/app/equipment/unit" },
+      { label: "Nhập thiết bị", path: "/app/equipment/import" },
+      { label: "Chuyển thiết bị", path: "/app/equipment/transfer" },
+      { label: "Bảo trì thiết bị", path: "/app/maintenance" },
+      { label: "Thanh lý thiết bị", path: "/app/equipment/disposal" },
+    ],
+  },
+  {
+    key: "staff",
+    label: "Quản lý nhân viên",
+    icon: Users,
+    children: [
+      { label: "Danh sách nhân viên", path: "/app/staff" },
+      { label: "Thêm nhân viên", path: "/app/staff/add" },
+    ],
+  },
+  {
+    key: "vendor",
+    label: "Quản lý nhà cung cấp",
+    icon: Truck,
+    path: "/app/vendor",
+  },
+  {
+    key: "branch",
+    label: "Quản lý chi nhánh",
+    icon: Building2,
+    path: "/app/branch",
+  },
+  {
+    key: "invoice",
+    label: "Danh sách hóa đơn",
+    icon: BarChart3,
+    path: "/app/invoice",
+  },
+];
+
 
   const sidebarTheme =
     theme === "dark"
