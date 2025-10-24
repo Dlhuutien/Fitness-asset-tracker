@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
@@ -32,6 +31,15 @@ import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
 import { useNavigate } from "react-router-dom";
 import { ArrowDownUp, Download } from "lucide-react";
 import useAuthRole from "@/hooks/useAuthRole";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -48,6 +56,7 @@ export default function EquipmentUnitListSection() {
   const [sortNewestFirst, setSortNewestFirst] = useState(true);
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuthRole();
+  const [openImport, setOpenImport] = useState(false);
 
   // ⚙️ Dữ liệu thiết bị
   const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
@@ -186,9 +195,15 @@ export default function EquipmentUnitListSection() {
 
         const matchColumn = {
           id: filters.id.length === 0 || filters.id.includes(u.id),
-          name: filters.name.length === 0 || filters.name.includes(u.equipment?.name),
-          main: filters.main.length === 0 || filters.main.includes(u.equipment?.main_name),
-          type: filters.type.length === 0 || filters.type.includes(u.equipment?.type_name),
+          name:
+            filters.name.length === 0 ||
+            filters.name.includes(u.equipment?.name),
+          main:
+            filters.main.length === 0 ||
+            filters.main.includes(u.equipment?.main_name),
+          type:
+            filters.type.length === 0 ||
+            filters.type.includes(u.equipment?.type_name),
           status:
             filters.status.length === 0 || filters.status.includes(statusVN),
         };
@@ -232,117 +247,113 @@ export default function EquipmentUnitListSection() {
 
   return (
     <div className="p-4 space-y-4 font-jakarta">
-{/* 🧩 Toolbar */}
-<div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-  <div className="flex flex-wrap items-center gap-2">
-    {/* 🏷️ Tiêu đề + Tìm kiếm */}
-    <div className="flex items-center gap-2">
-      <h2 className="text-base md:text-lg font-semibold text-emerald-600 mr-2">
-        Danh sách chi tiết từng thiết bị
-      </h2>
+      {/* 🧩 Toolbar */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* 🏷️ Tiêu đề + Tìm kiếm */}
+          <div className="flex items-center gap-2">
+            <h2 className="text-base md:text-lg font-semibold text-emerald-600 mr-2">
+              Danh sách chi tiết từng thiết bị
+            </h2>
 
-      <Input
-        placeholder="Tìm kiếm..."
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setCurrentPage(1);
-        }}
-        className="pl-8 h-9 w-64 border-gray-300 dark:border-gray-700 text-sm"
-      />
-    </div>
+            <Input
+              placeholder="Tìm kiếm..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="pl-8 h-9 w-64 border-gray-300 dark:border-gray-700 text-sm"
+            />
+          </div>
 
-    {/* 🏢 Chi nhánh (nếu super admin) */}
-    {isSuperAdmin && (
-      <Select
-        onValueChange={(v) => {
-          setActiveBranch(v);
-          setCurrentPage(1);
-        }}
-        defaultValue="all"
-      >
-        <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
-          <SelectValue placeholder="Chi nhánh" />
-        </SelectTrigger>
-        <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-          <SelectItem value="all" className="text-sm">
-            Tất cả chi nhánh
-          </SelectItem>
-          {branches.map((b) => (
-            <SelectItem key={b.id} value={b.id} className="text-sm">
-              {b.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    )}
+          {/* 🏢 Chi nhánh (nếu super admin) */}
+          {isSuperAdmin && (
+            <Select
+              onValueChange={(v) => {
+                setActiveBranch(v);
+                setCurrentPage(1);
+              }}
+              defaultValue="all"
+            >
+              <SelectTrigger className="h-9 w-40 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700">
+                <SelectValue placeholder="Chi nhánh" />
+              </SelectTrigger>
+              <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+                <SelectItem value="all" className="text-sm">
+                  Tất cả chi nhánh
+                </SelectItem>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id} className="text-sm">
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-    {/* 🔽 Sắp xếp */}
-    <Button
-      onClick={() => setSortNewestFirst((p) => !p)}
-      className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
-    >
-      <ArrowDownUp size={16} />
-      {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
-    </Button>
+          {/* 🔽 Sắp xếp */}
+          <Button
+            onClick={() => setSortNewestFirst((p) => !p)}
+            className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
+          >
+            <ArrowDownUp size={16} />
+            {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
+          </Button>
 
-    {/* 📦 Export Excel (đưa kế nút sắp xếp) */}
-    <Button
-      onClick={() => {
-        if (!filtered || filtered.length === 0) {
-          toast.warning("⚠️ Không có dữ liệu để xuất!");
-          return;
-        }
+          {/* 📦 Export Excel (đưa kế nút sắp xếp) */}
+          <Button
+            onClick={() => {
+              if (!filtered || filtered.length === 0) {
+                toast.warning("⚠️ Không có dữ liệu để xuất!");
+                return;
+              }
 
-        const data = filtered.map((u) => ({
-          ID: u.id,
-          "Tên thiết bị": u.equipment?.name,
-          Nhóm: u.equipment?.main_name,
-          Loại: u.equipment?.type_name,
-          "Trạng thái": getStatusVN(u.status),
-          "Mô tả": u.equipment?.description || "",
-          "Ngày nhập": new Date(u.created_at).toLocaleDateString("vi-VN"),
-        }));
+              const data = filtered.map((u) => ({
+                ID: u.id,
+                "Tên thiết bị": u.equipment?.name,
+                Nhóm: u.equipment?.main_name,
+                Loại: u.equipment?.type_name,
+                "Trạng thái": getStatusVN(u.status),
+                "Mô tả": u.equipment?.description || "",
+                "Ngày nhập": new Date(u.created_at).toLocaleDateString("vi-VN"),
+              }));
 
-        exportToExcel(data, "Danh_sach_thiet_bi");
-        toast.success(`✅ Đã xuất ${data.length} bản ghi ra Excel!`);
-      }}
-      className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 hover:-translate-y-[1px] transition-all duration-200"
-    >
-      <Download className="w-4 h-4" />
-      Export Excel
-    </Button>
-  </div>
+              exportToExcel(data, "Danh_sach_thiet_bi");
+              toast.success(`✅ Đã xuất ${data.length} bản ghi ra Excel!`);
+            }}
+            className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 hover:-translate-y-[1px] transition-all duration-200"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </Button>
+        </div>
 
-  {/* 📥 Nút Nhập thiết bị + Hiển thị cột */}
-  <div className="flex items-center gap-3">
-    <Button
-      onClick={() => {
-        // 🔥 TODO: mở modal nhập file Excel (import)
-        toast.info("🧩 Tính năng nhập thiết bị sắp ra mắt!");
-      }}
-      className="flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium rounded-lg shadow hover:opacity-90 hover:-translate-y-[1px] transition-all"
-    >
-      📥 Nhập thiết bị
-    </Button>
+        {/* 📥 Nút Nhập thiết bị + Hiển thị cột */}
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => setOpenImport(true)}
+            className="flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium rounded-lg shadow hover:opacity-90 hover:-translate-y-[1px] transition-all"
+          >
+            📥 Nhập thiết bị
+          </Button>
 
-    <ColumnVisibilityButton
-      visibleColumns={visibleColumns}
-      setVisibleColumns={setVisibleColumns}
-      labels={{
-        id: "Mã định danh thiết bị",
-        image: "Hình ảnh",
-        name: "Tên thiết bị",
-        main: "Nhóm",
-        type: "Loại",
-        status: "Trạng thái",
-        description: "Mô tả",
-        created_at: "Ngày nhập",
-      }}
-    />
-  </div>
-</div>
-
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              id: "Mã định danh thiết bị",
+              image: "Hình ảnh",
+              name: "Tên thiết bị",
+              main: "Nhóm",
+              type: "Loại",
+              status: "Trạng thái",
+              description: "Mô tả",
+              created_at: "Ngày nhập",
+            }}
+          />
+        </div>
+      </div>
 
       {/* 📊 Bảng dữ liệu */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
@@ -419,9 +430,7 @@ export default function EquipmentUnitListSection() {
                       label="Trạng thái"
                       values={uniqueValues.status}
                       selected={filters.status}
-                      onChange={(v) =>
-                        setFilters((p) => ({ ...p, status: v }))
-                      }
+                      onChange={(v) => setFilters((p) => ({ ...p, status: v }))}
                       controller={controller}
                     />
                   </TableHead>
@@ -584,6 +593,39 @@ export default function EquipmentUnitListSection() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={openImport} onOpenChange={setOpenImport}>
+        <AlertDialogContent
+          className="
+      !max-w-none w-[85vw] max-w-[1200px] h-[90vh]
+      overflow-hidden flex flex-col
+      bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700
+      rounded-2xl shadow-2xl p-0 focus:outline-none
+    "
+        >
+          {/* Header cố định */}
+          <AlertDialogHeader className="flex-shrink-0 sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b px-6 py-4">
+            <AlertDialogTitle className="text-emerald-600 text-xl font-bold">
+              Nhập thiết bị vào kho
+            </AlertDialogTitle>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Chọn nhà cung cấp, loại thiết bị và xác nhận nhập hàng
+            </p>
+          </AlertDialogHeader>
+
+          {/* Body hiển thị nội dung import */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <EquipmentImportPage />
+          </div>
+
+          {/* Footer */}
+          <AlertDialogFooter className="flex-shrink-0 sticky bottom-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-t px-6 py-4 flex justify-end gap-3">
+            <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
+              Đóng
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

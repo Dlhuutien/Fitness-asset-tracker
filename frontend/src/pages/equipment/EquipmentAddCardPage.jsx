@@ -7,13 +7,11 @@ import { API } from "@/config/url";
 import AddCard1 from "@/components/panel/addCardEquipment/AddCard1";
 import AddCard3 from "@/components/panel/addCardEquipment/AddCard3";
 
-import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
 import EquipmentGroupQuickAdd from "@/components/panel/addCardEquipment/QuickGroup";
 import EquipmentTypeQuickAdd from "@/components/panel/addCardEquipment/QuickType";
 
 import CategoryMainService from "@/services/categoryMainService";
 import CategoryTypeService from "@/services/categoryTypeService";
-import VendorService from "@/services/vendorService";
 import AttributeService from "@/services/attributeService";
 import TypeAttributeService from "@/services/typeAttributeService";
 import EquipmentService from "@/services/equipmentService";
@@ -29,7 +27,6 @@ export default function EquipmentAddCardPage({
   const [formData, setFormData] = useState({
     group: "",
     type: "",
-    vendor: "",
     name: "",
     description: "",
     image: null,
@@ -38,7 +35,6 @@ export default function EquipmentAddCardPage({
 
   const [groups, setGroups] = useState([]);
   const [types, setTypes] = useState([]);
-  const [vendors, setVendors] = useState([]);
   const [attributes, setAttributes] = useState([]);
   const [typeAttributes, setTypeAttributes] = useState([]);
   const [selectedAttrs, setSelectedAttrs] = useState({});
@@ -54,7 +50,6 @@ export default function EquipmentAddCardPage({
   const [successMsg, setSuccessMsg] = useState("");
 
   // Quick add modals
-  const [openQuickAddVendor, setOpenQuickAddVendor] = useState(false);
   const [openQuickAddGroup, setOpenQuickAddGroup] = useState(false);
   const [openQuickAddType, setOpenQuickAddType] = useState(false);
 
@@ -66,15 +61,13 @@ export default function EquipmentAddCardPage({
   useEffect(() => {
     (async () => {
       try {
-        const [groupList, typeList, vendorList, attrList] = await Promise.all([
+        const [groupList, typeList, attrList] = await Promise.all([
           CategoryMainService.getAll(),
           CategoryTypeService.getAllWithDisplayName(),
-          VendorService.getAll(),
           AttributeService.getAll(),
         ]);
         setGroups(groupList || []);
         setTypes(typeList || []);
-        setVendors(vendorList || []);
         setAttributes(attrList || []);
       } catch (err) {
         console.error("❌ Lỗi load dữ liệu:", err);
@@ -195,7 +188,6 @@ export default function EquipmentAddCardPage({
 
       const payload = {
         name: formData.name,
-        vendor_id: formData.vendor || null,
         category_type_id: formData.type,
         description: formData.description,
         image: formData.image instanceof File ? formData.image : null,
@@ -212,7 +204,6 @@ export default function EquipmentAddCardPage({
       setFormData({
         group: "",
         type: "",
-        vendor: "",
         name: "",
         description: "",
         image: null,
@@ -275,17 +266,6 @@ export default function EquipmentAddCardPage({
           </form>
         </div>
       </div>
-
-      {/* Quick Add Modals */}
-      <VendorQuickAdd
-        open={openQuickAddVendor}
-        onClose={() => setOpenQuickAddVendor(false)}
-        onSuccess={(newVendor) => {
-          setVendors((prev) => [...prev, newVendor]);
-          setFormData((prev) => ({ ...prev, vendor: newVendor.id }));
-          toast.success("🎉 Đã thêm nhà cung cấp mới!");
-        }}
-      />
 
       <EquipmentGroupQuickAdd
         open={openQuickAddGroup}

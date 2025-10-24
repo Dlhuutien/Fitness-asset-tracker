@@ -493,8 +493,6 @@ export default function MaintenanceReadySection() {
                                 row.branch_id === "GV"
                                   ? "text-emerald-600 dark:text-emerald-400"
                                   : row.branch_id === "Q3"
-                                  ? "text-blue-600 dark:text-blue-400"
-                                  : row.branch_id === "G3"
                                   ? "text-orange-600 dark:text-orange-400"
                                   : "text-gray-800 dark:text-gray-200"
                               }

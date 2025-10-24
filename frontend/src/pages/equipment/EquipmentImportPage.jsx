@@ -45,6 +45,18 @@ import { Loader2, RefreshCw, CheckCircle2, ChevronRight } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { API } from "@/config/url";
 import { useEquipmentData } from "@/hooks/useEquipmentUnitData";
+import {
+  ClipboardList,
+  Image as ImageIcon,
+  PlusCircle,
+  Search,
+  X,
+} from "lucide-react";
+import countryList from "react-select-country-list";
+import Flag from "react-world-flags";
+
+import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
+
 const NO_IMG_DATA_URI =
   'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="100%" height="100%" fill="%23f3f4f6"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="%239ca3af" font-family="Arial" font-size="14">No image</text></svg>';
 
@@ -67,6 +79,8 @@ export default function EquipmentImportPage({
   const [openQuickAdd, setOpenQuickAdd] = useState(false);
   const [openQuickAddEquipment, setOpenQuickAddEquipment] = useState(false);
   const { isSuperAdmin, branchId } = useAuthRole();
+  const [openAddCard, setOpenAddCard] = useState(false);
+  const [loadingSubmitAddCard, setLoadingSubmitAddCard] = useState(false);
 
   // ===== Overlay + theo dõi NEW record =====
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -201,6 +215,7 @@ export default function EquipmentImportPage({
         return {
           equipment_id: item.id,
           branch_id: selectedBranch,
+          vendor_id: selectedVendor,
           quantity: Number.parseInt(item.qty) || 0,
           cost: costWithTax,
           warranty_duration: Number(item.warranty_duration) || 0,
@@ -254,9 +269,7 @@ export default function EquipmentImportPage({
   };
 
   // ===== Lọc và hiển thị =====
-  const vendorEquipments = useMemo(() => {
-    return equipments.filter((eq) => eq.vendor_id === selectedVendor);
-  }, [equipments, selectedVendor]);
+  const vendorEquipments = useMemo(() => equipments, [equipments]);
 
   const uniqueValues = useMemo(
     () => ({
@@ -333,12 +346,14 @@ export default function EquipmentImportPage({
       return sum + price * qty;
     }, 0);
 
-  if (loading)
-    return (
-      <div className="p-6 text-gray-500 dark:text-gray-300 animate-pulse">
-        Đang tải dữ liệu...
-      </div>
+  const getCountryCode = (countryName) => {
+    if (!countryName) return null;
+    const countries = countryList().getData();
+    const match = countries.find(
+      (c) => c.label.toLowerCase() === countryName.toLowerCase()
     );
+    return match ? match.value : null;
+  };
 
   // ===== Overlay =====
   const Overlay = () =>
@@ -383,7 +398,7 @@ export default function EquipmentImportPage({
                     setOverlayOpen(false);
                     setOverlayMode("loading");
                     newFromUnitListRef.current.clear();
-                    navigate("/app/equipment/directory");
+                    navigate("/app/equipment/unit");
                   }}
                   className="bg-emerald-500 hover:bg-emerald-600 text-white flex items-center gap-1"
                 >
@@ -454,38 +469,68 @@ export default function EquipmentImportPage({
 
       {/* Nhà cung cấp */}
       <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">
-        <h3 className="font-semibold text-emerald-600 text-lg">
-          🏢 Chọn nhà cung cấp
-        </h3>
-        <div className="flex items-center gap-2">
-          <Input
-            placeholder="🔍 Tìm theo tên, mã hoặc quốc gia..."
-            value={searchVendor}
-            onChange={(e) => setSearchVendor(e.target.value)}
-            className="flex-1 h-9 text-sm"
-          />
-          <Button
-            size="icon"
-            variant="outline"
-            onClick={async () => {
-              const data = await VendorService.getAll();
-              setVendors(data || []);
-              toast.success("🔄 Danh sách nhà cung cấp đã làm mới!");
-            }}
-          >
-            <RefreshCw size={16} />
-          </Button>
-          <Button
-            onClick={() => setOpenQuickAdd(true)}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-4"
-          >
-            ➕ Thêm mới
-          </Button>
+        <div className="flex justify-between items-center">
+          {selectedVendor ? (
+            <h3 className="font-semibold text-emerald-600 text-lg flex items-center gap-2">
+              🏢 Đã chọn nhà cung cấp:
+              <span className="text-emerald-700 dark:text-emerald-300 font-bold">
+                {vendors.find((v) => v.id === selectedVendor)?.name ||
+                  selectedVendor}
+              </span>
+            </h3>
+          ) : (
+            <h3 className="font-semibold text-emerald-600 text-lg">
+              🏢 Chọn nhà cung cấp
+            </h3>
+          )}
+
+          {/* ❌ Nút bỏ chọn vendor */}
+          {selectedVendor && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedVendor("")}
+              className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center gap-1"
+            >
+              ❌ Bỏ chọn
+            </Button>
+          )}
         </div>
 
+        {/* Ô tìm kiếm và thêm mới */}
+        {!selectedVendor && (
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="🔍 Tìm theo tên, mã hoặc quốc gia..."
+              value={searchVendor}
+              onChange={(e) => setSearchVendor(e.target.value)}
+              className="flex-1 h-9 text-sm"
+            />
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={async () => {
+                const data = await VendorService.getAll();
+                setVendors(data || []);
+                toast.success("🔄 Danh sách nhà cung cấp đã làm mới!");
+              }}
+            >
+              <RefreshCw size={16} />
+            </Button>
+            <Button
+              onClick={() => setOpenQuickAdd(true)}
+              className="h-11 min-w-[90px] text-[13px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white rounded-lg shadow flex items-center justify-center gap-1 whitespace-nowrap"
+            >
+              <PlusCircle className="w-3.5 h-3.5" /> Nhà cung cấp
+            </Button>
+          </div>
+        )}
+
+        {/* Danh sách vendor */}
         <div className="max-h-[260px] overflow-y-auto border rounded-lg divide-y">
           {vendors
             .filter((v) => {
+              if (selectedVendor && v.id !== selectedVendor) return false;
               const q = searchVendor.toLowerCase();
               return (
                 v.name.toLowerCase().includes(q) ||
@@ -496,19 +541,38 @@ export default function EquipmentImportPage({
             .map((v) => (
               <div
                 key={v.id}
-                onClick={() => handleChangeVendor(v.id)}
-                className={`p-3 cursor-pointer transition ${
+                onClick={() => {
+                  if (!selectedVendor) handleChangeVendor(v.id);
+                }}
+                className={`flex justify-between items-center p-3 cursor-pointer transition ${
                   selectedVendor === v.id
                     ? "bg-emerald-50 dark:bg-gray-700"
                     : "hover:bg-emerald-50 dark:hover:bg-gray-700"
                 }`}
               >
-                <p className="font-semibold text-emerald-600 text-sm">
-                  {v.name}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Mã: {v.id} • Quốc gia: {v.origin}
-                </p>
+                <div className="flex items-center gap-2">
+                  {/* 🇻🇳 Lá cờ */}
+                  {v.origin && (
+                    <Flag
+                      code={getCountryCode(v.origin)}
+                      className="w-6 h-4 rounded-sm border border-gray-300 dark:border-gray-600 shadow-sm"
+                    />
+                  )}
+                  <div>
+                    <p className="font-semibold text-emerald-600 text-sm">
+                      {v.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Mã: {v.id} • Quốc gia: {v.origin || "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {selectedVendor === v.id && (
+                  <span className="text-emerald-600 font-semibold text-sm">
+                    ✓
+                  </span>
+                )}
               </div>
             ))}
         </div>
@@ -537,137 +601,192 @@ export default function EquipmentImportPage({
       <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow space-y-3">
         <div className="flex justify-between items-center">
           <h3 className="font-semibold text-emerald-600 text-lg">
-            🧾 Danh sách loại thiết bị
+            🧾 Danh sách dòng thiết bị
           </h3>
-          {selectedVendor && (
-            <div className="flex items-center gap-3">
-              <Input
-                placeholder="Tìm kiếm thiết bị..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-60 h-8 text-sm"
-              />
-              <Button
-                size="icon"
-                variant="outline"
-                onClick={() => setOpenQuickAddEquipment(true)}
-              >
-                +
-              </Button>
-              <ColumnVisibilityButton
-                visibleColumns={visibleColumns}
-                setVisibleColumns={setVisibleColumns}
-                labels={{
-                  select: "Chọn",
-                  id: "Mã thẻ kho",
-                  main_name: "Nhóm",
-                  type_name: "Loại",
-                  name: "Tên thiết bị",
-                }}
-              />
-            </div>
-          )}
+
+          <div className="flex items-center gap-3">
+            <Input
+              placeholder="Tìm kiếm thiết bị..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-60 h-8 text-sm"
+            />
+            <Button
+              onClick={() => setOpenAddCard(true)}
+              className="h-11 min-w-[90px] text-[13px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white rounded-lg shadow flex items-center justify-center gap-1 whitespace-nowrap"
+            >
+              <PlusCircle className="w-3.5 h-3.5" /> Dòng thiết bị
+            </Button>
+            <ColumnVisibilityButton
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+              labels={{
+                select: "Chọn",
+                id: "Mã dòng thiết bị",
+                main_name: "Nhóm",
+                type_name: "Loại",
+                name: "Tên thiết bị",
+              }}
+            />
+          </div>
         </div>
 
-        {!selectedVendor ? (
-          <div className="p-6 text-center text-sm text-gray-500 border rounded">
-            Hãy chọn một nhà cung cấp để hiển thị danh sách thiết bị.
-          </div>
-        ) : (
-          <div className="overflow-y-auto max-h-72 border rounded">
-            <Table className="text-sm">
-              <TableHeader>
-                <TableRow className="bg-gray-100 dark:bg-gray-700">
-                  {visibleColumns.select && <TableHead>Chọn</TableHead>}
-                  {visibleColumns.id && (
-                    <TableHead>
-                      <HeaderFilter
-                        selfKey="id"
-                        label="Mã thẻ kho"
-                        values={uniqueValues.id}
-                        selected={filters.id}
-                        onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
-                        controller={controller}
+        {/* === Modal thêm dòng thiết bị === */}
+        <AlertDialog open={openAddCard} onOpenChange={setOpenAddCard}>
+          <AlertDialogContent
+            className="
+      !max-w-none
+      w-[80vw]
+      max-w-[1100px]
+      h-[90vh]
+      overflow-hidden
+      flex flex-col
+      bg-white dark:bg-gray-900
+      border border-gray-300 dark:border-gray-700
+      rounded-2xl shadow-2xl
+      p-0
+      focus:outline-none focus-visible:ring-0
+    "
+          >
+            {/* Header */}
+            <AlertDialogHeader className="flex-shrink-0 sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b px-6 py-4">
+              <AlertDialogTitle className="text-emerald-600 text-xl font-bold">
+                Thêm dòng thiết bị mới
+              </AlertDialogTitle>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                Điền thông tin cơ bản, phân loại và khai báo thông số kỹ thuật
+              </p>
+            </AlertDialogHeader>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <EquipmentAddCardPage
+                onSuccessAdd={(newEquipment) => {
+                  setEquipments((prev) => [...prev, newEquipment]);
+                  toast.success("🎉 Đã thêm dòng thiết bị mới!");
+                  setOpenAddCard(false);
+                }}
+                onLoadingChange={setLoadingSubmitAddCard}
+              />
+            </div>
+
+            {/* Footer */}
+            <AlertDialogFooter className="flex-shrink-0 sticky bottom-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-t px-6 py-4 flex justify-end gap-3">
+              <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
+                Hủy
+              </AlertDialogCancel>
+
+              <Button
+                type="button"
+                disabled={loadingSubmitAddCard}
+                onClick={() => {
+                  const form = document.querySelector("form");
+                  form?.requestSubmit();
+                }}
+                className="h-10 text-sm px-6 bg-gradient-to-r from-emerald-500 to-purple-500 text-white hover:opacity-90 flex items-center gap-2"
+              >
+                {loadingSubmitAddCard && (
+                  <span className="mr-2 inline-block animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4" />
+                )}
+                {loadingSubmitAddCard ? "Đang tạo..." : "Tạo dòng thiết bị"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <div className="overflow-y-auto max-h-72 border rounded">
+          <Table className="text-sm">
+            <TableHeader>
+              <TableRow className="bg-gray-100 dark:bg-gray-700">
+                {visibleColumns.select && <TableHead>Chọn</TableHead>}
+                {visibleColumns.id && (
+                  <TableHead>
+                    <HeaderFilter
+                      selfKey="id"
+                      label="Mã dòng thiết bị"
+                      values={uniqueValues.id}
+                      selected={filters.id}
+                      onChange={(v) => setFilters((p) => ({ ...p, id: v }))}
+                      controller={controller}
+                    />
+                  </TableHead>
+                )}
+                {visibleColumns.main_name && (
+                  <TableHead>
+                    <HeaderFilter
+                      selfKey="main_name"
+                      label="Nhóm"
+                      values={uniqueValues.main_name}
+                      selected={filters.main_name}
+                      onChange={(v) =>
+                        setFilters((p) => ({ ...p, main_name: v }))
+                      }
+                      controller={controller}
+                    />
+                  </TableHead>
+                )}
+                {visibleColumns.type_name && (
+                  <TableHead>
+                    <HeaderFilter
+                      selfKey="type_name"
+                      label="Loại"
+                      values={uniqueValues.type_name}
+                      selected={filters.type_name}
+                      onChange={(v) =>
+                        setFilters((p) => ({ ...p, type_name: v }))
+                      }
+                      controller={controller}
+                    />
+                  </TableHead>
+                )}
+                {visibleColumns.name && (
+                  <TableHead>
+                    <HeaderFilter
+                      selfKey="name"
+                      label="Tên thiết bị"
+                      values={uniqueValues.name}
+                      selected={filters.name}
+                      onChange={(v) => setFilters((p) => ({ ...p, name: v }))}
+                      controller={controller}
+                    />
+                  </TableHead>
+                )}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredEquipments.map((item) => (
+                <TableRow key={item.id} className="border-t">
+                  {visibleColumns.select && (
+                    <TableCell className="text-center">
+                      <input
+                        type="checkbox"
+                        checked={!!selectedItems[item.id]}
+                        onChange={() => toggleSelectItem(item)}
                       />
-                    </TableHead>
+                    </TableCell>
                   )}
+                  {visibleColumns.id && <TableCell>{item.id}</TableCell>}
                   {visibleColumns.main_name && (
-                    <TableHead>
-                      <HeaderFilter
-                        selfKey="main_name"
-                        label="Nhóm"
-                        values={uniqueValues.main_name}
-                        selected={filters.main_name}
-                        onChange={(v) =>
-                          setFilters((p) => ({ ...p, main_name: v }))
-                        }
-                        controller={controller}
-                      />
-                    </TableHead>
+                    <TableCell>{item.main_name}</TableCell>
                   )}
                   {visibleColumns.type_name && (
-                    <TableHead>
-                      <HeaderFilter
-                        selfKey="type_name"
-                        label="Loại"
-                        values={uniqueValues.type_name}
-                        selected={filters.type_name}
-                        onChange={(v) =>
-                          setFilters((p) => ({ ...p, type_name: v }))
-                        }
-                        controller={controller}
-                      />
-                    </TableHead>
+                    <TableCell>{item.type_name}</TableCell>
                   )}
                   {visibleColumns.name && (
-                    <TableHead>
-                      <HeaderFilter
-                        selfKey="name"
-                        label="Tên thiết bị"
-                        values={uniqueValues.name}
-                        selected={filters.name}
-                        onChange={(v) => setFilters((p) => ({ ...p, name: v }))}
-                        controller={controller}
+                    <TableCell className="flex items-center gap-2">
+                      <img
+                        src={item.image || NO_IMG_DATA_URI}
+                        alt={item.name}
+                        className="w-10 h-8 object-contain rounded border"
                       />
-                    </TableHead>
+                      <span>{item.name}</span>
+                    </TableCell>
                   )}
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEquipments.map((item) => (
-                  <TableRow key={item.id} className="border-t">
-                    {visibleColumns.select && (
-                      <TableCell className="text-center">
-                        <input
-                          type="checkbox"
-                          checked={!!selectedItems[item.id]}
-                          onChange={() => toggleSelectItem(item)}
-                        />
-                      </TableCell>
-                    )}
-                    {visibleColumns.id && <TableCell>{item.id}</TableCell>}
-                    {visibleColumns.main_name && (
-                      <TableCell>{item.main_name}</TableCell>
-                    )}
-                    {visibleColumns.type_name && (
-                      <TableCell>{item.type_name}</TableCell>
-                    )}
-                    {visibleColumns.name && (
-                      <TableCell className="flex items-center gap-2">
-                        <img
-                          src={item.image || NO_IMG_DATA_URI}
-                          alt={item.name}
-                          className="w-10 h-8 object-contain rounded border"
-                        />
-                        <span>{item.name}</span>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Chi tiết nhập hàng */}

@@ -328,9 +328,6 @@ export default function EquipmentProfilePage() {
               <strong>Mã thiết bị:</strong> {equipment.id}
             </p>
             <p>
-              <strong>Nhà cung cấp:</strong> {equipment.vendor_name || "—"}
-            </p>
-            <p>
               <strong>Nhóm:</strong> {equipment.main_name || "—"}
             </p>
             <p>
