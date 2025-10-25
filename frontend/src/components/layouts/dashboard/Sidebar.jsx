@@ -59,10 +59,7 @@ const menuItems = [
     key: "staff",
     label: "Quản lý nhân viên",
     icon: Users,
-    children: [
-      { label: "Danh sách nhân viên", path: "/app/staff" },
-      { label: "Thêm nhân viên", path: "/app/staff/add" },
-    ],
+    path: "/app/staff",
   },
   {
     key: "vendor",

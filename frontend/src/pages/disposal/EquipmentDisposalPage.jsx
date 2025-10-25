@@ -334,56 +334,6 @@ export default function EquipmentDisposalPage() {
         />
       </div>
 
-      {/* ===== Ghi chú + tạo đợt thanh lý ===== */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Input
-            placeholder="📝 Ghi chú đợt thanh lý (ví dụ: Thanh lý thiết bị hư 19/10)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="flex-1 h-9 text-sm"
-          />
-          <div className="text-sm text-gray-600">
-            Tổng giá trị thu hồi:{" "}
-            <b className="text-emerald-600">
-              {totalValue.toLocaleString("vi-VN")}₫
-            </b>
-          </div>
-          <Button
-            onClick={handleCreateDisposal}
-            disabled={creating}
-            className="bg-rose-500 hover:bg-rose-600 text-white flex items-center"
-          >
-            {creating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Đang tạo...
-              </>
-            ) : (
-              <>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Tạo đơn thanh lý
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* 🧩 Thông báo (hiện ngay dưới nút, full width, không lệch flex) */}
-        {(successMsg || errorMsg) && (
-          <div className="mt-3">
-            {successMsg && (
-              <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
-                {successMsg}
-              </div>
-            )}
-            {errorMsg && (
-              <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
-                {errorMsg}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* ===== Card hiển thị thiết bị đang chọn ===== */}
       {selectedItems.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4">
@@ -427,7 +377,7 @@ export default function EquipmentDisposalPage() {
                       item.branch_id === "GV"
                         ? "text-emerald-600 dark:text-emerald-400"
                         : item.branch_id === "Q3"
-                        ? "text-orange-600 dark:text-orange-400"
+                        ? "text-blue-600 dark:text-blue-400"
                         : "text-gray-800 dark:text-gray-200"
                     }
                   `}
@@ -481,6 +431,56 @@ export default function EquipmentDisposalPage() {
           </Table>
         </div>
       )}
+
+      {/* ===== Ghi chú + tạo đợt thanh lý ===== */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Input
+            placeholder="📝 Ghi chú đợt thanh lý (ví dụ: Thanh lý thiết bị hư 19/10)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="flex-1 h-9 text-sm"
+          />
+          <div className="text-sm text-gray-600">
+            Tổng giá trị thu hồi:{" "}
+            <b className="text-emerald-600">
+              {totalValue.toLocaleString("vi-VN")}₫
+            </b>
+          </div>
+          <Button
+            onClick={handleCreateDisposal}
+            disabled={creating}
+            className="bg-rose-500 hover:bg-rose-600 text-white flex items-center"
+          >
+            {creating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Đang tạo...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Tạo đơn thanh lý
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* 🧩 Thông báo (hiện ngay dưới nút, full width, không lệch flex) */}
+        {(successMsg || errorMsg) && (
+          <div className="mt-3">
+            {successMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+                {successMsg}
+              </div>
+            )}
+            {errorMsg && (
+              <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+                {errorMsg}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ===== Danh sách thiết bị ===== */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
@@ -575,7 +575,7 @@ export default function EquipmentDisposalPage() {
                               row.branch_id === "GV"
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : row.branch_id === "Q3"
-                                ? "text-orange-600 dark:text-orange-400"
+                                ? "text-blue-600 dark:text-blue-400"
                                 : "text-gray-800 dark:text-gray-200"
                             }
                           `}

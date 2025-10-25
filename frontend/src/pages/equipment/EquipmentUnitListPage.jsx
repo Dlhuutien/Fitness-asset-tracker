@@ -40,6 +40,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
+import Branch from "@/components/common/Branch";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -491,9 +492,22 @@ export default function EquipmentUnitListSection() {
 
                     {visibleColumns.name && (
                       <TableCell>
-                        <span className="font-semibold text-gray-800 dark:text-gray-100">
-                          {row.equipment?.name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`
+                    font-semibold truncate max-w-[220px]
+                    ${
+                      row.branch_id === "GV"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : row.branch_id === "Q3"
+                        ? "text-blue-600 dark:text-blue-400"
+                        : "text-gray-800 dark:text-gray-200"
+                    }
+                  `}
+                          >
+                            {row.equipment?.name}
+                          </span>
+                        </div>
                       </TableCell>
                     )}
 
@@ -556,6 +570,10 @@ export default function EquipmentUnitListSection() {
             >
               Go
             </Button>
+          </div>
+          {/* 🧩 Tổng cộng thiết bị */}
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Tổng cộng: {filtered.length} thiết bị
           </div>
 
           <div className="flex gap-1">

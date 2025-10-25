@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import EquipmentTransferService from "@/services/equipmentTransferService";
 import BranchService from "@/services/branchService";
 import Branch from "@/components/common/Branch";
+import useAuthRole from "@/hooks/useAuthRole";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -58,6 +59,7 @@ export default function TransferPendingSection() {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const { isSuperAdmin, branchId } = useAuthRole();
 
   // excel tools
   const controller = useGlobalFilterController();
@@ -523,58 +525,61 @@ export default function TransferPendingSection() {
           </div>
 
           {/* Ngày hoàn tất + Nút hoàn tất */}
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Ngày hoàn tất vận chuyển:
-              </label>
-              <input
-                type="datetime-local"
-                value={selected.move_receive_date || ""}
-                min={
-                  selected.move_start_date
-                    ? new Date(selected.move_start_date)
-                        .toISOString()
-                        .slice(0, 16) // ✅ ISO → yyyy-MM-ddTHH:mm
-                    : undefined
-                }
-                onChange={(e) =>
-                  setSelected((prev) => ({
-                    ...prev,
-                    move_receive_date: e.target.value,
-                  }))
-                }
-                className="mt-1 w-full border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none"
-              />
-              {selected.move_start_date && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Ngày bắt đầu:{" "}
-                  {new Date(selected.move_start_date).toLocaleString("vi-VN")}
-                </p>
-              )}
-            </div>
+          {(isSuperAdmin ||
+            selected.to_branch_id === branchId) && (
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Ngày hoàn tất vận chuyển:
+                </label>
+                <input
+                  type="datetime-local"
+                  value={selected.move_receive_date || ""}
+                  min={
+                    selected.move_start_date
+                      ? new Date(selected.move_start_date)
+                          .toISOString()
+                          .slice(0, 16) // ✅ ISO → yyyy-MM-ddTHH:mm
+                      : undefined
+                  }
+                  onChange={(e) =>
+                    setSelected((prev) => ({
+                      ...prev,
+                      move_receive_date: e.target.value,
+                    }))
+                  }
+                  className="mt-1 w-full border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none"
+                />
+                {selected.move_start_date && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ngày bắt đầu:{" "}
+                    {new Date(selected.move_start_date).toLocaleString("vi-VN")}
+                  </p>
+                )}
+              </div>
 
-            <Button
-              onClick={() =>
-                handleComplete({
-                  id: selected.id,
-                  move_receive_date:
-                    selected.move_receive_date || new Date().toISOString(),
-                })
-              }
-              disabled={completing}
-              className="w-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              {completing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Đang xác nhận...
-                </>
-              ) : (
-                "✅ Đã vận chuyển thành công"
-              )}
-            </Button>
-          </div>
+              <Button
+                onClick={() =>
+                  handleComplete({
+                    id: selected.id,
+                    move_receive_date:
+                      selected.move_receive_date || new Date().toISOString(),
+                  })
+                }
+                disabled={completing}
+                className="w-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {completing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Đang xác nhận...
+                  </>
+                ) : (
+                  "✅ Đã vận chuyển thành công"
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
