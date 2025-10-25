@@ -1,6 +1,9 @@
 const express = require("express");
 const typeAttributeController = require("../controllers/typeAttributeController");
-const { verifyAccessToken, requireRole } = require("../middlewares/authMiddleware");
+const {
+  verifyAccessToken,
+  requireRole,
+} = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 
@@ -12,6 +15,13 @@ router.post(
   "/:typeId",
   verifyAccessToken,
   typeAttributeController.addAttributeToType
+);
+
+// Thêm nhiều attributes cho type (bulk)
+router.post(
+  "/:typeId/bulk",
+  verifyAccessToken,
+  typeAttributeController.bulkAddAttributesToType
 );
 
 // Xoá liên kết attribute khỏi type

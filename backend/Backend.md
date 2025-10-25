@@ -1360,6 +1360,126 @@ Xóa attribute (chỉ `admin`, `super-admin`).
 
 ---
 
+## **Type Attribute APIs (`/type-attribute`)**
+
+> **Authentication**:
+> * Các API thêm / xóa yêu cầu header `Authorization: Bearer <accessToken>`
+---
+
+### **GET `/type-attribute/:typeId`**
+
+Lấy danh sách tất cả **attributes** đang gắn với một **Category Type**.
+
+**Response (200):**
+
+```json
+[
+  { "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42", "name": "Trọng lượng" },
+  { "id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11", "name": "Công suất" }
+]
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "No attributes found for this type" }
+```
+
+---
+
+### **POST `/type-attribute/:typeId`**
+
+Thêm một attribute vào **Category Type**.
+
+* Nếu `attribute_id` chưa tồn tại → báo lỗi.
+* Nếu đã tồn tại trong type → báo lỗi trùng.
+
+**Request body (JSON):**
+
+```json
+{ "attribute_id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42" }
+```
+
+**Response (201):**
+
+```json
+{
+  "category_type_id": "TM",
+  "attribute_id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42",
+  "attribute": { "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42", "name": "Trọng lượng" }
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Attribute already linked with this type" }
+```
+
+---
+
+### **POST `/type-attribute/:typeId/bulk`**
+
+> **Bulk Add — Thêm nhiều attribute cùng lúc cho Category Type**
+
+* Tự động **tạo attribute mới** nếu chưa tồn tại trong bảng `Attribute`.
+* Tự động **bỏ qua các attribute đã được liên kết**.
+* Trả về danh sách attribute thực tế được thêm (mới + đã có).
+
+**Request body (JSON):**
+
+```json
+{
+  "attributes": [
+    { "name": "Chiều cao" },
+    { "id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11", "name": "Công suất" }
+  ]
+}
+```
+
+**Response (201):**
+
+```json
+[
+  {
+    "category_type_id": "TM",
+    "attribute_id": "91a2e7c2-99b0-45ff-8c9b-12fd32a0ff11",
+    "attribute": { "id": "91a2e7c2-99b0-45ff-8c9b-12fd32a0ff11", "name": "Chiều cao" }
+  },
+  {
+    "category_type_id": "TM",
+    "attribute_id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11",
+    "attribute": { "id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11", "name": "Công suất" }
+  }
+]
+```
+
+**Lỗi (400 - thiếu dữ liệu):**
+
+```json
+{ "error": "attributes array is required" }
+```
+
+---
+
+### **DELETE `/type-attribute/:typeId/:attrId`**
+
+Xóa liên kết attribute khỏi Category Type (không xóa khỏi bảng `Attribute`).
+
+**Response (200):**
+
+```json
+{ "deleted": "8b23e7a0-9ddc-4c3b-9d1a-6d1a8f0d0e3f" }
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "This attribute is not linked to the specified type." }
+```
+
+---
+
 ## Attribute Value APIs (`/attributeValue`)
 
 > **Authentication**:

@@ -7,7 +7,24 @@ const typeAttributeController = {
       const { attribute_id } = req.body;
       const { typeId } = req.params;
 
-      const result = await typeAttributeService.addAttributeToType(typeId, attribute_id);
+      const result = await typeAttributeService.addAttributeToType(
+        typeId,
+        attribute_id
+      );
+      res.status(201).json(result);
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  bulkAddAttributesToType: async (req, res) => {
+    try {
+      const { typeId } = req.params;
+      const { attributes } = req.body;
+      const result = await typeAttributeService.bulkAddAttributesToType(
+        typeId,
+        attributes
+      );
       res.status(201).json(result);
     } catch (error) {
       res.status(400).json({ error: error.message });
@@ -29,7 +46,10 @@ const typeAttributeController = {
   removeAttributeFromType: async (req, res) => {
     try {
       const { typeId, attrId } = req.params;
-      const result = await typeAttributeService.removeAttributeFromType(typeId, attrId);
+      const result = await typeAttributeService.removeAttributeFromType(
+        typeId,
+        attrId
+      );
       res.json(result);
     } catch (error) {
       res.status(400).json({ error: error.message });
