@@ -48,6 +48,7 @@ export default function EquipmentAddCardPage({
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [selectedNewAttrs, setSelectedNewAttrs] = useState({});
 
   // Quick add modals
   const [openQuickAddGroup, setOpenQuickAddGroup] = useState(false);
@@ -243,7 +244,7 @@ export default function EquipmentAddCardPage({
             <AddCard3
               formData={formData}
               attributes={attributes}
-              setAttributes={setAttributes} 
+              setAttributes={setAttributes}
               typeAttributes={typeAttributes}
               setTypeAttributes={setTypeAttributes}
               selectedAttrs={selectedAttrs}
@@ -259,6 +260,8 @@ export default function EquipmentAddCardPage({
               addNewAttribute={addNewAttribute}
               loadingAdd={loadingAdd}
               setLoadingAdd={setLoadingAdd}
+              selectedNewAttrs={selectedNewAttrs}
+              setSelectedNewAttrs={setSelectedNewAttrs}
               clearAllChecked={clearAllChecked}
               clearAllInputs={clearAllInputs}
               spinClearChecked={spinClearChecked}
