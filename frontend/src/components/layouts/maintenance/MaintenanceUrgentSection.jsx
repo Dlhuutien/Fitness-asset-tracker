@@ -453,7 +453,7 @@ export default function MaintenanceUrgentSection() {
                               row.branch_id === "GV"
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : row.branch_id === "Q3"
-                                ? "text-orange-600 dark:text-orange-400"
+                                ? "text-blue-600 dark:text-blue-400"
                                 : "text-gray-800 dark:text-gray-200"
                             }`}
                           >
@@ -489,8 +489,7 @@ export default function MaintenanceUrgentSection() {
         {/* Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700 text-sm">
           <div className="text-gray-700 dark:text-gray-300">
-            Trang {currentPage} / {totalPages} — Tổng:{" "}
-            {filteredByColumn.length} thiết bị
+            Tổng:{" "} {filteredByColumn.length} thiết bị
           </div>
           <div className="flex items-center gap-2">
             <Button

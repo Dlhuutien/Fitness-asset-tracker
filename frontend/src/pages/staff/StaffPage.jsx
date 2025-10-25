@@ -26,6 +26,8 @@ import DatePicker from "react-datepicker";
 import { vi } from "date-fns/locale";
 import "react-datepicker/dist/react-datepicker.css";
 import AuthService from "@/services/AuthService";
+import AddStaffPage from "@/pages/staff/AddStaffPage";
+import { PlusCircle } from "lucide-react";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -144,6 +146,7 @@ export default function StaffPage() {
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
   const controller = useGlobalFilterController();
+  const [openAddStaff, setOpenAddStaff] = useState(false);
 
   const [filters, setFilters] = useState({
     name: [],
@@ -269,7 +272,8 @@ export default function StaffPage() {
       />
 
       {/* Filter */}
-      <div className="flex flex-wrap items-center gap-3 w-full">
+      <div className="flex flex-wrap items-center justify-between w-full gap-3">
+        {/* Nhóm bộ lọc vai trò bên trái */}
         <div className="flex flex-wrap gap-2 items-center">
           {allRoles.map((role) => (
             <Button
@@ -285,66 +289,72 @@ export default function StaffPage() {
               {role}
             </Button>
           ))}
-
-          <div className="ml-5">
-            <ColumnVisibilityButton
-              visibleColumns={visibleColumns}
-              setVisibleColumns={setVisibleColumns}
-              labels={{
-                name: "Họ và tên",
-                email: "Email",
-                role: "Vai trò",
-                branch: "Chi nhánh",
-                status: "Trạng thái",
-                createdAt: "Ngày tạo",
-              }}
-            />
-          </div>
         </div>
 
-        {/* Dropdown trạng thái */}
-        <div className="ml-auto relative">
+        {/* Nhóm nút Thêm nhân viên + Hiển thị cột bên phải */}
+        <div className="flex items-center gap-2">
           <Button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-white bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-emerald-500 hover:to-cyan-500"
+            onClick={() => setOpenAddStaff((p) => !p)}
+            className={`h-11 min-w-[120px] text-[13px] rounded-lg shadow flex items-center justify-center gap-1 whitespace-nowrap transition-all duration-200
+    ${
+      openAddStaff
+        ? "bg-rose-500 hover:bg-rose-600 text-white"
+        : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white"
+    }`}
           >
-            <span>{selectedStatus}</span>
-            <ChevronDown
-              size={18}
-              className={`transition-transform ${
-                dropdownOpen ? "rotate-180" : ""
-              }`}
-            />
-          </Button>
-          <AnimatePresence>
-            {dropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="absolute right-0 mt-2 w-44 rounded-lg border bg-white shadow-lg z-50"
-              >
-                {statusFilters.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => {
-                      setSelectedStatus(s);
-                      setDropdownOpen(false);
-                    }}
-                    className={`block w-full text-left px-4 py-2 text-sm ${
-                      selectedStatus === s
-                        ? "bg-gradient-to-r from-cyan-500 to-emerald-500 text-white"
-                        : "hover:bg-emerald-50"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </motion.div>
+            {openAddStaff ? (
+              <>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+                Hủy
+              </>
+            ) : (
+              <>
+                <PlusCircle className="w-4 h-4" /> Nhân viên
+              </>
             )}
-          </AnimatePresence>
+          </Button>
+
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              name: "Họ và tên",
+              email: "Email",
+              role: "Vai trò",
+              branch: "Chi nhánh",
+              status: "Trạng thái",
+              createdAt: "Ngày tạo",
+            }}
+          />
         </div>
       </div>
+
+      <AnimatePresence>
+        {openAddStaff && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.25 }}
+            className="bg-white dark:bg-gray-900 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4 mb-4"
+          >
+            <AddStaffPage />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">

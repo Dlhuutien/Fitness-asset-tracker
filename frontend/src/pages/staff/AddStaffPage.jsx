@@ -284,7 +284,7 @@ export default function AddStaffPage() {
           className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-cyan-500 hover:to-emerald-500 text-white shadow-md flex items-center gap-2"
         >
           {loading && <Loader2 className="animate-spin w-4 h-4" />}
-          {loading ? "Đang tạo..." : "➕ Tạo nhân viên"}
+          {loading ? "Đang tạo..." : "➕ Lưu"}
         </Button>
 
         {/* Thông báo dưới nút */}
