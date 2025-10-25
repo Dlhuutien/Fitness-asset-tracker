@@ -243,7 +243,9 @@ export default function EquipmentAddCardPage({
             <AddCard3
               formData={formData}
               attributes={attributes}
+              setAttributes={setAttributes} 
               typeAttributes={typeAttributes}
+              setTypeAttributes={setTypeAttributes}
               selectedAttrs={selectedAttrs}
               setSelectedAttrs={setSelectedAttrs}
               searchAttr={searchAttr}
@@ -256,6 +258,7 @@ export default function EquipmentAddCardPage({
               setNewAttr={setNewAttr}
               addNewAttribute={addNewAttribute}
               loadingAdd={loadingAdd}
+              setLoadingAdd={setLoadingAdd}
               clearAllChecked={clearAllChecked}
               clearAllInputs={clearAllInputs}
               spinClearChecked={spinClearChecked}

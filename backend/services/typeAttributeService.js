@@ -32,6 +32,48 @@ const typeAttributeService = {
   },
 
   /**
+   * 🧩 Thêm attribute hàng loạt cho một Category Type
+   */
+  bulkAddAttributesToType: async (category_type_id, attributes = []) => {
+    if (!attributes.length) throw new Error("No attributes provided");
+
+    const allAttrs = await attributeRepository.findAll();
+    const allTypeAttrs = await typeAttributeRepository.findByTypeId(
+      category_type_id
+    );
+
+    const results = [];
+
+    for (const attr of attributes) {
+      // 1️⃣ Nếu có id → dùng luôn
+      let targetAttr = attr.id
+        ? allAttrs.find((a) => a.id === attr.id)
+        : allAttrs.find(
+            (a) => a.name.toLowerCase() === attr.name.toLowerCase()
+          );
+
+      // 2️⃣ Nếu chưa tồn tại → tạo mới
+      if (!targetAttr) {
+        targetAttr = await attributeRepository.create({ name: attr.name });
+      }
+
+      // 3️⃣ Kiểm tra trùng trong TypeAttribute
+      const alreadyLinked = allTypeAttrs.find(
+        (ta) => ta.attribute_id === targetAttr.id
+      );
+      if (!alreadyLinked) {
+        const link = await typeAttributeRepository.create({
+          category_type_id,
+          attribute_id: targetAttr.id,
+        });
+        results.push({ ...link, attribute: targetAttr });
+      }
+    }
+
+    return results;
+  },
+
+  /**
    * 🔍 Lấy tất cả attributes của type
    */
   getAttributesByType: async (category_type_id) => {
