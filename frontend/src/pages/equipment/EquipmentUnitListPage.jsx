@@ -527,9 +527,14 @@ export default function EquipmentUnitListSection() {
 
                     {visibleColumns.description && (
                       <TableCell>
-                        <span className="line-clamp-2 text-gray-700 dark:text-gray-300">
-                          {row.equipment?.description || "—"}
-                        </span>
+                        <div
+                          className="max-w-[250px] truncate overflow-hidden text-ellipsis whitespace-nowrap text-gray-700 dark:text-gray-300"
+                          title={
+                            row.description || row.equipment?.description || "—"
+                          }
+                        >
+                          {row.description || row.equipment?.description || "—"}
+                        </div>
                       </TableCell>
                     )}
 

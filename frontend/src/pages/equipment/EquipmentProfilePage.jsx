@@ -347,7 +347,7 @@ export default function EquipmentProfilePage() {
               )}
             </div>
 
-            <div className="col-span-2">
+            {/* <div className="col-span-2">
               <strong>Mô tả:</strong>
               {editing ? (
                 <Textarea
@@ -358,7 +358,22 @@ export default function EquipmentProfilePage() {
               ) : (
                 <p className="mt-1">{formData.description || "—"}</p>
               )}
+            </div> */}
+            <div className="col-span-2">
+              <strong>Mô tả:</strong>
+              {editing ? (
+                <Textarea
+                  value={formData.description}
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  className="mt-1 text-sm"
+                />
+              ) : (
+                <div className="mt-1 max-w-[700px] break-words whitespace-pre-line leading-relaxed text-gray-800 dark:text-gray-100">
+                  {formData.description || "—"}
+                </div>
+              )}
             </div>
+
             <p>
               <strong>Ngày tạo:</strong> {fmtDate(equipment.created_at)}
             </p>

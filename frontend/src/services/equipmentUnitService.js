@@ -1,7 +1,7 @@
 import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
 
-// Tránh sai chính tả status
+// ✅ Tránh sai chính tả status
 export const UNIT_STATUS = {
   ACTIVE: "Active",
   INACTIVE: "Inactive",
@@ -13,7 +13,7 @@ export const UNIT_STATUS = {
 
 const EquipmentUnitService = {
   /**
-   * Lấy tất cả equipment units
+   * 🔹 Lấy tất cả equipment units
    * GET /equipmentUnit
    */
   async getAll() {
@@ -27,7 +27,7 @@ const EquipmentUnitService = {
   },
 
   /**
-   * Lấy chi tiết unit theo id
+   * 🔹 Lấy chi tiết unit theo id
    * GET /equipmentUnit/:id
    */
   async getById(id) {
@@ -41,7 +41,7 @@ const EquipmentUnitService = {
   },
 
   /**
-   * Lấy tất cả unit theo equipment_id (model gốc)
+   * 🔹 Lấy tất cả unit theo equipment_id (thiết bị gốc)
    * GET /equipmentUnit/equipment/:equipmentId
    */
   async getByEquipmentId(equipmentId) {
@@ -55,7 +55,7 @@ const EquipmentUnitService = {
   },
 
   /**
-   * Lọc theo 1 trạng thái duy nhất
+   * 🔹 Lọc theo 1 trạng thái duy nhất
    * GET /equipmentUnit/status/:status
    */
   async getByStatus(status) {
@@ -69,13 +69,12 @@ const EquipmentUnitService = {
   },
 
   /**
-   * Lọc theo nhiều trạng thái (status-group)
+   * 🔹 Lọc theo nhiều trạng thái (status-group)
    * GET /equipmentUnit/status-group?statuses=a,b,c
    */
   async getByStatusGroup(statuses = []) {
     const qs = statuses.map(encodeURIComponent).join(",");
     const url = `${API}equipmentUnit/status-group?statuses=${qs}`;
-
     try {
       const res = await axios.get(url);
       return res.data;
@@ -86,8 +85,8 @@ const EquipmentUnitService = {
   },
 
   /**
-   * Helper cho màn Urgent
-   * => trả về units có trạng thái Temporary Urgent & In Progress
+   * 🔹 Helper cho màn Urgent
+   * => Trả về units có trạng thái Temporary Urgent & In Progress
    */
   async getUrgentUnits() {
     return this.getByStatusGroup([
@@ -97,15 +96,15 @@ const EquipmentUnitService = {
   },
 
   /**
-   * Helper cho màn Ready
-   * => trả về units có trạng thái Ready & Failed
+   * 🔹 Helper cho màn Ready
+   * => Trả về units có trạng thái Ready & Failed
    */
   async getReadyUnits() {
     return this.getByStatusGroup([UNIT_STATUS.READY, UNIT_STATUS.FAILED]);
   },
 
   /**
-   * Cập nhật equipment unit (chỉ admin, super-admin)
+   * 🔹 Cập nhật equipment unit (chỉ admin, super-admin)
    * PUT /equipmentUnit/:id
    */
   async update(id, data) {
@@ -119,7 +118,21 @@ const EquipmentUnitService = {
   },
 
   /**
-   * Helper phê duyệt cuối (giai đoạn 4)
+   * 🔹 Cập nhật thông tin thiết bị gốc (model Equipment)
+   * PUT /equipment/:equipmentId
+   */
+  async updateBaseInfo(equipmentId, data) {
+    try {
+      const res = await axios.put(`${API}equipment/${equipmentId}`, data);
+      return res.data;
+    } catch (err) {
+      console.error("❌ Lỗi khi cập nhật thiết bị gốc:", err.response?.data || err.message);
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * 🔹 Helper phê duyệt cuối (giai đoạn 4)
    * status: "Active" | "Inactive"
    */
   async setFinalStatus(id, status) {
