@@ -30,8 +30,17 @@ const AttributeModel = {
 
   // READ ALL
   getAttributes: async () => {
-    const result = await dynamodb.send(new ScanCommand({ TableName: tableName }));
-    return result.Items || [];
+    const result = await dynamodb.send(
+      new ScanCommand({ TableName: tableName })
+    );
+    const items = result.Items || [];
+
+    // 🧩 Sắp xếp theo tên (A → Z)
+    items.sort((a, b) =>
+      a.name.localeCompare(b.name, "vi", { sensitivity: "base" })
+    );
+
+    return items;
   },
 
   // READ ONE
