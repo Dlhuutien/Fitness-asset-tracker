@@ -1,11 +1,15 @@
 import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
+import { mutate } from "swr";
+
+const KEY_UNIT = `${API}equipmentUnit`;
 
 const EquipmentDisposalService = {
   /** ♻️ Tạo đợt thanh lý */
   async create(data) {
     try {
       const res = await axios.post(`${API}disposal`, data);
+      mutate(KEY_UNIT);
       return res.data;
     } catch (err) {
       console.error("❌ Lỗi tạo đợt thanh lý:", err.response?.data || err);

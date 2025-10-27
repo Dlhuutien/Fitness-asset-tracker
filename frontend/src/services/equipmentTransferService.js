@@ -1,11 +1,15 @@
 import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
+import { mutate } from "swr";
+
+const KEY_UNIT = `${API}equipmentUnit`;
 
 const EquipmentTransferService = {
   /** 📨 Tạo yêu cầu chuyển thiết bị */
   async create(data) {
     try {
       const res = await axios.post(`${API}equipmentTransfer`, data);
+      mutate(KEY_UNIT);
       return res.data;
     } catch (err) {
       console.error(
@@ -47,6 +51,7 @@ const EquipmentTransferService = {
       const res = await axios.put(`${API}equipmentTransfer/${id}/complete`, {
         move_receive_date,
       });
+      mutate(KEY_UNIT);
       return res.data;
     } catch (err) {
       console.error(

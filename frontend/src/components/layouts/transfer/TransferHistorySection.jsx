@@ -74,7 +74,7 @@ export default function TransferHistory() {
         const data = await EquipmentTransferService.getByStatus("Completed");
         setTransfers(data);
       } catch (err) {
-        console.error("❌ Lỗi tải danh sách vận chuyển:", err);
+        console.error("❌ Lỗi tải danh sách điều chuyển:", err);
       } finally {
         setLoading(false);
       }
@@ -127,7 +127,7 @@ export default function TransferHistory() {
   if (loading)
     return (
       <div className="text-center py-10 text-gray-500">
-        Đang tải lịch sử vận chuyển...
+        Đang tải lịch sử điều chuyển...
       </div>
     );
 
@@ -138,7 +138,7 @@ export default function TransferHistory() {
         <div className="flex items-center gap-2">
           <Truck className="text-emerald-500" />
           <h2 className="text-lg font-semibold text-emerald-600">
-            Lịch sử vận chuyển thiết bị
+            Lịch sử điều chuyển thiết bị
           </h2>
         </div>
 
@@ -165,7 +165,7 @@ export default function TransferHistory() {
             visibleColumns={visibleColumns}
             setVisibleColumns={setVisibleColumns}
             labels={{
-              id: "Mã vận chuyển",
+              id: "Mã điều chuyển",
               from_branch_id: "Từ chi nhánh",
               to_branch_id: "Đến chi nhánh",
               approved_by_name: "Người yêu cầu",
@@ -187,7 +187,7 @@ export default function TransferHistory() {
                 if (!visible) return null;
 
                 const LABELS = {
-                  id: "Mã vận chuyển",
+                  id: "Mã điều chuyển",
                   from_branch_id: "Từ chi nhánh",
                   to_branch_id: "Đến chi nhánh",
                   approved_by_name: "Người yêu cầu",
@@ -229,7 +229,7 @@ export default function TransferHistory() {
                   colSpan={Object.keys(visibleColumns).length + 2}
                   className="text-center py-4 text-gray-500"
                 >
-                  Không có lịch sử vận chuyển nào.
+                  Không có lịch sử điều chuyển nào.
                 </TableCell>
               </TableRow>
             ) : (

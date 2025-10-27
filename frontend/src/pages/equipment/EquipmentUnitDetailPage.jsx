@@ -23,7 +23,7 @@ const STATUS_MAP = {
   "in progress": "Đang bảo trì",
   ready: "Bảo trì thành công",
   failed: "Bảo trì thất bại",
-  moving: "Đang di chuyển",
+  moving: "Đang điều chuyển",
   "in stock": "Thiết bị trong kho",
   deleted: "Đã xóa",
   disposed: "Đã thanh lý",
@@ -69,7 +69,7 @@ export default function EquipmentProfilePage() {
 
   const eq = data?.equipment || {};
   const isTemporarilyStopped =
-    data?.status?.toLowerCase() === "temporary urgent";
+    data?.status?.toLowerCase() === "Temporary Urgent";
 
   // Load unit detail when no prefetched state
   useEffect(() => {
@@ -231,6 +231,24 @@ export default function EquipmentProfilePage() {
     }
   };
 
+  const handleMoveToStock = async () => {
+    try {
+      setLoading(true);
+      await EquipmentUnitService.update(data.id, { status: "In Stock" });
+      setData((prev) => ({ ...prev, status: "In Stock" }));
+      toast.success("📦 Thiết bị đã được đưa lại vào kho!");
+      setSuccessMsg("Thiết bị đã được chuyển sang trạng thái 'Trong kho'.");
+      setErrorMsg("");
+    } catch (err) {
+      console.error("❌ Lỗi khi đưa vào kho:", err);
+      toast.error("❌ Không thể đưa thiết bị vào kho!");
+      setErrorMsg("Không thể chuyển vào kho, vui lòng thử lại.");
+      setSuccessMsg("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ===== Loading =====
   if (loading)
     return (
@@ -294,47 +312,57 @@ export default function EquipmentProfilePage() {
                 </div>
               )}
 
-<div className="flex items-center gap-3">
-  {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
-  {data.status?.toLowerCase() === "in stock" && !editMode && (
-    <Button
-      onClick={handleActivate}
-      disabled={loading}
-      className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
-    >
-      🚀 Đưa vào hoạt động
-    </Button>
-  )}
+              <div className="flex items-center gap-3">
+                {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
+                {data.status?.toLowerCase() === "in stock" && !editMode && (
+                  <Button
+                    onClick={handleActivate}
+                    disabled={loading}
+                    className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
+                  >
+                    🚀 Đưa vào hoạt động
+                  </Button>
+                )}
 
-  {/* ✏️ Nút Sửa / Hủy / Lưu */}
-  {!editMode ? (
-    <Button
-      onClick={() => setEditMode(true)}
-      variant="outline"
-      className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all font-semibold"
-    >
-      ✏️ Sửa thông tin
-    </Button>
-  ) : (
-    <>
-      <Button
-        onClick={() => setEditMode(false)}
-        variant="outline"
-        className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
-      >
-        Hủy
-      </Button>
-      <Button
-        onClick={handleSave}
-        disabled={loading}
-        className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
-      >
-        💾 Lưu thay đổi
-      </Button>
-    </>
-  )}
-</div>
+                {/* 📦 Nếu thiết bị đang hoạt động => cho phép đưa lại vào kho */}
+                {data.status?.toLowerCase() === "active" && !editMode && (
+                  <Button
+                    onClick={handleMoveToStock}
+                    disabled={loading}
+                    className="bg-gradient-to-r from-blue-400 to-indigo-600 hover:from-blue-500 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
+                  >
+                    📦 Đưa vào kho
+                  </Button>
+                )}
 
+                {/* ✏️ Nút Sửa / Hủy / Lưu */}
+                {!editMode ? (
+                  <Button
+                    onClick={() => setEditMode(true)}
+                    variant="outline"
+                    className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all font-semibold"
+                  >
+                    ✏️ Sửa thông tin
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      onClick={() => setEditMode(false)}
+                      variant="outline"
+                      className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
+                    >
+                      Hủy
+                    </Button>
+                    <Button
+                      onClick={handleSave}
+                      disabled={loading}
+                      className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
+                    >
+                      💾 Lưu thay đổi
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Nhóm trạng thái + id + nhóm */}

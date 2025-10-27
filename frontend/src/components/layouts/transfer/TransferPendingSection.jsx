@@ -34,12 +34,12 @@ import useAuthRole from "@/hooks/useAuthRole";
 const ITEMS_PER_PAGE = 8;
 
 const STATUS_BADGE = {
-  pending: "Đang vận chuyển",
+  pending: "Đang điều chuyển",
   completed: "Đã hoàn tất",
 };
 const UNIT_STATUS_LABELS = {
   "In Stock": "Trong kho",
-  Moving: "Đang vận chuyển",
+  Moving: "Đang điều chuyển",
   Active: "Hoạt động",
   Inactive: "Ngưng sử dụng",
 };
@@ -94,7 +94,7 @@ export default function TransferPendingSection() {
       setBranches(b || []);
     } catch (e) {
       console.error(e);
-      toast.error("Không thể tải danh sách phiếu vận chuyển.");
+      toast.error("Không thể tải danh sách phiếu điều chuyển.");
     } finally {
       if (!isRefresh) setLoading(false);
       else setRefreshing(false);
@@ -186,13 +186,13 @@ export default function TransferPendingSection() {
       const dateValue = transfer.move_receive_date || new Date().toISOString();
 
       await EquipmentTransferService.complete(transfer.id, dateValue);
-      toast.success("✅ Đã xác nhận hoàn tất vận chuyển!");
+      toast.success("✅ Đã xác nhận hoàn tất điều chuyển!");
 
       // 🧠 Đóng card trước — để tránh mất thông báo khi re-render
       setSelected(null);
 
       // ✅ Đặt thông báo sau khi đóng card
-      setSuccessMsg("✅ Đã xác nhận hoàn tất vận chuyển!");
+      setSuccessMsg("✅ Đã xác nhận hoàn tất điều chuyển!");
       setErrorMsg("");
 
       // Reload lại dữ liệu (refresh ngầm)
@@ -219,7 +219,7 @@ export default function TransferPendingSection() {
   if (loading && !refreshing)
     return (
       <div className="p-6 text-gray-500 dark:text-gray-300 animate-pulse">
-        Đang tải phiếu vận chuyển...
+        Đang tải phiếu điều chuyển...
       </div>
     );
 
@@ -530,7 +530,7 @@ export default function TransferPendingSection() {
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Ngày hoàn tất vận chuyển:
+                  Ngày hoàn tất điều chuyển:
                 </label>
                 <input
                   type="datetime-local"
@@ -575,7 +575,7 @@ export default function TransferPendingSection() {
                     Đang xác nhận...
                   </>
                 ) : (
-                  "✅ Đã vận chuyển thành công"
+                  "✅ Đã điều chuyển thành công"
                 )}
               </Button>
             </div>

@@ -8,9 +8,9 @@ export default function TransferEquipmentPage() {
   const [tab, setTab] = useState("create");
 
   const tabs = [
-    { key: "create", label: "📦 Tạo đơn vận chuyển" },
-    { key: "pending", label: "🚚 Đơn đang vận chuyển" },
-    { key: "history", label: "📜 Lịch sử đơn vận chuyển" },
+    { key: "create", label: "📦 Tạo đơn điều chuyển" },
+    { key: "pending", label: "🚚 Đơn đang điều chuyển" },
+    { key: "history", label: "📜 Lịch sử đơn điều chuyển" },
   ];
 
   return (

@@ -143,6 +143,7 @@ export default function EquipmentUnitListSection() {
     name: true,
     main: true,
     type: true,
+    vendor_name: true,
     status: true,
     description: true,
     created_at: true,
@@ -153,6 +154,7 @@ export default function EquipmentUnitListSection() {
     name: [],
     main: [],
     type: [],
+    vendor_name: [],
     status: [],
     description: [],
   });
@@ -165,6 +167,7 @@ export default function EquipmentUnitListSection() {
       name: getUniqueValues(units, (u) => u.equipment?.name),
       main: getUniqueValues(units, (u) => u.equipment?.main_name),
       type: getUniqueValues(units, (u) => u.equipment?.type_name),
+      vendor_name: getUniqueValues(units, (u) => u.vendor_name),
       description: getUniqueValues(units, (u) => u.equipment?.description),
       status: getUniqueValues(units, (u) => getStatusVN(u.status)),
     }),
@@ -348,6 +351,7 @@ export default function EquipmentUnitListSection() {
               name: "Tên thiết bị",
               main: "Nhóm",
               type: "Loại",
+              vendor_name: "Nhà cung cấp",
               status: "Trạng thái",
               description: "Mô tả",
               created_at: "Ngày nhập",
@@ -432,6 +436,21 @@ export default function EquipmentUnitListSection() {
                       values={uniqueValues.status}
                       selected={filters.status}
                       onChange={(v) => setFilters((p) => ({ ...p, status: v }))}
+                      controller={controller}
+                    />
+                  </TableHead>
+                )}
+
+                {visibleColumns.vendor_name && (
+                  <TableHead className="border dark:border-gray-600">
+                    <HeaderFilter
+                      selfKey="vendor_name"
+                      label="Nhà cung cấp"
+                      values={uniqueValues.vendor_name}
+                      selected={filters.vendor_name}
+                      onChange={(v) =>
+                        setFilters((p) => ({ ...p, vendor_name: v }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -523,6 +542,10 @@ export default function EquipmentUnitListSection() {
                       <TableCell className="text-center">
                         <Status status={getStatusVN(row.status)} />
                       </TableCell>
+                    )}
+
+                    {visibleColumns.vendor_name && (
+                      <TableCell>{row.vendor_name || "—"}</TableCell>
                     )}
 
                     {visibleColumns.description && (

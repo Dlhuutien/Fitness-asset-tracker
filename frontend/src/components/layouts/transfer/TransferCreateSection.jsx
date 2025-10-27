@@ -247,8 +247,8 @@ export default function TransferCreateSection() {
         unit_ids,
         to_branch_id: destBranch,
       });
-      toast.success("Đã tạo yêu cầu vận chuyển!");
-      setSuccessMsg("✅ Đã tạo yêu cầu vận chuyển thành công!");
+      toast.success("Đã tạo yêu cầu điều chuyển!");
+      setSuccessMsg("✅ Đã tạo yêu cầu điều chuyển thành công!");
       setErrorMsg("");
 
       setSelected({});
@@ -259,8 +259,8 @@ export default function TransferCreateSection() {
       setTimeout(() => setSuccessMsg(""), 5000);
     } catch (e) {
       console.error(e);
-      toast.error(e?.error || "Tạo yêu cầu vận chuyển thất bại.");
-      setErrorMsg("❌ Không thể tạo yêu cầu vận chuyển, vui lòng thử lại!");
+      toast.error(e?.error || "Tạo yêu cầu điều chuyển thất bại.");
+      setErrorMsg("❌ Không thể tạo yêu cầu điều chuyển, vui lòng thử lại!");
       setSuccessMsg("");
 
       setTimeout(() => setErrorMsg(""), 5000);
@@ -384,7 +384,7 @@ export default function TransferCreateSection() {
               Đang tạo yêu cầu...
             </>
           ) : (
-            "Tạo yêu cầu vận chuyển"
+            "Tạo yêu cầu điều chuyển"
           )}
         </Button>
         {/* 🧩 Thông báo */}
@@ -405,7 +405,7 @@ export default function TransferCreateSection() {
           <div className="flex items-center gap-2 mb-3">
             <PackageCheck className="text-emerald-500" />
             <h2 className="text-lg font-semibold text-emerald-600">
-              Thiết bị đang chọn để vận chuyển ({selectedItems.length})
+              Thiết bị đang chọn để điều chuyển ({selectedItems.length})
             </h2>
             <Button
               onClick={() => setSelected({})}

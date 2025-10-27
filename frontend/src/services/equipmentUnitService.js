@@ -1,5 +1,8 @@
 import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
+import { mutate } from "swr";
+
+const KEY_UNIT = `${API}equipmentUnit`;
 
 // ✅ Tránh sai chính tả status
 export const UNIT_STATUS = {
@@ -21,7 +24,10 @@ const EquipmentUnitService = {
       const res = await axios.get(`${API}equipmentUnit`);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lấy equipment units:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy equipment units:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -35,7 +41,10 @@ const EquipmentUnitService = {
       const res = await axios.get(`${API}equipmentUnit/${id}`);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lấy equipment unit:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy equipment unit:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -46,10 +55,15 @@ const EquipmentUnitService = {
    */
   async getByEquipmentId(equipmentId) {
     try {
-      const res = await axios.get(`${API}equipmentUnit/equipment/${equipmentId}`);
+      const res = await axios.get(
+        `${API}equipmentUnit/equipment/${equipmentId}`
+      );
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lấy units theo equipment_id:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy units theo equipment_id:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -60,10 +74,15 @@ const EquipmentUnitService = {
    */
   async getByStatus(status) {
     try {
-      const res = await axios.get(`${API}equipmentUnit/status/${encodeURIComponent(status)}`);
+      const res = await axios.get(
+        `${API}equipmentUnit/status/${encodeURIComponent(status)}`
+      );
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lọc theo status:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lọc theo status:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -79,7 +98,10 @@ const EquipmentUnitService = {
       const res = await axios.get(url);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lọc theo status-group:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lọc theo status-group:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -110,9 +132,13 @@ const EquipmentUnitService = {
   async update(id, data) {
     try {
       const res = await axios.put(`${API}equipmentUnit/${id}`, data);
+      mutate(KEY_UNIT);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi cập nhật equipment unit:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi cập nhật equipment unit:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -126,7 +152,10 @@ const EquipmentUnitService = {
       const res = await axios.put(`${API}equipment/${equipmentId}`, data);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi cập nhật thiết bị gốc:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi cập nhật thiết bị gốc:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -139,7 +168,10 @@ const EquipmentUnitService = {
     if (![UNIT_STATUS.ACTIVE, UNIT_STATUS.INACTIVE].includes(status)) {
       throw new Error("Trạng thái cuối không hợp lệ");
     }
-    return this.update(id, { status });
+    const res = await this.update(id, { status });
+    // 🆕 Refresh lại cache SWR
+    mutate(KEY_UNIT);
+    return res;
   },
 };
 

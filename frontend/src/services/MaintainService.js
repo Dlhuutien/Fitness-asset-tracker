@@ -1,5 +1,8 @@
 import axios from "@/config/axiosConfig";
 import { API } from "@/config/url";
+import { mutate } from "swr";
+
+const KEY_UNIT = `${API}equipmentUnit`;
 
 const MaintainService = {
   /**
@@ -54,6 +57,7 @@ const MaintainService = {
   async create(data) {
     try {
       const res = await axios.post(`${API}maintenance`, data);
+      mutate(KEY_UNIT);
       return res.data;
     } catch (err) {
       console.error("❌ Lỗi khi tạo yêu cầu bảo trì:", err.response?.data || err.message);
@@ -69,6 +73,7 @@ const MaintainService = {
   async progress(id) {
     try {
       const res = await axios.put(`${API}maintenance/${id}/progress`);
+      mutate(KEY_UNIT);
       return res.data;
     } catch (err) {
       console.error("❌ Lỗi khi cập nhật trạng thái In Progress:", err.response?.data || err.message);
@@ -85,6 +90,7 @@ const MaintainService = {
   async complete(id, data) {
     try {
       const res = await axios.put(`${API}maintenance/${id}/complete`, data);
+      mutate(KEY_UNIT);
       return res.data;
     } catch (err) {
       console.error("❌ Lỗi khi hoàn tất bảo trì:", err.response?.data || err.message);
