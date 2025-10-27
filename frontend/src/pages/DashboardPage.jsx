@@ -5,6 +5,7 @@ import {
   Dumbbell,
   Truck,
   BarChart3,
+  Trash2,
   AlertTriangle,
   Plus,
   FileBarChart2,
@@ -51,7 +52,6 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
-  Treemap,
   RadialBarChart,
   RadialBar,
   ScatterChart,
@@ -67,82 +67,29 @@ import { loadFull } from "tsparticles";
 import { Toaster, toast } from "sonner";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import Status from "@/components/common/Status";
+import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import useAuthRole from "@/hooks/useAuthRole";
+import BranchService from "@/services/branchService";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import MaintainService from "@/services/MaintainService";
 
 /* ============================== Fake Data + Generators ============================== */
-const monthNames = [
-  "T1",
-  "T2",
-  "T3",
-  "T4",
-  "T5",
-  "T6",
-  "T7",
-  "T8",
-  "T9",
-  "T10",
-  "T11",
-  "T12",
-];
 const COLORS = ["#10b981", "#ef4444", "#f59e0b"];
-const STACK_COLORS = { membership: "#22c55e", pt: "#38bdf8", merch: "#f59e0b" };
 
-function genBarLineData(range = "month") {
-  if (range === "month") {
-    return {
-      bar: [
-        { name: "Tuần 1", thiết_bị: 40, nhân_viên: 15 },
-        { name: "Tuần 2", thiết_bị: 48, nhân_viên: 18 },
-        { name: "Tuần 3", thiết_bị: 55, nhân_viên: 22 },
-        { name: "Tuần 4", thiết_bị: 60, nhân_viên: 25 },
-      ],
-      line: [
-        { name: "Tuần 1", doanh_thu: 1200 },
-        { name: "Tuần 2", doanh_thu: 1800 },
-        { name: "Tuần 3", doanh_thu: 1500 },
-        { name: "Tuần 4", doanh_thu: 2100 },
-      ],
-    };
-  }
-  if (range === "quarter") {
-    return {
-      bar: [
-        { name: "T1", thiết_bị: 120, nhân_viên: 45 },
-        { name: "T2", thiết_bị: 135, nhân_viên: 50 },
-        { name: "T3", thiết_bị: 150, nhân_viên: 57 },
-      ],
-      line: [
-        { name: "T1", doanh_thu: 4200 },
-        { name: "T2", doanh_thu: 4800 },
-        { name: "T3", doanh_thu: 5400 },
-      ],
-    };
-  }
-  return {
-    bar: monthNames.map((m, i) => ({
-      name: m,
-      thiết_bị: 40 + i * 4 + (i % 3 === 0 ? 6 : 0),
-      nhân_viên: 15 + Math.round(i * 1.2),
-    })),
-    line: monthNames.map((m, i) => ({
-      name: m,
-      doanh_thu: 1000 + i * 180 + (i % 4 ? 120 : 0),
-    })),
-  };
-}
-function genStackedArea(range = "month") {
-  const labels =
-    range === "month"
-      ? ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"]
-      : range === "quarter"
-      ? ["T1", "T2", "T3"]
-      : monthNames;
-  return labels.map((name, i) => ({
-    month: name,
-    membership: +(8 + i * (range === "year" ? 0.6 : 1)).toFixed(1),
-    pt: +(3.5 + i * (range === "year" ? 0.35 : 0.6)).toFixed(1),
-    merch: +(1 + i * (range === "year" ? 0.25 : 0.4)).toFixed(1),
-  }));
-}
 function genPieStatus(range = "month") {
   const base =
     range === "year"
@@ -156,29 +103,7 @@ function genPieStatus(range = "month") {
     { name: "Đang bảo trì", value: base[2] },
   ];
 }
-function genRadarUsage() {
-  return [
-    { metric: "Cardio", fit: 85, target: 80 },
-    { metric: "Strength", fit: 72, target: 75 },
-    { metric: "Stretch", fit: 64, target: 65 },
-    { metric: "Functional", fit: 78, target: 70 },
-    { metric: "Accessories", fit: 58, target: 60 },
-  ];
-}
-function genTreemap() {
-  return [
-    {
-      name: "Thiết bị",
-      children: [
-        { name: "Cardio", size: 50 },
-        { name: "Strength", size: 35 },
-        { name: "Functional", size: 25 },
-        { name: "Stretching", size: 15 },
-        { name: "Accessories", size: 10 },
-      ],
-    },
-  ];
-}
+
 function genScatterDevices(range = "month") {
   const n = range === "year" ? 24 : range === "quarter" ? 12 : 8;
   return Array.from({ length: n }).map((_, i) => ({
@@ -308,6 +233,23 @@ function useLavaOption(percent) {
 
 /* ============================== Main Component ============================== */
 export default function DashboardPage() {
+  // 🧠 Lấy tên hiển thị từ localStorage.fitx_auth
+  let userName = "Admin";
+  try {
+    const auth = JSON.parse(localStorage.getItem("fitx_auth"));
+    // Ưu tiên lấy từ userAttributes
+    if (auth?.userAttributes?.name) {
+      userName = auth.userAttributes.name;
+    } else if (auth?.user?.userAttributes?.name) {
+      // fallback nếu backend lưu nested hơn
+      userName = auth.user.userAttributes.name;
+    } else if (auth?.username) {
+      userName = auth.username;
+    }
+  } catch (e) {
+    console.warn("Không thể parse fitx_auth:", e);
+  }
+
   const [range, setRange] = useState("month"); // month | quarter | year
   const [tab, setTab] = useState("overview"); // overview | charts | maintenance | activity
 
@@ -334,26 +276,263 @@ export default function DashboardPage() {
     "Bảo trì thất bại": "#ef4444",
   };
 
+  // 🧮 Format tiền Việt kiểu đọc: "1 tỷ 250 triệu đồng"
+  const formatVND = (value) => {
+    if (value >= 1_000_000_000) {
+      const billions = Math.floor(value / 1_000_000_000);
+      const millions = Math.floor((value % 1_000_000_000) / 1_000_000);
+
+      // Nếu không có phần triệu → chỉ hiển thị "1 tỷ đồng"
+      if (millions === 0) return `${billions} tỷ`;
+
+      return `${billions} tỷ ${millions}tr`;
+    } else if (value >= 1_000_000) {
+      const millions = Math.floor(value / 1_000_000);
+      return `${millions}tr`;
+    } else {
+      return `${value.toLocaleString("vi-VN")}đ`;
+    }
+  };
+
   // 🗓️ Xác định thời gian hiện hành
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1; // 1-12
   const currentQuarter = Math.floor((currentMonth - 1) / 3) + 1;
 
-  // 📊 Gọi API dashboard theo thời gian thực
-  const {
-    statistics,
-    trend,
-    hierarchy,
-    statLoading,
-    trendLoading,
-    hierarchyLoading,
-  } = useDashboardData({
-    type: range,
+  const [openImport, setOpenImport] = useState(false);
+  // 🏢 Super Admin: hiển thị filter theo chi nhánh
+  const { isSuperAdmin } = useAuthRole();
+  const [branches, setBranches] = useState([]);
+  const [activeBranch, setActiveBranch] = useState("all");
+
+  // 📦 Lấy danh sách chi nhánh từ API
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    (async () => {
+      try {
+        const res = await BranchService.getAll();
+        setBranches(res || []);
+      } catch {
+        toast.error("Không thể tải danh sách chi nhánh!");
+      }
+    })();
+  }, [isSuperAdmin]);
+
+  // 📊 Map type đúng cho từng API
+  const trendType =
+    range === "month" ? "week" : range === "year" ? "month" : "quarter";
+  const statType =
+    range === "month" ? "month" : range === "year" ? "year" : "quarter";
+
+  // ⬅️ Call 1: statistics + hierarchy (lấy tổng cho các card Tổng quan)
+  const statResp = useDashboardData({
+    type: statType,
     year: currentYear,
     month: range === "month" ? currentMonth : undefined,
     quarter: range === "quarter" ? currentQuarter : undefined,
+    branch_id: activeBranch !== "all" ? activeBranch : undefined,
   });
+  const { statistics, hierarchy, statLoading, hierarchyLoading } = statResp;
+
+  // ⬅️ Call 2: trend (giữ cho biểu đồ tuần/tháng/quý)
+  const trendResp = useDashboardData({
+    type: trendType,
+    year: currentYear,
+    month: range === "month" ? currentMonth : undefined,
+    quarter: range === "quarter" ? currentQuarter : undefined,
+    branch_id: activeBranch !== "all" ? activeBranch : undefined,
+  });
+  const { trend, trendLoading } = trendResp;
+
+  // 📦 Tổng chi phí (lấy từ thống kê chính)
+  const summary = statistics?.summary || {};
+
+  const totalImportCost = summary.importCost || 0;
+  const totalMaintenanceCost = summary.maintenanceCost || 0;
+  const totalDisposalCost = summary.disposalCost || 0;
+
+  // Lấy dữ liệu 5 kỳ gần nhất (VD: tháng 6 → tháng 10)
+  // Bar Chart động theo loại kỳ
+  // - range === "month" → 4 tuần gần nhất
+  // - range === "year" → 5 tháng gần nhất
+  // - range khác (quarter) → giữ nguyên toàn bộ trend
+  // 📊 Dữ liệu Bar Chart: Tổng thiết bị & Còn bảo hành
+  const barData = useMemo(() => {
+    if (!Array.isArray(trend)) return [];
+
+    const sliced =
+      trendType === "week"
+        ? trend.slice(-4)
+        : trendType === "month"
+        ? trend.slice(-5)
+        : trend; // quý
+
+    return sliced.map((item) => ({
+      name: item.label || "",
+      tổng_thiết_bị: item.totalEquipments || 0,
+      còn_bảo_hành: item.warrantyValid || 0,
+    }));
+  }, [trend, trendType]);
+
+  // 📈 Dữ liệu Line Chart: Chi phí nhập thiết bị
+  const lineData = useMemo(() => {
+    if (!Array.isArray(trend)) return [];
+
+    const sliced =
+      trendType === "week"
+        ? trend.slice(-4)
+        : trendType === "month"
+        ? trend.slice(-5)
+        : trend;
+
+    return sliced.map((item) => ({
+      name: item.label || "",
+      chi_phi_nhap: (item.importCost || 0) / 1_000_000, // 👈 tính theo triệu đồng
+    }));
+  }, [trend, trendType]);
+
+  // 📈 Dữ liệu 3 loại chi phí (triệu đồng)
+  // 📈 Gom logic chung cho 3 loại chi phí
+  const sliceTrend = useMemo(() => {
+    if (!Array.isArray(trend)) return [];
+
+    if (trendType === "week") {
+      // Nếu là tuần → lấy 4 tuần gần nhất
+      return trend.slice(-4);
+    } else if (trendType === "month") {
+      // Nếu là tháng → lấy 5 tháng gần nhất
+      return trend.slice(-5);
+    } else {
+      // Quý → giữ nguyên 4 quý
+      return trend;
+    }
+  }, [trend, trendType]);
+
+  // 💸 Chi phí nhập thiết bị
+  const lineImport = sliceTrend.map((t) => ({
+    name: t.label || "",
+    chi_phi_nhap: (t.importCost || 0) / 1_000_000,
+  }));
+
+  // 🧰 Chi phí bảo trì
+  const lineMaintain = sliceTrend.map((t) => ({
+    name: t.label || "",
+    chi_phi_bao_tri: (t.maintenanceCost || 0) / 1_000_000,
+  }));
+
+  // 🗑️ Chi phí thanh lý
+  const lineDisposal = sliceTrend.map((t) => ({
+    name: t.label || "",
+    chi_phi_thanh_ly: (t.disposalCost || 0) / 1_000_000,
+  }));
+
+  // 🔢 Tính chênh lệch thiết bị so với kỳ trước (month / quarter / year)
+  let diffDevices = 0;
+
+  if (Array.isArray(trend) && trend.length > 1) {
+    // Lấy kỳ hiện tại (cuối mảng) và kỳ trước (liền trước)
+    const last = trend[trend.length - 1];
+    const prev = trend[trend.length - 2];
+
+    const currTotal = last?.totalEquipments || 0;
+    const prevTotal = prev?.totalEquipments || 0;
+    diffDevices = currTotal - prevTotal;
+  }
+
+  // 👥 Tính chênh lệch nhân viên & nhà cung cấp
+  let diffStaff = 0;
+  let diffVendors = 0;
+
+  if (Array.isArray(trend) && trend.length > 1) {
+    const last = trend[trend.length - 1];
+    const prev = trend[trend.length - 2];
+    diffStaff = (last?.totalStaff || 0) - (prev?.totalStaff || 0);
+    diffVendors = (last?.totalVendors || 0) - (prev?.totalVendors || 0);
+  }
+
+  // 🔢 Sparkline thực tế (giới hạn 4 kỳ gần nhất)
+  const sparkDevices = Array.isArray(trend)
+    ? trend.slice(-4).map((t) => t.totalEquipments || 0)
+    : [];
+
+  const sparkStaff = Array.isArray(trend)
+    ? trend.slice(-4).map((t) => t.totalStaff || 0)
+    : [];
+
+  const sparkVendors = Array.isArray(trend)
+    ? trend.slice(-4).map((t) => t.totalVendors || 0)
+    : [];
+
+  // 💸 Sparkline cho các chi phí
+  const sparkImport = Array.isArray(trend)
+    ? trend.slice(-4).map((t) => +(t.importCost / 1_000_000).toFixed(1))
+    : [];
+
+  const sparkMaintenance = Array.isArray(trend)
+    ? trend.slice(-4).map((t) => +(t.maintenanceCost / 1_000_000).toFixed(1))
+    : [];
+
+  const sparkDisposal = Array.isArray(trend)
+    ? trend.slice(-4).map((t) => +(t.disposalCost / 1_000_000).toFixed(1))
+    : [];
+
+  // 📊 Dữ liệu cho biểu đồ Radar: tổng unit_count theo nhóm
+  const radarData = useMemo(() => {
+    if (!Array.isArray(hierarchy)) return [];
+
+    return hierarchy.map((group) => {
+      const totalUnits =
+        group.types?.reduce((sum, t) => {
+          const eqSum =
+            t.equipments?.reduce((s, e) => s + (e.unit_count || 0), 0) || 0;
+          return sum + eqSum;
+        }, 0) || 0;
+
+      return {
+        group: group.main_name || group.main_id, // hiển thị tên nhóm
+        unit_count: totalUnits,
+      };
+    });
+  }, [hierarchy]);
+
+  // 📊 Dữ liệu Stacked Area Chart: Chi phí theo mảng
+  const stackedCost = useMemo(() => {
+    if (!Array.isArray(trend)) return [];
+
+    const sliced =
+      trendType === "week"
+        ? trend.slice(-4)
+        : trendType === "month"
+        ? trend.slice(-5)
+        : trend;
+
+    return sliced.map((item) => ({
+      name: item.label || "",
+      import: (item.importCost || 0) / 1_000_000, // triệu đồng
+      maintenance: (item.maintenanceCost || 0) / 1_000_000,
+      disposal: (item.disposalCost || 0) / 1_000_000,
+    }));
+  }, [trend, trendType]);
+
+  // 📊 Dữ liệu Bubble Chart: Chi phí vs Số lượng nhập
+  const bubbleData = useMemo(() => {
+    if (!Array.isArray(trend)) return [];
+
+    const sliced =
+      trendType === "week"
+        ? trend.slice(-4)
+        : trendType === "month"
+        ? trend.slice(-5)
+        : trend;
+
+    return sliced.map((item) => ({
+      name: item.label,
+      x: (item.importCost || 0) / 1_000_000, // triệu đồng
+      y: item.newEquipmentUnits || 0, // số nhập mới
+      z: item.totalEquipments || 0, // tổng thiết bị
+    }));
+  }, [trend, trendType]);
 
   const readyCount = statistics?.summary?.equipmentStatusCount?.Ready || 0;
   const totalEquipments = statistics?.summary?.totalEquipments || 1; // tránh chia 0
@@ -366,11 +545,7 @@ export default function DashboardPage() {
   });
 
   // data blocks
-  const { bar, line } = useMemo(() => genBarLineData(range), [range]);
-  const stackedArea = useMemo(() => genStackedArea(range), [range]);
   const donut = useMemo(() => genPieStatus(range), [range]);
-  const radar = useMemo(() => genRadarUsage(), []);
-  const treemap = useMemo(() => genTreemap(), []);
   const bubble = useMemo(() => genScatterDevices(range), [range]);
   const activities = useMemo(() => genActivities(), []);
   const ranking = useMemo(() => genRanking(), []);
@@ -379,6 +554,69 @@ export default function DashboardPage() {
     () => donut.reduce((s, x) => s + x.value, 0),
     [donut]
   );
+
+  // 🔥 Top thiết bị bảo trì nhiều nhất (từ dữ liệu thật)
+  const [maintenanceRanking, setMaintenanceRanking] = useState([]);
+
+  // 🔥 Top thiết bị bảo trì nhiều nhất — theo kỳ & chi nhánh hiện hành
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await MaintainService.getAll();
+        let data = Array.isArray(res) ? res : [];
+
+        // 🏢 Lọc theo chi nhánh nếu chọn cụ thể
+        if (activeBranch !== "all") {
+          data = data.filter((d) => d.branch_id === activeBranch);
+        }
+
+        // 🗓️ Lọc theo kỳ hiện hành (month / quarter / year)
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        const currentQuarter = Math.floor((currentMonth - 1) / 3) + 1;
+
+        data = data.filter((item) => {
+          if (!item.start_date) return false;
+          const date = new Date(item.start_date);
+          const year = date.getFullYear();
+          const month = date.getMonth() + 1;
+          const quarter = Math.floor((month - 1) / 3) + 1;
+
+          if (range === "month")
+            return year === currentYear && month === currentMonth;
+          if (range === "quarter")
+            return year === currentYear && quarter === currentQuarter;
+          if (range === "year") return year === currentYear;
+          return true;
+        });
+
+        // 🧮 Đếm số lần bảo trì theo equipment_name
+        const countMap = {};
+        data.forEach((item) => {
+          const name = item.equipment_name?.trim();
+          if (!name) return;
+          countMap[name] = (countMap[name] || 0) + 1;
+        });
+
+        // 🔢 Sắp xếp & tính phần trăm
+        const sorted = Object.entries(countMap)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count);
+
+        const max = sorted[0]?.count || 1;
+        const ranked = sorted.map((r, i) => ({
+          ...r,
+          rank: i + 1,
+          pct: Math.round((r.count / max) * 100),
+        }));
+
+        setMaintenanceRanking(ranked.slice(0, 5));
+      } catch (err) {
+        console.error("❌ Lỗi khi tải ranking:", err);
+      }
+    })();
+  }, [range, activeBranch]);
 
   // realtime KPIs
   const [cpu, setCpu] = useState(36);
@@ -416,11 +654,16 @@ export default function DashboardPage() {
       ? ["#f59e0b", "#ef4444", "#fb7185"]
       : ["#22c55e", "#8b5cf6", "#38bdf8"];
 
-  // toast demo
-  const urgentCount = 6;
+  // 🔥 Lấy số thiết bị ngừng tạm thời thật từ DB
+  const urgentCount =
+    statistics?.summary?.equipmentStatusCount?.["Temporary Urgent"] || 0;
+
+  // ⚠️ Nếu có >0 thì mới hiện cảnh báo
   useEffect(() => {
-    toast.warning("⚠️ Có 6 thiết bị đang Ngừng tạm thời!");
-  }, []);
+    if (urgentCount > 0) {
+      toast.warning(`⚠️ Có ${urgentCount} thiết bị đang Ngừng tạm thời!`);
+    }
+  }, [urgentCount]);
 
   // totals
   const totals = {
@@ -507,7 +750,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <PageContainer title={`${greeting()}, Admin 👋`} username="Admin">
+    <PageContainer title={`${greeting()}, ${userName} 👋`} username={userName}>
       {/* Particles background */}
       <Particles
         id="tsparticles"
@@ -558,15 +801,15 @@ export default function DashboardPage() {
               </span>
             </h1>
             <p className="text-gray-600 dark:text-gray-300 mt-1">
-              Chọn khu vực bên dưới để tập trung nội dung.
+              Chọn chi nhánh bên dưới để tập trung nội dung.
             </p>
-            <div className="mt-2 flex items-center gap-2">
+            {/* <div className="mt-2 flex items-center gap-2">
               <Badge color="emerald">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
                 Target Q3 đạt 92%
               </Badge>
               <Badge color="indigo">Realtime</Badge>
-            </div>
+            </div> */}
           </div>
 
           {/* Tab pills */}
@@ -591,13 +834,6 @@ export default function DashboardPage() {
               onClick={() => setTab("maintenance")}
             >
               Bảo trì
-            </TabPill>
-            <TabPill
-              icon={<History className="w-4 h-4" />}
-              active={tab === "activity"}
-              onClick={() => setTab("activity")}
-            >
-              Hoạt động
             </TabPill>
           </div>
 
@@ -635,12 +871,68 @@ export default function DashboardPage() {
                 Năm
               </button>
             </div>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2">
-              <Plus size={16} /> Thêm thiết bị
+            {/* 🏢 Lọc theo chi nhánh (chỉ super-admin mới thấy) */}
+            {isSuperAdmin && (
+              <Select
+                onValueChange={(v) => setActiveBranch(v)}
+                defaultValue="all"
+              >
+                <SelectTrigger className="h-9 w-44 text-sm bg-white/70 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 shadow-sm">
+                  <SelectValue placeholder="Chi nhánh" />
+                </SelectTrigger>
+                <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+                  <SelectItem value="all" className="text-sm">
+                    Tất cả chi nhánh
+                  </SelectItem>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id} className="text-sm">
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              onClick={() => setOpenImport(true)}
+              className="flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium rounded-lg shadow hover:opacity-90 hover:-translate-y-[1px] transition-all"
+            >
+              📥 Nhập thiết bị
             </Button>
             <Button className="bg-sky-600 hover:bg-sky-700 text-white flex items-center gap-2">
               <FileBarChart2 size={16} /> Xuất báo cáo
             </Button>
+            <AlertDialog open={openImport} onOpenChange={setOpenImport}>
+              <AlertDialogContent
+                className="
+      !max-w-none w-[85vw] max-w-[1200px] h-[90vh]
+      overflow-hidden flex flex-col
+      bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700
+      rounded-2xl shadow-2xl p-0 focus:outline-none
+    "
+              >
+                {/* Header cố định */}
+                <AlertDialogHeader className="flex-shrink-0 sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b px-6 py-4">
+                  <AlertDialogTitle className="text-emerald-600 text-xl font-bold">
+                    Nhập thiết bị vào kho
+                  </AlertDialogTitle>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">
+                    Chọn nhà cung cấp, loại thiết bị và xác nhận nhập hàng
+                  </p>
+                </AlertDialogHeader>
+
+                {/* Body hiển thị nội dung import */}
+                <div className="flex-1 overflow-y-auto px-6 py-4">
+                  <EquipmentImportPage />
+                </div>
+
+                {/* Footer */}
+                <AlertDialogFooter className="flex-shrink-0 sticky bottom-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-t px-6 py-4 flex justify-end gap-3">
+                  <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
+                    Đóng
+                  </AlertDialogCancel>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </motion.div>
@@ -656,7 +948,7 @@ export default function DashboardPage() {
             </p>
           </div>
           <a
-            href="/app/maintenance/urgent"
+            href="/app/maintenance"
             className="text-amber-700 dark:text-amber-300 text-sm underline hover:opacity-80"
           >
             Xem danh sách
@@ -674,71 +966,84 @@ export default function DashboardPage() {
             exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.25 }}
           >
-            {/* KPI */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <MiniKPI
-                icon={<Cpu className="w-4 h-4" />}
-                label="CPU"
-                value={`${cpu}%`}
-                bar={cpu}
-                barClass="bg-emerald-500"
-                pulse={cpu > 80}
-              />
-              <MiniKPI
-                icon={<Gauge className="w-4 h-4" />}
-                label="RAM"
-                value={`${ram}%`}
-                bar={ram}
-                barClass="bg-sky-500"
-                pulse={ram > 85}
-              />
-              <MiniKPI
-                icon={<UserCheck className="w-4 h-4" />}
-                label="Online Users"
-                value={onlineDisplay}
-                bar={Math.min(100, (online / 320) * 100)}
-                barClass="bg-indigo-500"
-              />
-            </div>
-
             {/* Stats row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
               <GlassStat
                 title="Tổng thiết bị"
                 value={String(totals.devices)}
-                subtitle="+12 so với tháng trước"
+                subtitle={`${
+                  diffDevices >= 0 ? "+" : ""
+                }${diffDevices} so với ${
+                  range === "month"
+                    ? "tháng"
+                    : range === "quarter"
+                    ? "quý"
+                    : "năm"
+                } trước`}
                 icon={Dumbbell}
                 color="from-emerald-400/30 to-emerald-600/30"
-                spark={[90, 96, 105, totals.devices]}
+                spark={
+                  sparkDevices.length > 1 ? sparkDevices : [totals.devices]
+                }
               />
               <GlassStat
                 title="Nhân viên"
                 value={String(totals.staff)}
-                subtitle="+3 trong tháng này"
+                subtitle={`${diffStaff >= 0 ? "+" : ""}${diffStaff} ${
+                  range === "month"
+                    ? "so với tháng trước"
+                    : range === "quarter"
+                    ? "so với quý trước"
+                    : "so với năm trước"
+                }`}
                 icon={Users}
                 color="from-blue-400/30 to-indigo-600/30"
-                spark={[19, 21, 22, 25]}
+                spark={sparkStaff}
               />
               <GlassStat
                 title="Nhà cung cấp"
                 value={String(totals.vendors)}
-                subtitle="Ổn định"
+                subtitle={
+                  diffVendors === 0
+                    ? "Ổn định"
+                    : `${diffVendors > 0 ? "+" : ""}${diffVendors} ${
+                        range === "month"
+                          ? "so với tháng trước"
+                          : range === "quarter"
+                          ? "so với quý trước"
+                          : "so với năm trước"
+                      }`
+                }
                 icon={Truck}
                 color="from-indigo-400/30 to-purple-600/30"
-                spark={[7, 8, 8, 8]}
+                spark={sparkVendors}
               />
+              {/* 💸 Chi phí nhập thiết bị */}
               <GlassStat
-                title="Doanh thu"
-                value={totals.revenue}
-                subtitle="+15% so với tháng trước"
+                title="Chi phí nhập thiết bị"
+                value={formatVND(totalImportCost)}
+                subtitle="Tổng chi phí nhập hàng trong kỳ"
                 icon={BarChart3}
                 color="from-amber-400/30 to-orange-500/30"
-                spark={[
-                  13,
-                  16,
-                  17,
-                  parseFloat(String(totals.revenue).replace(/[^\d.]/g, "")),
-                ]}
+                spark={sparkImport}
+              />
+
+              <GlassStat
+                title="Chi phí bảo trì"
+                value={formatVND(totalMaintenanceCost)}
+                subtitle="Tổng chi phí bảo trì trong kỳ"
+                icon={Wrench}
+                color="from-amber-300/30 to-amber-500/30"
+                spark={sparkMaintenance}
+              />
+
+              <GlassStat
+                title="Chi phí thanh lý"
+                value={formatVND(totalDisposalCost)}
+                subtitle="Tổng chi phí thanh lý trong kỳ"
+                icon={Trash2}
+                color="from-rose-400/30 to-rose-600/30"
+                spark={sparkDisposal}
               />
             </div>
 
@@ -818,8 +1123,56 @@ export default function DashboardPage() {
               </ChartCard>
             </div>
 
+            <div className="grid grid-cols-1 xl:grid-cols-1 gap-8">
+              <ChartCard
+                title="Top thiết bị bảo trì nhiều nhất"
+                collapsible
+                collapsed={false}
+              >
+                <div className="max-h-[360px] overflow-y-auto rounded p-100">
+                  <ul className="space-y-4">
+                    {maintenanceRanking.length > 0 ? (
+                      maintenanceRanking.map((d) => (
+                        <li key={d.name} className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-semibold">
+                            {d.rank}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-900 dark:text-gray-100">
+                                {d.name}
+                              </span>
+                              <span className="text-xs text-gray-600 dark:text-gray-300">
+                                {d.count} lần
+                              </span>
+                            </div>
+                            <div className="h-2 mt-2 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-amber-400 to-red-500"
+                                style={{ width: `${d.pct}%` }}
+                              />
+                            </div>
+                          </div>
+                          {d.rank === 1 && (
+                            <span className="ml-2 inline-flex items-center gap-1 text-xs text-red-500">
+                              <Flame size={14} />
+                              hot
+                            </span>
+                          )}
+                        </li>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-8">
+                        Không có dữ liệu bảo trì.
+                      </p>
+                    )}
+                  </ul>
+                </div>
+              </ChartCard>
+            </div>
+
             {/* Quick Actions floating */}
-            <QuickActions onCelebrate={fireConfetti} />
+            {/* <QuickActions onCelebrate={fireConfetti} /> */}
           </motion.div>
         )}
 
@@ -833,13 +1186,13 @@ export default function DashboardPage() {
           >
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
               <ChartCard
-                title="Thiết bị & Nhân viên (Bar)"
+                title="Tổng thiết bị & Thiết bị còn bảo hành (Bar)"
                 collapsible
                 collapsed={false}
               >
                 <div className="max-h-[360px] overflow-y-auto rounded">
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={bar} barSize={26}>
+                    <BarChart data={barData} barSize={26}>
                       <CartesianGrid
                         strokeDasharray="3 3"
                         className="stroke-gray-300 dark:stroke-gray-600"
@@ -855,12 +1208,12 @@ export default function DashboardPage() {
                         }}
                       />
                       <Bar
-                        dataKey="thiết_bị"
+                        dataKey="tổng_thiết_bị"
                         fill="#10b981"
                         radius={[8, 8, 0, 0]}
                       />
                       <Bar
-                        dataKey="nhân_viên"
+                        dataKey="còn_bảo_hành"
                         fill="#3b82f6"
                         radius={[8, 8, 0, 0]}
                       />
@@ -870,17 +1223,26 @@ export default function DashboardPage() {
                 </div>
               </ChartCard>
 
-              <ChartCard title="Doanh thu (Line)" collapsible>
+              <ChartCard title="Chi phí nhập thiết bị (Line)" collapsible>
                 <div className="max-h-[360px] overflow-y-auto rounded">
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={line}>
+                    <LineChart data={lineData}>
                       <CartesianGrid
                         strokeDasharray="3 3"
                         className="stroke-gray-300 dark:stroke-gray-600"
                       />
-                      <XAxis dataKey="name" />
-                      <YAxis />
+                      <XAxis
+                        dataKey="name"
+                        tickMargin={10} // 👈 thêm khoảng cách cho label X
+                      />
+                      <YAxis
+                        tickFormatter={(v) => `${v}M`} // 👈 đơn vị "triệu"
+                        width={80} // 👈 chừa khoảng hiển thị số
+                      />
                       <Tooltip
+                        formatter={(v) =>
+                          `${v.toLocaleString("vi-VN")} triệu đồng`
+                        }
                         contentStyle={{
                           background: "#111827",
                           borderRadius: 8,
@@ -890,8 +1252,84 @@ export default function DashboardPage() {
                       />
                       <Line
                         type="monotone"
-                        dataKey="doanh_thu"
-                        stroke="#06b6d4"
+                        dataKey="chi_phi_nhap"
+                        name="Chi phí nhập (triệu đồng)"
+                        stroke="#f59e0b"
+                        strokeWidth={3}
+                        dot={{ r: 5 }}
+                        activeDot={{ r: 8 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </ChartCard>
+            </div>
+
+            {/* === BIỂU ĐỒ CHI PHÍ === */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">
+              {/* 🧰 Chi phí bảo trì */}
+              <ChartCard title="Chi phí bảo trì (Line)" collapsible>
+                <div className="max-h-[360px] overflow-y-auto rounded">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={lineMaintain}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-gray-300 dark:stroke-gray-600"
+                      />
+                      <XAxis dataKey="name" tickMargin={10} />
+                      <YAxis tickFormatter={(v) => `${v}M`} width={80} />
+                      <Tooltip
+                        formatter={(v) =>
+                          `${v.toLocaleString("vi-VN")} triệu đồng`
+                        }
+                        contentStyle={{
+                          background: "#111827",
+                          borderRadius: 8,
+                          color: "#fff",
+                          border: "none",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="chi_phi_bao_tri"
+                        name="Chi phí bảo trì (triệu đồng)"
+                        stroke="#3b82f6"
+                        strokeWidth={3}
+                        dot={{ r: 5 }}
+                        activeDot={{ r: 8 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </ChartCard>
+
+              {/* 🗑️ Chi phí thanh lý */}
+              <ChartCard title="Chi phí thanh lý (Line)" collapsible>
+                <div className="max-h-[360px] overflow-y-auto rounded">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={lineDisposal}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-gray-300 dark:stroke-gray-600"
+                      />
+                      <XAxis dataKey="name" tickMargin={10} />
+                      <YAxis tickFormatter={(v) => `${v}M`} width={80} />
+                      <Tooltip
+                        formatter={(v) =>
+                          `${v.toLocaleString("vi-VN")} triệu đồng`
+                        }
+                        contentStyle={{
+                          background: "#111827",
+                          borderRadius: 8,
+                          color: "#fff",
+                          border: "none",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="chi_phi_thanh_ly"
+                        name="Chi phí thanh lý (triệu đồng)"
+                        stroke="#ef4444"
                         strokeWidth={3}
                         dot={{ r: 5 }}
                         activeDot={{ r: 8 }}
@@ -903,29 +1341,144 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 2xl:grid-cols-3 gap-8 mb-8">
-              <ChartCard title="So sánh nhóm (Radar)" collapsible>
+              <ChartCard title="Chi phí theo mảng (Stacked Area)" collapsible>
                 <div className="max-h-[360px] overflow-y-auto rounded">
                   <ResponsiveContainer width="100%" height={300}>
-                    <RadarChart data={radar} outerRadius={110}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="metric" />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                      <Radar
-                        name="Thực tế"
-                        dataKey="fit"
-                        stroke="#22c55e"
-                        fill="#22c55e"
-                        fillOpacity={0.35}
+                    <AreaChart data={stackedCost}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-gray-300 dark:stroke-gray-600"
                       />
-                      <Radar
-                        name="Mục tiêu"
-                        dataKey="target"
-                        stroke="#3b82f6"
-                        fill="#3b82f6"
-                        fillOpacity={0.2}
-                      />
+                      <XAxis dataKey="name" tickMargin={10} />
+                      <YAxis tickFormatter={(v) => `${v}M`} width={80} />
                       <Legend />
                       <Tooltip
+                        formatter={(v) =>
+                          `${v.toLocaleString("vi-VN")} triệu đồng`
+                        }
+                        contentStyle={{
+                          background: "#111827",
+                          borderRadius: 8,
+                          color: "#fff",
+                          border: "none",
+                        }}
+                      />
+
+                      {/* Gradient màu cho từng loại chi phí */}
+                      <defs>
+                        <linearGradient
+                          id="gImport"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#f59e0b"
+                            stopOpacity={0.7}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#f59e0b"
+                            stopOpacity={0.1}
+                          />
+                        </linearGradient>
+                        <linearGradient
+                          id="gMaintain"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0.7}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#3b82f6"
+                            stopOpacity={0.1}
+                          />
+                        </linearGradient>
+                        <linearGradient
+                          id="gDisposal"
+                          x1="0"
+                          y1="0"
+                          x2="0"
+                          y2="1"
+                        >
+                          <stop
+                            offset="5%"
+                            stopColor="#ef4444"
+                            stopOpacity={0.7}
+                          />
+                          <stop
+                            offset="95%"
+                            stopColor="#ef4444"
+                            stopOpacity={0.1}
+                          />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Các vùng stack theo mảng chi phí */}
+                      {/* Chi phí nhập */}
+                      <Area
+                        type="monotone"
+                        dataKey="import"
+                        name="Chi phí nhập"
+                        stroke="#f59e0b"
+                        fill="url(#gImport)"
+                        strokeWidth={2}
+                        fillOpacity={0.3}
+                      />
+
+                      {/* Chi phí bảo trì */}
+                      <Area
+                        type="monotone"
+                        dataKey="maintenance"
+                        name="Chi phí bảo trì"
+                        stroke="#3b82f6"
+                        fill="url(#gMaintain)"
+                        strokeWidth={2}
+                        fillOpacity={0.3}
+                      />
+
+                      {/* Chi phí thanh lý */}
+                      <Area
+                        type="monotone"
+                        dataKey="disposal"
+                        name="Chi phí thanh lý"
+                        stroke="#ef4444"
+                        fill="url(#gDisposal)"
+                        strokeWidth={2}
+                        fillOpacity={0.3}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </ChartCard>
+
+              <ChartCard
+                title="Số lượng thiết bị theo nhóm (Radar)"
+                collapsible
+              >
+                <div className="max-h-[360px] overflow-y-auto rounded">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={radarData} outerRadius={110}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="group" />
+                      <PolarRadiusAxis angle={30} />
+                      <Radar
+                        name="Tổng thiết bị"
+                        dataKey="unit_count"
+                        stroke="#10b981"
+                        fill="#10b981"
+                        fillOpacity={0.4}
+                      />
+                      <Tooltip
+                        formatter={(value) => `${value} thiết bị`}
                         contentStyle={{
                           background: "#111827",
                           borderRadius: 8,
@@ -934,92 +1487,6 @@ export default function DashboardPage() {
                         }}
                       />
                     </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-              </ChartCard>
-
-              <ChartCard title="Doanh thu theo mảng (Stacked Area)" collapsible>
-                <div className="max-h-[360px] overflow-y-auto rounded">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={stackedArea}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-gray-300 dark:stroke-gray-600"
-                      />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Legend />
-                      <Tooltip
-                        contentStyle={{
-                          background: "#111827",
-                          borderRadius: 8,
-                          color: "#fff",
-                          border: "none",
-                        }}
-                      />
-                      <defs>
-                        <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                          <stop
-                            offset="5%"
-                            stopColor={STACK_COLORS.membership}
-                            stopOpacity={0.7}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={STACK_COLORS.membership}
-                            stopOpacity={0.1}
-                          />
-                        </linearGradient>
-                        <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
-                          <stop
-                            offset="5%"
-                            stopColor={STACK_COLORS.pt}
-                            stopOpacity={0.7}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={STACK_COLORS.pt}
-                            stopOpacity={0.1}
-                          />
-                        </linearGradient>
-                        <linearGradient id="g3" x1="0" y1="0" x2="0" y2="1">
-                          <stop
-                            offset="5%"
-                            stopColor={STACK_COLORS.merch}
-                            stopOpacity={0.7}
-                          />
-                          <stop
-                            offset="95%"
-                            stopColor={STACK_COLORS.merch}
-                            stopOpacity={0.1}
-                          />
-                        </linearGradient>
-                      </defs>
-                      <Area
-                        stackId="rev"
-                        type="monotone"
-                        dataKey="membership"
-                        stroke={STACK_COLORS.membership}
-                        fill="url(#g1)"
-                        strokeWidth={2}
-                      />
-                      <Area
-                        stackId="rev"
-                        type="monotone"
-                        dataKey="pt"
-                        stroke={STACK_COLORS.pt}
-                        fill="url(#g2)"
-                        strokeWidth={2}
-                      />
-                      <Area
-                        stackId="rev"
-                        type="monotone"
-                        dataKey="merch"
-                        stroke={STACK_COLORS.merch}
-                        fill="url(#g3)"
-                        strokeWidth={2}
-                      />
-                    </AreaChart>
                   </ResponsiveContainer>
                 </div>
               </ChartCard>
@@ -1056,66 +1523,6 @@ export default function DashboardPage() {
                 </div>
               </ChartCard>
             </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <ChartCard title="Bubble — Giá trị vs Tần suất" collapsible>
-                <div className="max-h-[360px] overflow-y-auto rounded">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <ScatterChart>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        className="stroke-gray-300 dark:stroke-gray-600"
-                      />
-                      <XAxis dataKey="x" name="Giá trị (triệu ₫)" />
-                      <YAxis dataKey="y" name="Tần suất" />
-                      <ZAxis dataKey="z" range={[80, 400]} name="Lượt" />
-                      <Tooltip
-                        cursor={{ strokeDasharray: "3 3" }}
-                        contentStyle={{
-                          background: "#111827",
-                          borderRadius: 8,
-                          color: "#fff",
-                          border: "none",
-                        }}
-                      />
-                      <Scatter data={bubble} fill="#8b5cf6" />
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </div>
-              </ChartCard>
-
-              <ChartCard title="Heatmap — Tần suất bảo trì" collapsible>
-                <div className="max-h-[360px] overflow-y-auto rounded p-2">
-                  <div className="flex gap-2">
-                    {heatmap.map((week, i) => (
-                      <div key={i} className="grid grid-rows-7 gap-1">
-                        {week.map((val, j) => (
-                          <div
-                            key={j}
-                            title={`Tuần ${i + 1}, Ngày ${j + 1}: ${val} ca`}
-                            className="w-4 h-4 rounded-sm"
-                            style={{ backgroundColor: heatColor(val) }}
-                          />
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2 mt-3 text-xs text-gray-500">
-                    <span>Ít</span>
-                    <div className="flex gap-1">
-                      {[0, 1, 2, 3, 4, 5].map((v) => (
-                        <div
-                          key={v}
-                          className="w-4 h-3 rounded-sm"
-                          style={{ backgroundColor: heatColor(v) }}
-                        />
-                      ))}
-                    </div>
-                    <span>Nhiều</span>
-                  </div>
-                </div>
-              </ChartCard>
-            </div>
           </motion.div>
         )}
 
@@ -1127,26 +1534,7 @@ export default function DashboardPage() {
             exit={{ opacity: 0, y: 6 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="grid grid-cols-1 2xl:grid-cols-3 gap-8">
-              <ChartCard
-                title="Tổng quan bảo trì"
-                collapsible
-                collapsed={false}
-              >
-                <div className="max-h-[360px] overflow-y-auto rounded">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <Treemap
-                      data={treemap}
-                      dataKey="size"
-                      nameKey="name"
-                      ratio={4 / 3}
-                      stroke="#fff"
-                      fill="#10b981"
-                    />
-                  </ResponsiveContainer>
-                </div>
-              </ChartCard>
-
+            <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8">
               <ChartCard title="Tỷ lệ trạng thái thiết bị (Donut)" collapsible>
                 <div className="relative">
                   <div className="max-h-[340px] overflow-y-auto rounded">
@@ -1155,8 +1543,8 @@ export default function DashboardPage() {
                         <Pie
                           data={Object.entries(
                             statistics?.summary?.equipmentStatusCount || {}
-                          ).map(([name, value]) => ({
-                            name,
+                          ).map(([key, value]) => ({
+                            name: STATUS_MAP_VN[key] || key,
                             value,
                           }))}
                           dataKey="value"
@@ -1172,9 +1560,12 @@ export default function DashboardPage() {
                         >
                           {Object.entries(
                             statistics?.summary?.equipmentStatusCount || {}
-                          ).map((_, i) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                          ))}
+                          ).map(([key], i) => {
+                            const vn = STATUS_MAP_VN[key] || key;
+                            const color =
+                              STATUS_COLOR_HEX[vn] || COLORS[i % COLORS.length];
+                            return <Cell key={i} fill={color} />;
+                          })}
                         </Pie>
                         <Legend />
                         <Tooltip
@@ -1238,84 +1629,6 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </ChartCard>
-            </div>
-          </motion.div>
-        )}
-
-        {tab === "activity" && (
-          <motion.div
-            key="activity"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 6 }}
-            transition={{ duration: 0.25 }}
-          >
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              <ChartCard
-                title="Top thiết bị bảo trì nhiều nhất"
-                collapsible
-                collapsed={false}
-              >
-                <div className="max-h-[360px] overflow-y-auto rounded pr-2">
-                  <ul className="space-y-4">
-                    {ranking.map((d) => (
-                      <li key={d.name} className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/10 flex items-center justify-center text-sm font-semibold">
-                          {d.rank}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-900 dark:text-gray-100">
-                              {d.name}
-                            </span>
-                            <span className="text-xs text-gray-600 dark:text-gray-300">
-                              {d.count} lần
-                            </span>
-                          </div>
-                          <div className="h-2 mt-2 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                            <div
-                              className="h-full bg-gradient-to-r from-amber-400 to-red-500"
-                              style={{ width: `${d.pct}%` }}
-                            />
-                          </div>
-                        </div>
-                        {d.rank === 1 && (
-                          <span className="ml-2 inline-flex items-center gap-1 text-xs text-red-500">
-                            <Flame size={14} />
-                            hot
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </ChartCard>
-
-              <ChartCard title="Nhật ký hoạt động gần đây" collapsible>
-                <div className="relative pl-4 max-h-[360px] overflow-y-auto rounded pr-2">
-                  <div className="absolute left-3 top-1 bottom-1 w-[2px] bg-gradient-to-b from-emerald-400 to-blue-500 opacity-60" />
-                  <ul className="space-y-4">
-                    {activities.map((a) => (
-                      <li
-                        key={a.id}
-                        className="relative flex items-start gap-3"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-white dark:bg-white/10 border border-white/40 flex items-center justify-center relative z-10">
-                          {a.icon}
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-900 dark:text-gray-100">
-                            {a.text}
-                          </p>
-                          <span className="text-xs text-gray-500">
-                            {a.time}
-                          </span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
               </ChartCard>
             </div>
@@ -1424,11 +1737,7 @@ function GlassStat({ title, value, subtitle, icon: Icon, color, spark }) {
           </p>
           <div className="flex items-end gap-2 mt-1">
             <span className="text-3xl font-bold text-gray-900 dark:text-white">
-              {isNaN(val)
-                ? value
-                : value.toString().includes("₫")
-                ? `${val}M ₫`
-                : val}
+              {isNaN(val) ? value : value}
             </span>
             {TrendIcon && (
               <TrendIcon className={`w-4 h-4 mb-1 ${trendColor}`} />
@@ -1467,38 +1776,6 @@ function GlassStat({ title, value, subtitle, icon: Icon, color, spark }) {
         </ResponsiveContainer>
       </div>
     </motion.div>
-  );
-}
-
-function MiniKPI({ icon, label, value, bar, barClass, pulse = false }) {
-  return (
-    <div className="rounded-xl border border-gray-200/60 dark:border-white/10 bg-white/70 dark:bg-[#151515]/70 backdrop-blur p-4 flex items-center gap-4">
-      <div className="relative">
-        <div className="w-8 h-8 rounded-lg bg-white/60 dark:bg-white/10 border border-white/30 flex items-center justify-center transition-transform hover:scale-110">
-          {icon}
-        </div>
-        {pulse && (
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-          </span>
-        )}
-      </div>
-      <div className="flex-1">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-700 dark:text-gray-300">{label}</span>
-          <span className="font-semibold text-gray-900 dark:text-white">
-            {value}
-          </span>
-        </div>
-        <div className="h-2 mt-2 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden">
-          <div
-            className={`h-full ${barClass}`}
-            style={{ width: `${Math.min(100, Math.max(0, bar))}%` }}
-          />
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1572,33 +1849,33 @@ function NotifItem({ icon, text, time, tone = "info" }) {
 }
 
 // ✅ UPGRADE: QuickActions thêm Upload
-function QuickActions({ onCelebrate }) {
-  return (
-    <div className="fixed right-6 bottom-6 z-20 flex flex-col gap-3">
-      <button
-        title="Ăn mừng"
-        onClick={onCelebrate}
-        className="group w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white flex items-center justify-center shadow-lg hover:shadow-fuchsia-500/40 transition"
-      >
-        <Sparkles className="w-6 h-6 group-hover:scale-110 transition" />
-      </button>
-      <a
-        href="/app/maintenance/urgent"
-        title="Bảo trì tạm thời"
-        className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-red-500 text-white flex items-center justify-center shadow-lg hover:shadow-amber-500/40 transition"
-      >
-        <Wrench className="w-6 h-6" />
-      </a>
-      <a
-        href="/app/reports/upload"
-        title="Upload báo cáo"
-        className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-white flex items-center justify-center shadow-lg hover:shadow-emerald-500/40 transition"
-      >
-        <Upload className="w-6 h-6" />
-      </a>
-    </div>
-  );
-}
+// function QuickActions({ onCelebrate }) {
+//   return (
+//     <div className="fixed right-6 bottom-6 z-20 flex flex-col gap-3">
+//       <button
+//         title="Ăn mừng"
+//         onClick={onCelebrate}
+//         className="group w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-pink-500 text-white flex items-center justify-center shadow-lg hover:shadow-fuchsia-500/40 transition"
+//       >
+//         <Sparkles className="w-6 h-6 group-hover:scale-110 transition" />
+//       </button>
+//       <a
+//         href="/app/maintenance"
+//         title="Bảo trì tạm thời"
+//         className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-red-500 text-white flex items-center justify-center shadow-lg hover:shadow-amber-500/40 transition"
+//       >
+//         <Wrench className="w-6 h-6" />
+//       </a>
+//       <a
+//         href="/app/reports/upload"
+//         title="Upload báo cáo"
+//         className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 text-white flex items-center justify-center shadow-lg hover:shadow-emerald-500/40 transition"
+//       >
+//         <Upload className="w-6 h-6" />
+//       </a>
+//     </div>
+//   );
+// }
 
 /* ============================== Recharts helper (active shape) ============================== */
 // Recharts Sector cần import từ recharts/lib/shape/Sector hoặc recharts (tuỳ version).
