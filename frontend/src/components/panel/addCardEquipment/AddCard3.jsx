@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,8 @@ export default function AddCard3({
   spinClearChecked,
   spinClearInputs,
 }) {
+  const [errors, setErrors] = useState({});
+
   // 🔹 Lọc danh sách thông số hiện có trong type
   const filteredTypeAttributes = useMemo(() => {
     const q = searchAttr.trim().toLowerCase();
@@ -67,7 +69,10 @@ export default function AddCard3({
       name,
     }));
 
-    if (!selectedList.length) return;
+    if (!selectedList.length) {
+      toast.warning("⚠️ Chưa chọn thông số nào để thêm!");
+      return;
+    }
 
     try {
       setLoadingAdd(true);
@@ -92,18 +97,42 @@ export default function AddCard3({
   // 🧩 Tạo attribute mới hoàn toàn
   const handleAddNewAttribute = async () => {
     const trimmed = newAttr.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      toast.warning("⚠️ Nhập tên thông số trước khi thêm!");
+      return;
+    }
     try {
       setLoadingAdd(true);
       const created = await AttributeService.create({ name: trimmed });
       setAttributes((prev) => [...prev, created]);
       toast.success(`🎉 Đã thêm thông số "${trimmed}"!`);
       setNewAttr("");
-    } catch (err) {
+    } catch {
       toast.error("Không thể thêm thông số mới!");
     } finally {
       setLoadingAdd(false);
     }
+  };
+
+  // 🧩 Validate giá trị nhập trong tab nhập value
+  const validateAttributeValues = () => {
+    const newErrors = {};
+    Object.entries(selectedAttrs).forEach(([key, val]) => {
+      if (!val?.trim())
+        newErrors[key] = "⚠️ Vui lòng nhập giá trị cho thông số này.";
+    });
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstKey = Object.keys(newErrors)[0];
+      document
+        .querySelector(`[data-attr="${firstKey}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      toast.error("❌ Cần nhập đủ giá trị cho tất cả thông số được chọn!");
+      return false;
+    }
+    return true;
   };
 
   return (
@@ -133,19 +162,15 @@ export default function AddCard3({
 
       {/* Nội dung */}
       <div className="p-4 space-y-3">
-        {/* Nếu chưa chọn loại thiết bị */}
         {!formData.type ? (
           <div className="flex flex-col items-center justify-center py-8 text-gray-500 dark:text-gray-400 text-sm gap-2">
             <AlertCircle className="w-5 h-5 text-emerald-500" />
-            <p>
-              Hãy chọn nhóm và loại thiết bị trước để xem thông số kỹ thuật.
-            </p>
+            <p>Hãy chọn nhóm và loại thiết bị trước để xem thông số kỹ thuật.</p>
           </div>
         ) : showAddAttr ? (
           <>
             {/* === KHU VỰC THÊM THÔNG SỐ === */}
             <div className="space-y-3">
-              {/* Thanh tìm kiếm + thêm nhanh */}
               <div className="flex items-center gap-2">
                 <Input
                   placeholder="Tìm thông số có sẵn..."
@@ -176,55 +201,46 @@ export default function AddCard3({
                 </Button>
               </div>
 
-              {/* Danh sách attribute có sẵn */}
+              {/* Danh sách attribute */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-[260px] overflow-y-auto border rounded-md p-3 dark:border-gray-700">
                 {filteredAvailable.length === 0 ? (
                   <p className="text-xs text-gray-500 text-center py-4">
                     Không còn thông số nào để thêm.
                   </p>
                 ) : (
-                  filteredAvailable
-                    .filter((attr) => attr && (attr.id || attr.name))
-                    .map((attr) => {
-                      // 🔹 Đảm bảo lấy đúng id và name thật
-                      const attrId = attr.id || crypto.randomUUID(); // fallback tránh undefined
-                      const attrName =
-                        attr.name && attr.name !== attr.id
-                          ? attr.name
-                          : "(Không có tên rõ ràng)";
-
-                      const isChecked = Boolean(selectedNewAttrs[attrId]);
-
-                      return (
-                        <label
-                          key={attrId}
-                          className={`flex items-center gap-2 text-xs px-2 py-1 rounded cursor-pointer ${
-                            isChecked
-                              ? "bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200"
-                              : "hover:bg-gray-100 dark:hover:bg-gray-800"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="accent-emerald-500"
-                            checked={isChecked}
-                            onChange={() =>
-                              setSelectedNewAttrs((prev) => {
-                                const next = { ...prev };
-                                if (next[attrId]) delete next[attrId];
-                                else next[attrId] = attrName; // ✅ lưu đúng name thật
-                                return next;
-                              })
-                            }
-                          />
-                          <span className="truncate">{attrName}</span>
-                        </label>
-                      );
-                    })
+                  filteredAvailable.map((attr) => {
+                    const attrId = attr.id || crypto.randomUUID();
+                    const attrName = attr.name || "(Không có tên rõ ràng)";
+                    const isChecked = Boolean(selectedNewAttrs[attrId]);
+                    return (
+                      <label
+                        key={attrId}
+                        className={`flex items-center gap-2 text-xs px-2 py-1 rounded cursor-pointer ${
+                          isChecked
+                            ? "bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200"
+                            : "hover:bg-gray-100 dark:hover:bg-gray-800"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-emerald-500"
+                          checked={isChecked}
+                          onChange={() =>
+                            setSelectedNewAttrs((prev) => {
+                              const next = { ...prev };
+                              if (next[attrId]) delete next[attrId];
+                              else next[attrId] = attrName;
+                              return next;
+                            })
+                          }
+                        />
+                        <span className="truncate">{attrName}</span>
+                      </label>
+                    );
+                  })
                 )}
               </div>
 
-              {/* Nút xác nhận thêm */}
               <div className="flex justify-end">
                 <Button
                   onClick={handleBulkAdd}
@@ -236,10 +252,9 @@ export default function AddCard3({
                   {loadingAdd ? "Đang thêm..." : "Thêm vào loại thiết bị"}
                 </Button>
               </div>
-            </div>{" "}
+            </div>
           </>
-        ) : attrTab === "pick" ? (
-          // === TAB CHỌN THÔNG SỐ ===
+        ) : (
           <>
             <div className="flex items-center gap-2">
               <Input
@@ -271,14 +286,13 @@ export default function AddCard3({
                 className="h-8 text-xs flex items-center gap-1"
               >
                 <RotateCcw
-                  className={`w-4 h-4 ${
-                    spinClearChecked ? "animate-spin" : ""
-                  }`}
+                  className={`w-4 h-4 ${spinClearChecked ? "animate-spin" : ""}`}
                 />
                 Clear Checked
               </Button>
             </div>
 
+            {/* Danh sách thông số */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 max-h-[260px] overflow-y-auto border rounded-md p-3 dark:border-gray-700">
               {filteredTypeAttributes.length === 0 ? (
                 <p className="text-xs text-gray-500 text-center py-4">
@@ -301,13 +315,8 @@ export default function AddCard3({
                       onChange={() =>
                         setSelectedAttrs((prev) => {
                           const next = { ...prev };
-                          if (attr.name in next) {
-                            // ✅ Nếu đã có key thì bỏ tick
-                            delete next[attr.name];
-                          } else {
-                            // ✅ Nếu chưa có thì tick chọn
-                            next[attr.name] = "";
-                          }
+                          if (attr.name in next) delete next[attr.name];
+                          else next[attr.name] = "";
                           return next;
                         })
                       }
@@ -318,7 +327,7 @@ export default function AddCard3({
               )}
             </div>
 
-            {/* 🟢 Thêm phần nhập giá trị ngay bên dưới tab pick */}
+            {/* Nhập giá trị cho thuộc tính */}
             {Object.keys(selectedAttrs).length > 0 && (
               <div className="border rounded-md p-3 bg-gray-50 dark:bg-gray-900/40 space-y-2 mt-3">
                 <h4 className="text-xs font-semibold text-emerald-600">
@@ -326,72 +335,41 @@ export default function AddCard3({
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[240px] overflow-y-auto">
                   {Object.entries(selectedAttrs).map(([attr, val]) => (
-                    <div key={attr} className="space-y-1">
+                    <div key={attr} data-attr={attr} className="space-y-1">
                       <Label className="text-xs">{attr}</Label>
                       <Input
                         placeholder={`Nhập ${attr}`}
                         value={val}
-                        onChange={(e) =>
+                        onChange={(e) => {
                           setSelectedAttrs((prev) => ({
                             ...prev,
                             [attr]: e.target.value,
-                          }))
-                        }
-                        className="h-8 text-xs"
+                          }));
+                          if (errors[attr])
+                            setErrors((prev) => ({ ...prev, [attr]: undefined }));
+                        }}
+                        className={`h-8 text-xs ${
+                          errors[attr] ? "border-red-500 focus:ring-red-500" : ""
+                        }`}
                       />
+                      {errors[attr] && (
+                        <p className="text-red-500 text-[11px]">{errors[attr]}</p>
+                      )}
                     </div>
                   ))}
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    onClick={validateAttributeValues}
+                    className="h-8 text-xs bg-emerald-500 hover:bg-emerald-600 mt-2"
+                  >
+                    Xác nhận giá trị
+                  </Button>
                 </div>
               </div>
             )}
           </>
-        ) : (
-          // === TAB NHẬP GIÁ TRỊ ===
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-gray-500">
-                {Object.keys(selectedAttrs).length} thông số đã chọn
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllInputs}
-                className="h-8 text-xs flex items-center gap-1"
-              >
-                <RotateCcw
-                  className={`w-4 h-4 ${spinClearInputs ? "animate-spin" : ""}`}
-                />
-                Clear Inputs
-              </Button>
-            </div>
-
-            {/* Ô nhập giá trị cho các thông số đã chọn */}
-            {Object.keys(selectedAttrs).length > 0 && (
-              <div className="border rounded-md p-3 bg-gray-50 dark:bg-gray-900/40 space-y-2 mt-3">
-                <h4 className="text-xs font-semibold text-emerald-600">
-                  Nhập giá trị cho {Object.keys(selectedAttrs).length} thông số:
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[240px] overflow-y-auto">
-                  {Object.entries(selectedAttrs).map(([attr, val]) => (
-                    <div key={attr} className="space-y-1">
-                      <Label className="text-xs">{attr}</Label>
-                      <Input
-                        placeholder={`Nhập ${attr}`}
-                        value={val}
-                        onChange={(e) =>
-                          setSelectedAttrs((prev) => ({
-                            ...prev,
-                            [attr]: e.target.value,
-                          }))
-                        }
-                        className="h-8 text-xs"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
         )}
       </div>
     </div>
