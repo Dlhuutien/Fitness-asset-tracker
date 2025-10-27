@@ -1,4 +1,3 @@
-// src/pages/equipment/EquipmentGroupPage.jsx
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
@@ -22,6 +21,8 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { exportToExcel } from "@/services/Files";
 import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
+import { useRef } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,6 +76,7 @@ export default function EquipmentSectionPage() {
     }),
     [equipments]
   );
+  const addCardRef = useRef();
 
   const filteredData = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -137,6 +139,15 @@ export default function EquipmentSectionPage() {
       });
     }, 200);
     setTimeout(() => setHighlightedId(null), 30000);
+  };
+  const handleCreateClick = () => {
+    const isValid = addCardRef.current?.validateAll?.();
+    if (!isValid) {
+      toast.error("⚠️ Vui lòng kiểm tra lại các trường bị lỗi!");
+      return;
+    }
+    const form = document.querySelector("form");
+    form?.requestSubmit();
   };
 
   return (
@@ -244,6 +255,7 @@ export default function EquipmentSectionPage() {
           {/* Body cuộn */}
           <div className="flex-1 overflow-y-auto px-6 py-4">
             <EquipmentAddCardPage
+              ref={addCardRef}
               onSuccessAdd={handleAddSuccess}
               onLoadingChange={setLoadingSubmit}
             />
@@ -259,10 +271,22 @@ export default function EquipmentSectionPage() {
               type="button"
               disabled={loadingSubmit}
               onClick={() => {
+                // ✅ Gọi validateAll() trong EquipmentAddCardPage
+                const isValid = addCardRef.current?.validateAll?.();
+
+                if (!isValid) {
+                  // ⚠️ Nếu chưa hợp lệ → không submit + báo lỗi
+                  toast.error(
+                    "⚠️ Vui lòng kiểm tra lại các trường bị thiếu hoặc sai!"
+                  );
+                  return;
+                }
+
+                // ✅ Nếu hợp lệ → submit form
                 const form = document.querySelector("form");
                 form?.requestSubmit();
               }}
-              className="h-10 text-sm px-6 bg-gradient-to-r from-emerald-500 to-purple-500 text-white hover:opacity-90 flex items-center gap-2"
+              className="h-10 text-sm px-6 bg-gradient-to-r from-emerald-500 to-purple-500 text-white hover:opacity-90 flex items-center gap-2 rounded-lg shadow-md"
             >
               {loadingSubmit && (
                 <span className="mr-2 inline-block animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4" />

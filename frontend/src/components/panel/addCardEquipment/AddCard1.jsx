@@ -20,6 +20,8 @@ export default function AddCard1({
   types = [],
   setOpenQuickAddGroup,
   setOpenQuickAddType,
+  errors = {}, // ✅ nhận lỗi từ EquipmentAddCardPage
+  setErrors,   // ✅ dùng để clear lỗi khi user nhập lại
 }) {
   const [searchGroup, setSearchGroup] = useState("");
   const [searchType, setSearchType] = useState("");
@@ -49,9 +51,9 @@ export default function AddCard1({
 
       {/* Body */}
       <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* --- LEFT 2/3 --- */}
+        {/* LEFT 2/3 */}
         <div className="lg:col-span-2 flex flex-col justify-between space-y-5">
-          {/* Tên thiết bị */}
+          {/* === Tên thiết bị === */}
           <div>
             <Label className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
               Tên dòng thiết bị <span className="text-red-500">*</span>
@@ -60,12 +62,22 @@ export default function AddCard1({
               name="name"
               placeholder="VD: Treadmill Aura 500"
               value={formData.name || ""}
-              onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
-              className="h-10 mt-1 text-[14px] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-emerald-500"
+              onChange={(e) => {
+                setFormData((p) => ({ ...p, name: e.target.value }));
+                if (errors.name) setErrors?.((prev) => ({ ...prev, name: undefined }));
+              }}
+              className={`h-10 mt-1 text-[14px] border-gray-300 dark:border-gray-600 focus:ring-2 ${
+                errors.name
+                  ? "border-red-500 focus:ring-red-500"
+                  : "focus:ring-emerald-500"
+              }`}
             />
+            {errors.name && (
+              <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+            )}
           </div>
 
-          {/* Mô tả */}
+          {/* === Mô tả === */}
           <div>
             <Label className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
               Mô tả
@@ -81,25 +93,34 @@ export default function AddCard1({
             />
           </div>
 
-          {/* Nhóm & Loại */}
+          {/* === Nhóm & Loại === */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-            {/* Nhóm thiết bị */}
+            {/* --- Nhóm thiết bị --- */}
             <div className="space-y-1.5">
               <Label className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
                 Nhóm thiết bị <span className="text-red-500">*</span>
               </Label>
               <div className="flex items-center gap-3">
                 <Select
+                  name="group"
                   value={formData.group}
-                  onValueChange={(v) =>
-                    setFormData((p) => ({ ...p, group: v, type: "" }))
-                  }
+                  onValueChange={(v) => {
+                    setFormData((p) => ({ ...p, group: v, type: "" }));
+                    if (errors.group)
+                      setErrors?.((prev) => ({ ...prev, group: undefined }));
+                  }}
                 >
-                  <SelectTrigger className="h-11 flex-1 text-[14px] border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 hover:border-emerald-400 focus:ring-2 focus:ring-emerald-500 transition">
+                  <SelectTrigger
+                    className={`h-11 flex-1 text-[14px] border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 hover:border-emerald-400 focus:ring-2 transition ${
+                      errors.group
+                        ? "border-red-500 focus:ring-red-500"
+                        : "focus:ring-emerald-500"
+                    }`}
+                  >
                     <SelectValue placeholder="Chọn nhóm" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded-md text-[13px] animate-fadeIn p-0">
-                    {/* Thanh tìm kiếm cố định */}
+                    {/* Thanh tìm kiếm */}
                     <div className="sticky top-0 bg-white dark:bg-gray-800 z-10 border-b dark:border-gray-700">
                       <div className="flex items-center gap-2 bg-emerald-50/60 dark:bg-emerald-950/30 px-2 py-2 border-b border-emerald-200 dark:border-emerald-800">
                         <Search className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -113,7 +134,7 @@ export default function AddCard1({
                       </div>
                     </div>
 
-                    {/* Danh sách cuộn riêng */}
+                    {/* Danh sách nhóm */}
                     <div className="max-h-[210px] overflow-y-auto">
                       {filteredGroups.length === 0 ? (
                         <div className="p-2 text-xs text-gray-500">
@@ -135,28 +156,43 @@ export default function AddCard1({
                   </SelectContent>
                 </Select>
 
-                {/* Nút Thêm Nhóm */}
+                {/* Nút thêm nhóm */}
                 <Button
+                  type="button"
                   onClick={() => setOpenQuickAddGroup(true)}
-                  className="h-11 min-w-[90px] text-[13px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white rounded-lg shadow flex items-center justify-center gap-1 whitespace-nowrap"
+                  className="h-11 min-w-[90px] text-[13px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white rounded-lg shadow flex items-center justify-center gap-1"
                 >
                   <PlusCircle className="w-3.5 h-3.5" /> Nhóm
                 </Button>
               </div>
+              {errors.group && (
+                <p className="text-xs text-red-500 mt-1">{errors.group}</p>
+              )}
             </div>
 
-            {/* Loại thiết bị */}
+            {/* --- Loại thiết bị --- */}
             <div className="space-y-1.5">
               <Label className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
                 Loại thiết bị <span className="text-red-500">*</span>
               </Label>
               <div className="flex items-center gap-3">
                 <Select
+                  name="type"
                   value={formData.type}
-                  onValueChange={(v) => setFormData((p) => ({ ...p, type: v }))}
+                  onValueChange={(v) => {
+                    setFormData((p) => ({ ...p, type: v }));
+                    if (errors.type)
+                      setErrors?.((prev) => ({ ...prev, type: undefined }));
+                  }}
                   disabled={!formData.group}
                 >
-                  <SelectTrigger className="h-11 flex-1 text-[14px] border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 hover:border-emerald-400 focus:ring-2 focus:ring-emerald-500 disabled:opacity-60 transition">
+                  <SelectTrigger
+                    className={`h-11 flex-1 text-[14px] border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 hover:border-emerald-400 focus:ring-2 disabled:opacity-60 transition ${
+                      errors.type
+                        ? "border-red-500 focus:ring-red-500"
+                        : "focus:ring-emerald-500"
+                    }`}
+                  >
                     <SelectValue placeholder="Chọn loại theo nhóm" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl rounded-md text-[13px] animate-fadeIn p-0">
@@ -196,8 +232,8 @@ export default function AddCard1({
                   </SelectContent>
                 </Select>
 
-                {/* Nút Thêm Loại */}
                 <Button
+                  type="button"
                   onClick={() => setOpenQuickAddType(true)}
                   disabled={!formData.group}
                   className="h-11 min-w-[90px] text-[13px] bg-gradient-to-r from-emerald-500 to-emerald-600 hover:brightness-110 text-white rounded-lg shadow flex items-center justify-center gap-1 whitespace-nowrap disabled:opacity-50"
@@ -205,11 +241,14 @@ export default function AddCard1({
                   <PlusCircle className="w-3.5 h-3.5" /> Loại
                 </Button>
               </div>
+              {errors.type && (
+                <p className="text-xs text-red-500 mt-1">{errors.type}</p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* --- RIGHT 1/3 (Hình ảnh) --- */}
+        {/* RIGHT 1/3 (Hình ảnh) */}
         <div className="flex flex-col justify-between space-y-3 h-full">
           <Label className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
             Hình ảnh

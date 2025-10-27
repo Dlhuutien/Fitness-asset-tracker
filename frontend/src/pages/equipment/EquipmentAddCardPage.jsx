@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+// ✅ src/pages/equipment/EquipmentAddCardPage.jsx
+import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import { Button } from "@/components/ui/buttonn";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
@@ -16,11 +17,7 @@ import AttributeService from "@/services/attributeService";
 import TypeAttributeService from "@/services/typeAttributeService";
 import EquipmentService from "@/services/equipmentService";
 
-export default function EquipmentAddCardPage({
-  onSuccessAdd,
-  onCancel,
-  onLoadingChange,
-}) {
+function EquipmentAddCardPageInner({ onSuccessAdd, onCancel, onLoadingChange }, ref) {
   const { mutate } = useSWRConfig();
 
   // ===================== STATE =====================
@@ -38,6 +35,8 @@ export default function EquipmentAddCardPage({
   const [attributes, setAttributes] = useState([]);
   const [typeAttributes, setTypeAttributes] = useState([]);
   const [selectedAttrs, setSelectedAttrs] = useState({});
+  const [selectedNewAttrs, setSelectedNewAttrs] = useState({});
+
   const [searchAttr, setSearchAttr] = useState("");
   const [attrTab, setAttrTab] = useState("pick");
   const [showAddAttr, setShowAddAttr] = useState(false);
@@ -48,9 +47,8 @@ export default function EquipmentAddCardPage({
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
-  const [selectedNewAttrs, setSelectedNewAttrs] = useState({});
+const [errors, setErrors] = useState({});
 
-  // Quick add modals
   const [openQuickAddGroup, setOpenQuickAddGroup] = useState(false);
   const [openQuickAddType, setOpenQuickAddType] = useState(false);
 
@@ -76,7 +74,6 @@ export default function EquipmentAddCardPage({
     })();
   }, []);
 
-  // Khi chọn loại → load attribute
   useEffect(() => {
     if (!formData.type) {
       setTypeAttributes([]);
@@ -85,9 +82,7 @@ export default function EquipmentAddCardPage({
     }
     (async () => {
       try {
-        const data = await TypeAttributeService.getAttributesByType(
-          formData.type
-        );
+        const data = await TypeAttributeService.getAttributesByType(formData.type);
         setTypeAttributes(data || []);
         setSelectedAttrs({});
       } catch (err) {
@@ -141,13 +136,8 @@ export default function EquipmentAddCardPage({
       }
 
       if (formData.type && attrToUse) {
-        await TypeAttributeService.addAttributeToType(
-          formData.type,
-          attrToUse.id
-        );
-        const updated = await TypeAttributeService.getAttributesByType(
-          formData.type
-        );
+        await TypeAttributeService.addAttributeToType(formData.type, attrToUse.id);
+        const updated = await TypeAttributeService.getAttributesByType(formData.type);
         setTypeAttributes(updated || []);
         setSuccessMsg(`Đã thêm thông số "${trimmed}" vào loại thiết bị.`);
       } else {
@@ -164,21 +154,40 @@ export default function EquipmentAddCardPage({
     }
   };
 
+  // ===================== VALIDATION TOÀN CỤC =====================
+const validateAll = () => {
+  const newErrors = {};
+  if (!formData.name?.trim()) newErrors.name = "Vui lòng nhập tên dòng thiết bị";
+  if (!formData.group) newErrors.group = "Vui lòng chọn nhóm thiết bị";
+  if (!formData.type) newErrors.type = "Vui lòng chọn loại thiết bị";
+
+  setErrors(newErrors);
+
+  if (Object.keys(newErrors).length > 0) {
+    toast.error("⚠️ Vui lòng nhập đầy đủ thông tin!");
+    return false;
+  }
+  return true;
+};
+
+
+  // ✅ Cho phép gọi validateAll từ cha (EquipmentSectionPage)
+  useImperativeHandle(ref, () => ({
+    validateAll: () => {
+      console.log("✅ validateAll() được gọi!");
+      return validateAll();
+    },
+  }));
+
+  // ===================== SUBMIT =====================
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
+
+    if (!validateAll()) return;
+
     setLoadingSubmit(true);
-
-    // Validate cơ bản
-    if (!formData.name?.trim() || !formData.group || !formData.type) {
-      toast.error(
-        "⚠️ Vui lòng nhập đầy đủ thông tin và chọn nhóm, loại thiết bị!"
-      );
-      setLoadingSubmit(false);
-      return;
-    }
-
     try {
       const attrArray = Object.entries(selectedAttrs)
         .map(([attrName, value]) => {
@@ -197,11 +206,9 @@ export default function EquipmentAddCardPage({
 
       const res = await EquipmentService.create(payload);
       toast.success(`✅ Thiết bị "${res.name}" đã được thêm.`);
-
       mutate(`${API}equipment`);
       onSuccessAdd?.(res);
 
-      // Reset form
       setFormData({
         group: "",
         type: "",
@@ -222,15 +229,9 @@ export default function EquipmentAddCardPage({
   // ===================== UI =====================
   return (
     <div className="w-full overflow-hidden flex flex-col">
-      {/* Body cuộn */}
       <div className="flex flex-col h-full">
-        {/* Body cuộn */}
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2 max-h-[calc(100vh-130px)]">
-          <form
-            id="equipment-add-form"
-            onSubmit={handleSubmit}
-            className="space-y-5"
-          >
+          <form id="equipment-add-form" onSubmit={handleSubmit} className="space-y-5">
             <AddCard1
               formData={formData}
               setFormData={setFormData}
@@ -239,6 +240,7 @@ export default function EquipmentAddCardPage({
               types={types}
               setOpenQuickAddGroup={setOpenQuickAddGroup}
               setOpenQuickAddType={setOpenQuickAddType}
+errors={errors}
             />
 
             <AddCard3
@@ -273,6 +275,7 @@ export default function EquipmentAddCardPage({
         </div>
       </div>
 
+      {/* ==== Quick Add Modals ==== */}
       <EquipmentGroupQuickAdd
         open={openQuickAddGroup}
         onClose={() => setOpenQuickAddGroup(false)}
@@ -295,3 +298,5 @@ export default function EquipmentAddCardPage({
     </div>
   );
 }
+
+export default forwardRef(EquipmentAddCardPageInner);

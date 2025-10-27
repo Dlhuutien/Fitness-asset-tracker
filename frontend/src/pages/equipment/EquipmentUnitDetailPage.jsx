@@ -60,15 +60,11 @@ export default function EquipmentProfilePage() {
   // Inline edit mode
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({
-    // unit fields
-    status: "",
-    branch_id: "",
-    cost: "",
-    description: "",
-    warranty_start_date: "",
-    warranty_end_date: "",
-    // equipment base fields
     equipment_name: "",
+    branch_id: "",
+    warranty_duration: "",
+    description: "",
+    cost: "",
   });
 
   const eq = data?.equipment || {};
@@ -80,7 +76,17 @@ export default function EquipmentProfilePage() {
     if (!data) {
       setLoading(true);
       EquipmentUnitService.getById(id)
-        .then((res) => setData(res))
+        .then((res) => {
+          setData(res);
+          const eq = res?.equipment || {};
+          setForm({
+            equipment_name: eq.name || "",
+            branch_id: res.branch_id || "",
+            warranty_duration: res.warranty_duration || 1,
+            description: res.description || eq.description || "",
+            cost: res.cost || "",
+          });
+        })
         .catch((err) => console.error("❌ Lỗi lấy chi tiết unit:", err))
         .finally(() => setLoading(false));
     }
@@ -99,60 +105,74 @@ export default function EquipmentProfilePage() {
     })();
   }, [data?.id]);
 
-  // Init form values when data changes (enter/leave edit mode, or loaded)
-  useEffect(() => {
-    if (!data) return;
-    setForm({
-      status: normalizeStatusForInput(data.status),
-      branch_id: data.branch_id || "",
-      cost: data.cost ?? "",
-      description: data.description || eq.description || "",
-      warranty_start_date: toLocalInputDateTime(data.warranty_start_date),
-      warranty_end_date: toLocalInputDateTime(data.warranty_end_date),
-      equipment_name: eq.name || "",
-    });
-  }, [data]);
+  // Helper: tính ngày kết thúc bảo hành theo số năm
+  const computeWarrantyEnd = (startDate, years) => {
+    if (!startDate || !years) return "";
+    const start = new Date(startDate);
+    start.setFullYear(start.getFullYear() + Number(years));
+    return start.toISOString();
+  };
 
   const translatedStatus =
     STATUS_MAP[data?.status?.toLowerCase()] || "Không xác định";
 
-  // ===== Helpers to format date <input type="datetime-local"> =====
-  function toLocalInputDateTime(iso) {
-    if (!iso) return "";
-    try {
-      const d = new Date(iso);
-      const pad = (n) => String(n).padStart(2, "0");
-      const yyyy = d.getFullYear();
-      const MM = pad(d.getMonth() + 1);
-      const dd = pad(d.getDate());
-      const hh = pad(d.getHours());
-      const mm = pad(d.getMinutes());
-      return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
-    } catch {
-      return "";
-    }
-  }
-  function toISOStringIfSet(local) {
-    if (!local) return null;
-    try {
-      const d = new Date(local);
-      return d.toISOString();
-    } catch {
-      return null;
-    }
-  }
+  // ===== Save =====
+  const handleSave = async () => {
+    if (!data?.id) return;
 
-  function normalizeStatusForInput(status) {
-    if (!status) return "";
-    // Chuyển status bất kỳ casing thành dạng chuẩn có sẵn trong OPTIONS
-    const lower = String(status).toLowerCase();
-    const found = STATUS_OPTIONS.find(
-      (opt) => opt.toLowerCase() === lower
-    );
-    return found || status; // fallback giữ nguyên
-  }
+    try {
+      setLoading(true);
+      toast.info("⏳ Đang lưu thay đổi...");
 
-  // ===== Actions =====
+      const newWarrantyEnd = computeWarrantyEnd(
+        data.warranty_start_date,
+        form.warranty_duration
+      );
+
+      // 1️⃣ Update unit
+      await EquipmentUnitService.update(data.id, {
+        branch_id: form.branch_id,
+        cost: Number(form.cost) || 0,
+        description: form.description?.trim() || "",
+        warranty_duration: Number(form.warranty_duration),
+        warranty_end_date: newWarrantyEnd,
+      });
+
+      // 2️⃣ Update base equipment name nếu đổi
+      if (data.equipment?.id) {
+        const oldName = data.equipment?.name || "";
+        if (form.equipment_name.trim() !== oldName) {
+          await EquipmentUnitService.updateBaseInfo(data.equipment.id, {
+            name: form.equipment_name.trim(),
+          });
+        }
+      }
+
+      // 3️⃣ Update UI state
+      setData((prev) => ({
+        ...prev,
+        branch_id: form.branch_id,
+        cost: Number(form.cost) || prev.cost,
+        description: form.description,
+        warranty_duration: Number(form.warranty_duration),
+        warranty_end_date: newWarrantyEnd,
+        equipment: {
+          ...prev.equipment,
+          name: form.equipment_name,
+        },
+      }));
+
+      toast.success("✅ Cập nhật thiết bị thành công!");
+      setEditMode(false);
+    } catch (err) {
+      console.error("❌ Lỗi khi lưu thay đổi:", err);
+      toast.error("❌ Không thể lưu thay đổi!");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ===== Dừng tạm thời =====
   const handleCreateMaintenance = async () => {
     if (!data?.id) {
       setErrorMsg("⚠️ Không xác định được mã thiết bị!");
@@ -211,106 +231,7 @@ export default function EquipmentProfilePage() {
     }
   };
 
-  const handleEditToggle = () => {
-    // bật/tắt edit mode, đồng thời reset form từ data hiện tại
-    setEditMode((prev) => !prev);
-    if (!editMode && data) {
-      setForm({
-        status: normalizeStatusForInput(data.status),
-        branch_id: data.branch_id || "",
-        cost: data.cost ?? "",
-        description: data.description || eq.description || "",
-        warranty_start_date: toLocalInputDateTime(data.warranty_start_date),
-        warranty_end_date: toLocalInputDateTime(data.warranty_end_date),
-        equipment_name: eq.name || "",
-      });
-    }
-  };
-
-  const handleCancel = () => {
-    // khôi phục form và tắt edit
-    if (data) {
-      setForm({
-        status: normalizeStatusForInput(data.status),
-        branch_id: data.branch_id || "",
-        cost: data.cost ?? "",
-        description: data.description || eq.description || "",
-        warranty_start_date: toLocalInputDateTime(data.warranty_start_date),
-        warranty_end_date: toLocalInputDateTime(data.warranty_end_date),
-        equipment_name: eq.name || "",
-      });
-    }
-    setEditMode(false);
-  };
-
-  const handleSave = async () => {
-    if (!data?.id) return;
-
-    // Chuẩn hóa payload cho unit update
-    const unitPayload = {
-      status: form.status || data.status,
-      branch_id: form.branch_id || null,
-      description: form.description?.trim() || "",
-    };
-
-    // cost
-    if (form.cost !== "" && form.cost !== null && !isNaN(form.cost)) {
-      unitPayload.cost = parseFloat(form.cost);
-    }
-
-    // warranty dates
-    unitPayload.warranty_start_date = toISOStringIfSet(
-      form.warranty_start_date
-    );
-    unitPayload.warranty_end_date = toISOStringIfSet(form.warranty_end_date);
-
-    try {
-      setLoading(true);
-      toast.info("⏳ Đang lưu thay đổi...");
-
-      // 1) Update Unit
-      await EquipmentUnitService.update(data.id, unitPayload);
-
-      // 2) Update equipment base (name) nếu thay đổi
-      if (data.equipment?.id) {
-        const currName = data.equipment?.name || "";
-        if (form.equipment_name.trim() !== currName) {
-          await EquipmentUnitService.updateBaseInfo(data.equipment.id, {
-            name: form.equipment_name.trim(),
-          });
-        }
-      }
-
-      // 3) Update UI state
-      setData((prev) => ({
-        ...prev,
-        status: unitPayload.status,
-        branch_id: unitPayload.branch_id ?? prev.branch_id,
-        description: unitPayload.description,
-        cost:
-          unitPayload.cost !== undefined && !isNaN(unitPayload.cost)
-            ? unitPayload.cost
-            : prev.cost,
-        warranty_start_date:
-          unitPayload.warranty_start_date ?? prev.warranty_start_date,
-        warranty_end_date:
-          unitPayload.warranty_end_date ?? prev.warranty_end_date,
-        equipment: {
-          ...prev.equipment,
-          name: form.equipment_name || prev.equipment?.name,
-        },
-      }));
-
-      toast.success("✅ Cập nhật thiết bị thành công!");
-      setEditMode(false);
-    } catch (err) {
-      console.error("❌ Lỗi khi lưu thay đổi:", err);
-      toast.error("❌ Không thể lưu thay đổi!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // ===== Loading =====
   if (loading)
     return (
       <div className="p-6 text-center text-gray-500 dark:text-gray-300 animate-pulse">
@@ -325,6 +246,7 @@ export default function EquipmentProfilePage() {
       </div>
     );
 
+  // ====== UI ======
   return (
     <motion.div
       className="p-6 space-y-6 font-jakarta transition-colors duration-300"
@@ -342,15 +264,15 @@ export default function EquipmentProfilePage() {
       </Button>
 
       {/* Card chính */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6 hover:shadow-lg transition-all duration-300">
-        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6">
+        <div className="flex flex-col md:flex-row gap-6">
           <img
             src={eq.image || "/placeholder.jpg"}
             alt={eq.name}
-            className="w-64 h-48 object-contain rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+            className="w-64 h-48 object-contain rounded-lg bg-gray-50 dark:bg-gray-800 border"
           />
 
-          <div className="flex-1 space-y-3 w-full">
+          <div className="flex-1 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-3">
               {!editMode ? (
                 <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
@@ -367,197 +289,117 @@ export default function EquipmentProfilePage() {
                     onChange={(e) =>
                       setForm((f) => ({ ...f, equipment_name: e.target.value }))
                     }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-emerald-400 outline-none"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:text-white focus:ring-2 focus:ring-emerald-400 outline-none"
                   />
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                {data.status?.toLowerCase() === "in stock" && !editMode && (
-                  <Button
-                    onClick={handleActivate}
-                    disabled={loading}
-                    className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
-                  >
-                    🚀 Đưa vào hoạt động
-                  </Button>
-                )}
+<div className="flex items-center gap-3">
+  {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
+  {data.status?.toLowerCase() === "in stock" && !editMode && (
+    <Button
+      onClick={handleActivate}
+      disabled={loading}
+      className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
+    >
+      🚀 Đưa vào hoạt động
+    </Button>
+  )}
 
-                {!editMode ? (
-                  <Button
-                    onClick={handleEditToggle}
-                    variant="outline"
-                    className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all duration-300 font-semibold"
-                  >
-                    ✏️ Sửa thông tin
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      onClick={handleCancel}
-                      variant="outline"
-                      className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
-                    >
-                      Hủy
-                    </Button>
-                    <Button
-                      onClick={handleSave}
-                      disabled={loading}
-                      className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
-                    >
-                      💾 Lưu thay đổi
-                    </Button>
-                  </>
-                )}
-              </div>
+  {/* ✏️ Nút Sửa / Hủy / Lưu */}
+  {!editMode ? (
+    <Button
+      onClick={() => setEditMode(true)}
+      variant="outline"
+      className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all font-semibold"
+    >
+      ✏️ Sửa thông tin
+    </Button>
+  ) : (
+    <>
+      <Button
+        onClick={() => setEditMode(false)}
+        variant="outline"
+        className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
+      >
+        Hủy
+      </Button>
+      <Button
+        onClick={handleSave}
+        disabled={loading}
+        className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
+      >
+        💾 Lưu thay đổi
+      </Button>
+    </>
+  )}
+</div>
+
             </div>
-
-            {/* Ghi chú kho */}
-            {data.status?.toLowerCase() === "in stock" && !editMode && (
-              <p className="text-xs italic text-gray-400 mt-[6px]">
-                Thiết bị mới nhập vào kho
-              </p>
-            )}
 
             {/* Nhóm trạng thái + id + nhóm */}
             <div className="flex flex-wrap items-center gap-3">
-              {!editMode ? (
-                <Status status={translatedStatus} />
-              ) : (
-                <div className="w-60">
-                  <label className="text-sm text-gray-500 dark:text-gray-400">
-                    Trạng thái
-                  </label>
-                  <select
-                    value={form.status}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, status: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-emerald-400 outline-none"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <Status status={translatedStatus} />
+              <span className="text-sm text-gray-500">
                 Mã định danh thiết bị:{" "}
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {data.id}
-                </span>
+                <span className="font-medium">{data.id}</span>
               </span>
-
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                Nhóm:{" "}
-                <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {eq.main_name || "—"}
-                </span>
+              <span className="text-sm text-gray-500">
+                Nhóm: <span className="font-medium">{eq.main_name || "—"}</span>
               </span>
             </div>
 
-            {/* Chi tiết: chuyển sang input khi editMode */}
-            <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-              {/* Loại thiết bị (read-only) */}
-              <FieldView icon={<Package size={16} />} label="Loại thiết bị">
+            {/* Chi tiết */}
+            <div className="grid sm:grid-cols-2 gap-x-8 gap-y-4 pt-4 border-t">
+              <FieldView icon={<Package />} label="Loại thiết bị">
                 {eq.type_name || "—"}
               </FieldView>
 
-              {/* Mã thiết bị gốc (read-only) */}
-              <FieldView icon={<Package size={16} />} label="Mã thiết bị gốc">
-                {eq.id || "—"}
-              </FieldView>
-
-              {/* Nhà cung cấp (read-only trong phiên bản này) */}
-              <FieldView icon={<Factory size={16} />} label="Nhà cung cấp">
+              <FieldView icon={<Factory />} label="Nhà cung cấp">
                 {data.vendor_name || "—"}
               </FieldView>
 
-              {/* Chi nhánh (input text) */}
-              <FieldEdit
-                editMode={editMode}
-                icon={<Building2 size={16} />}
-                label="Chi nhánh"
-                value={form.branch_id}
-                onChange={(v) => setForm((f) => ({ ...f, branch_id: v }))}
-                placeholder="VD: GV / Q1..."
-              >
+              {/* Chi nhánh (không cho chỉnh sửa) */}
+              <FieldView icon={<Building2 />} label="Chi nhánh">
                 {data.branch_id || "—"}
-              </FieldEdit>
-
-              {/* Ngày tạo (read-only) */}
-              <FieldView icon={<CalendarDays size={16} />} label="Ngày tạo">
-                {new Date(data.created_at).toLocaleString("vi-VN")}
               </FieldView>
 
-              {/* Cập nhật gần nhất (read-only) */}
-              <FieldView
-                icon={<CalendarDays size={16} />}
-                label="Cập nhật gần nhất"
-              >
-                {new Date(data.updated_at).toLocaleString("vi-VN")}
+              <FieldView icon={<CalendarDays />} label="Ngày bắt đầu bảo hành">
+                {new Date(data.warranty_start_date).toLocaleString("vi-VN")}
               </FieldView>
 
-              {/* Bảo hành: start */}
+              <FieldView icon={<CalendarDays />} label="Ngày kết thúc bảo hành">
+                {new Date(data.warranty_end_date).toLocaleString("vi-VN")}
+              </FieldView>
+
               <FieldEdit
                 editMode={editMode}
-                icon={<CalendarDays size={16} />}
-                label="Bắt đầu bảo hành"
-                type="datetime-local"
-                value={form.warranty_start_date}
+                icon={<Package />}
+                label="Thời hạn bảo hành (năm)"
+                type="number"
+                value={form.warranty_duration}
                 onChange={(v) =>
-                  setForm((f) => ({ ...f, warranty_start_date: v }))
+                  setForm((f) => ({ ...f, warranty_duration: v }))
                 }
-              >
-                {data.warranty_start_date
-                  ? new Date(data.warranty_start_date).toLocaleString("vi-VN")
-                  : "—"}
-              </FieldEdit>
-
-              {/* Bảo hành: end */}
-              <FieldEdit
-                editMode={editMode}
-                icon={<CalendarDays size={16} />}
-                label="Kết thúc bảo hành"
-                type="datetime-local"
-                value={form.warranty_end_date}
-                onChange={(v) =>
-                  setForm((f) => ({ ...f, warranty_end_date: v }))
-                }
-              >
-                {data.warranty_end_date
-                  ? new Date(data.warranty_end_date).toLocaleString("vi-VN")
-                  : "—"}
-              </FieldEdit>
-
-              {/* Thời hạn bảo hành (read-only nếu đang tính từ start/end; nếu bạn có field riêng thì chuyển sang editable tương tự) */}
-              <FieldView
-                icon={<Package size={16} />}
-                label="Thời hạn bảo hành"
+                placeholder="VD: 2"
               >
                 {data.warranty_duration ? `${data.warranty_duration} năm` : "—"}
-              </FieldView>
+              </FieldEdit>
 
-              {/* Mô tả */}
               <FieldEdit
                 editMode={editMode}
-                icon={<Package size={16} />}
+                icon={<Package />}
                 label="Mô tả thiết bị"
                 type="textarea"
                 value={form.description}
                 onChange={(v) => setForm((f) => ({ ...f, description: v }))}
-                placeholder="Mô tả chi tiết..."
               >
                 {eq.description || data.description || "—"}
               </FieldEdit>
 
-              {/* Giá nhập */}
               <FieldEdit
                 editMode={editMode}
-                icon={<Package size={16} />}
+                icon={<Package />}
                 label="Giá nhập thiết bị"
                 type="number"
                 value={form.cost}
@@ -577,222 +419,44 @@ export default function EquipmentProfilePage() {
       </div>
 
       {/* Thông số kỹ thuật */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden transition-all duration-300">
-        <button
-          onClick={() => setShowSpecs(!showSpecs)}
-          className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-        >
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Thông số kỹ thuật
-          </h2>
-          <ChevronDown
-            className={`w-5 h-5 text-gray-600 dark:text-gray-300 transform transition-transform ${
-              showSpecs ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-
-        {showSpecs && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            transition={{ duration: 0.3 }}
-            className="p-6 border-t border-gray-200 dark:border-gray-700"
-          >
-            {eq.attributes && eq.attributes.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {eq.attributes.map((attr, i) => (
-                  <div
-                    key={i}
-                    className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:border-emerald-400/60 transition"
-                  >
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {attr.attribute}
-                    </p>
-                    <p className="text-sm font-medium text-gray-800 dark:text-gray-100">
-                      {attr.value || "—"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm italic text-gray-500 dark:text-gray-400 text-center">
-                (Chưa có thông số kỹ thuật nào được thêm cho thiết bị này)
-              </p>
-            )}
-          </motion.div>
-        )}
-      </div>
+      <SpecSection showSpecs={showSpecs} setShowSpecs={setShowSpecs} eq={eq} />
 
       {/* Lịch sử bảo trì */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
-        <button
-          onClick={() => setHistoryOpen((p) => !p)}
-          className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
-        >
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            Lịch sử bảo trì thiết bị
-          </h2>
-          <ChevronDown
-            className={`w-5 h-5 text-gray-600 dark:text-gray-300 transform transition-transform ${
-              historyOpen ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-
-        {historyOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            transition={{ duration: 0.3 }}
-            className="p-6 border-t border-gray-200 dark:border-gray-700"
-          >
-            {maintenanceHistory.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm border dark:border-gray-700">
-                  <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
-                    <tr>
-                      <th className="p-2 border">Chi nhánh</th>
-                      <th className="p-2 border">Bắt đầu</th>
-                      <th className="p-2 border">Kết thúc</th>
-                      <th className="p-2 border">Lý do</th>
-                      <th className="p-2 border">Chi tiết</th>
-                      <th className="p-2 border">Yêu cầu bởi</th>
-                      <th className="p-2 border">Kỹ thuật viên</th>
-                      <th className="p-2 border">Bảo hành</th>
-                      <th className="p-2 border">Chi phí</th>
-                      <th className="p-2 border">Ngày tạo hóa đơn</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {maintenanceHistory.map((item, idx) => {
-                      const invoice = item.invoices?.[0] || {};
-                      return (
-                        <tr
-                          key={idx}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                        >
-                          <td className="p-2 border text-center">
-                            {item.branch_id || "—"}
-                          </td>
-                          <td className="p-2 border">
-                            {item.start_date
-                              ? new Date(item.start_date).toLocaleString(
-                                  "vi-VN"
-                                )
-                              : "—"}
-                          </td>
-                          <td className="p-2 border">
-                            {item.end_date
-                              ? new Date(item.end_date).toLocaleString("vi-VN")
-                              : "—"}
-                          </td>
-                          <td className="p-2 border">
-                            {item.maintenance_reason || "—"}
-                          </td>
-                          <td className="p-2 border">
-                            {item.maintenance_detail || "—"}
-                          </td>
-                          <td className="p-2 border">
-                            {item.requested_by_name || "—"}
-                          </td>
-                          <td className="p-2 border">
-                            {item.technician_name || "—"}
-                          </td>
-                          <td className="p-2 border text-center">
-                            {item.warranty ? "Có" : "Không"}
-                          </td>
-                          <td className="p-2 border text-right">
-                            {invoice.cost !== undefined
-                              ? `${invoice.cost.toLocaleString("vi-VN")} đ`
-                              : "—"}
-                          </td>
-                          <td className="p-2 border text-center">
-                            {invoice.created_at
-                              ? new Date(invoice.created_at).toLocaleString(
-                                  "vi-VN"
-                                )
-                              : "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                (Chưa có lịch sử bảo trì nào cho thiết bị này)
-              </p>
-            )}
-          </motion.div>
-        )}
-      </div>
+      <HistorySection
+        historyOpen={historyOpen}
+        setHistoryOpen={setHistoryOpen}
+        maintenanceHistory={maintenanceHistory}
+      />
 
       {/* Dừng tạm thời */}
-      {data.status?.toLowerCase() === "active" &&
-        (!isTemporarilyStopped ? (
-          <div className="flex flex-col items-center justify-center gap-3 pt-4">
-            <div className="w-full max-w-md flex flex-col items-center gap-2">
-              <input
-                type="text"
-                placeholder="Nhập lý do tạm dừng thiết bị..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm 
-        dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 
-        focus:ring-amber-400 outline-none transition-all"
-              />
-              <Button
-                onClick={handleCreateMaintenance}
-                disabled={loading}
-                className="bg-gradient-to-r from-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-300 
-        text-gray-800 font-semibold px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all 
-        disabled:opacity-70 disabled:cursor-not-allowed w-full"
-              >
-                ⚙️ Dừng tạm thời
-              </Button>
-            </div>
-
-            {successMsg && (
-              <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
-                {successMsg}
-              </div>
-            )}
-            {errorMsg && (
-              <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
-                {errorMsg}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center pt-4">
-            <div className="inline-block px-4 py-2 text-sm font-medium text-amber-600 bg-amber-50 border border-amber-200 rounded-lg shadow-sm">
-              ⚠️ Thiết bị hiện đang ở trạng thái <b>“Ngừng tạm thời”</b>.
-            </div>
-          </div>
-        ))}
+      <PauseSection
+        data={data}
+        isTemporarilyStopped={isTemporarilyStopped}
+        reason={reason}
+        setReason={setReason}
+        handleCreateMaintenance={handleCreateMaintenance}
+        loading={loading}
+        successMsg={successMsg}
+        errorMsg={errorMsg}
+      />
     </motion.div>
   );
 }
 
-/** Hiển thị chỉ đọc */
+/* ===== Field hiển thị chỉ đọc ===== */
 function FieldView({ icon, label, children }) {
   return (
     <div className="flex items-center gap-2">
       <div className="text-brand">{icon}</div>
       <div>
-        <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="text-base font-medium text-gray-800 dark:text-gray-100">
-          {children ?? "—"}
-        </p>
+        <p className="text-sm text-gray-500">{label}</p>
+        <p className="text-base font-medium text-gray-800">{children ?? "—"}</p>
       </div>
     </div>
   );
 }
 
-
-/** Inline edit: khi editMode=true hiển thị input, ngược lại hiển thị children */
+/* ===== Field chỉnh sửa inline ===== */
 function FieldEdit({
   editMode,
   icon,
@@ -807,13 +471,9 @@ function FieldEdit({
     <div className="flex items-start gap-2">
       <div className="mt-1 text-brand">{icon}</div>
       <div className="w-full">
-        <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-
+        <p className="text-sm text-gray-500">{label}</p>
         {!editMode ? (
-          <p
-            className="text-base font-medium text-gray-800 dark:text-gray-100 max-w-[400px] overflow-hidden text-ellipsis whitespace-nowrap"
-            title={children ?? "—"}
-          >
+          <p className="text-base font-medium text-gray-800">
             {children ?? "—"}
           </p>
         ) : type === "textarea" ? (
@@ -822,7 +482,7 @@ function FieldEdit({
             value={value ?? ""}
             placeholder={placeholder}
             onChange={(e) => onChange?.(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-emerald-400 outline-none"
+            className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none"
           />
         ) : (
           <input
@@ -830,7 +490,7 @@ function FieldEdit({
             value={value ?? ""}
             placeholder={placeholder}
             onChange={(e) => onChange?.(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-lg dark:bg-gray-800 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-emerald-400 outline-none"
+            className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none"
           />
         )}
       </div>
@@ -838,3 +498,181 @@ function FieldEdit({
   );
 }
 
+/* ===== Thông số kỹ thuật ===== */
+function SpecSection({ showSpecs, setShowSpecs, eq }) {
+  return (
+    <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+      <button
+        onClick={() => setShowSpecs(!showSpecs)}
+        className="w-full flex justify-between items-center p-6 hover:bg-gray-50"
+      >
+        <h2 className="text-lg font-semibold text-gray-800">
+          Thông số kỹ thuật
+        </h2>
+        <ChevronDown
+          className={`w-5 h-5 text-gray-600 transform transition-transform ${
+            showSpecs ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {showSpecs && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          transition={{ duration: 0.3 }}
+          className="p-6 border-t"
+        >
+          {eq.attributes && eq.attributes.length > 0 ? (
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {eq.attributes.map((attr, i) => (
+                <div
+                  key={i}
+                  className="bg-gray-50 rounded-lg p-3 border hover:border-emerald-400/60 transition"
+                >
+                  <p className="text-xs text-gray-500">{attr.attribute}</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    {attr.value || "—"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm italic text-gray-500 text-center">
+              (Chưa có thông số kỹ thuật nào)
+            </p>
+          )}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+/* ===== Lịch sử bảo trì ===== */
+function HistorySection({ historyOpen, setHistoryOpen, maintenanceHistory }) {
+  return (
+    <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+      <button
+        onClick={() => setHistoryOpen((p) => !p)}
+        className="w-full flex justify-between items-center p-6 hover:bg-gray-50"
+      >
+        <h2 className="text-lg font-semibold text-gray-800">
+          Lịch sử bảo trì thiết bị
+        </h2>
+        <ChevronDown
+          className={`w-5 h-5 text-gray-600 transform transition-transform ${
+            historyOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {historyOpen && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          transition={{ duration: 0.3 }}
+          className="p-6 border-t"
+        >
+          {maintenanceHistory.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 border">Chi nhánh</th>
+                    <th className="p-2 border">Bắt đầu</th>
+                    <th className="p-2 border">Kết thúc</th>
+                    <th className="p-2 border">Lý do</th>
+                    <th className="p-2 border">Chi phí</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {maintenanceHistory.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="p-2 border text-center">
+                        {item.branch_id || "—"}
+                      </td>
+                      <td className="p-2 border">
+                        {item.start_date
+                          ? new Date(item.start_date).toLocaleString("vi-VN")
+                          : "—"}
+                      </td>
+                      <td className="p-2 border">
+                        {item.end_date
+                          ? new Date(item.end_date).toLocaleString("vi-VN")
+                          : "—"}
+                      </td>
+                      <td className="p-2 border">
+                        {item.maintenance_reason || "—"}
+                      </td>
+                      <td className="p-2 border text-right">
+                        {item.invoices?.[0]?.cost
+                          ? `${item.invoices[0].cost.toLocaleString("vi-VN")} đ`
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm italic text-gray-500">
+              (Chưa có lịch sử bảo trì)
+            </p>
+          )}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+/* ===== Dừng tạm thời ===== */
+function PauseSection({
+  data,
+  isTemporarilyStopped,
+  reason,
+  setReason,
+  handleCreateMaintenance,
+  loading,
+  successMsg,
+  errorMsg,
+}) {
+  if (data.status?.toLowerCase() !== "active") return null;
+
+  return !isTemporarilyStopped ? (
+    <div className="flex flex-col items-center gap-3 pt-4">
+      <div className="w-full max-w-md flex flex-col gap-2">
+        <input
+          type="text"
+          placeholder="Nhập lý do tạm dừng thiết bị..."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          className="w-full px-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-400 outline-none"
+        />
+        <Button
+          onClick={handleCreateMaintenance}
+          disabled={loading}
+          className="bg-gradient-to-r from-amber-300 to-yellow-400 text-gray-800 font-semibold px-8 py-3 rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-70 w-full"
+        >
+          ⚙️ Dừng tạm thời
+        </Button>
+      </div>
+
+      {successMsg && (
+        <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border shadow-sm">
+          {successMsg}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border shadow-sm">
+          {errorMsg}
+        </div>
+      )}
+    </div>
+  ) : (
+    <div className="text-center pt-4">
+      <div className="inline-block px-4 py-2 text-sm font-medium text-amber-600 bg-amber-50 border rounded-lg shadow-sm">
+        ⚠️ Thiết bị hiện đang ở trạng thái <b>“Ngừng tạm thời”</b>.
+      </div>
+    </div>
+  );
+}
