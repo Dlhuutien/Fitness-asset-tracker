@@ -61,15 +61,19 @@ export default function Notification() {
         isFetchingRef.current = false;
         return;
       }
+
       const sorted = res.sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
       setPreviewNotis(sorted.slice(0, 6));
+
       const newest = new Date(sorted[0].created_at).getTime();
       latestRemoteTsRef.current = newest;
 
       const lastSeen = getLastSeen();
-      if (newest > lastSeen) {
+
+      // Nếu có thông báo mới hơn
+      if (newest > lastSeen && !hasNew) {
         setHasNew(true);
         controls.start(ringOnce);
       }
@@ -81,12 +85,14 @@ export default function Notification() {
   useEffect(() => {
     fetchAndCheck();
     pollingRef.current = setInterval(fetchAndCheck, 8000);
+
     const onFocus = () => fetchAndCheck();
     const onVisibility = () => {
       if (document.visibilityState === "visible") fetchAndCheck();
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       clearInterval(pollingRef.current);
       window.removeEventListener("focus", onFocus);
@@ -94,11 +100,17 @@ export default function Notification() {
     };
   }, []);
 
-  const handleClick = () => {
+  // 👉 Khi rê chuột vào: dừng rung + đánh dấu đã xem để lần sau không rung lại
+  const handleHoverBell = () => {
     setHasNew(false);
     controls.stop();
     controls.set({ rotate: 0 });
     setLastSeenToLatest();
+    setShowPopup(true);
+  };
+
+  const handleClickAll = () => {
+    handleHoverBell();
     navigate("/notifications");
   };
 
@@ -106,14 +118,11 @@ export default function Notification() {
 
   return (
     <div className="relative">
-      {/* Nút chuông */}
+      {/* 🔔 Nút chuông */}
       <motion.button
         whileHover={{ scale: 1.15 }}
         whileTap={{ scale: 0.9 }}
-        onMouseEnter={() => {
-          setShowPopup(true);
-          setHasNew(false);
-        }}
+        onMouseEnter={handleHoverBell}
         className="relative p-2 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 
                    dark:from-gray-800 dark:to-gray-900 border border-gray-300/60 dark:border-gray-700/60 
                    shadow-[0_2px_6px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_10px_rgba(0,0,0,0.25)]
@@ -131,13 +140,15 @@ export default function Notification() {
         </motion.div>
 
         {hasNew && (
-          <span className="absolute top-1 right-1 w-2.5 h-2.5 
+          <span
+            className="absolute top-1 right-1 w-2.5 h-2.5 
                            bg-gradient-to-r from-red-500 to-pink-500 rounded-full 
-                           shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse" />
+                           shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse"
+          />
         )}
       </motion.button>
 
-      {/* Popup */}
+      {/* 🧾 Popup thông báo */}
       {showPopup && (
         <motion.div
           onMouseEnter={() => setShowPopup(true)}
@@ -151,11 +162,13 @@ export default function Notification() {
                      shadow-[0_8px_25px_rgba(0,0,0,0.25)] noti-popup overflow-hidden z-50
                      transition-shadow duration-200"
         >
-          <div className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60
-                          font-semibold text-gray-800 dark:text-gray-100 flex justify-between items-center">
+          <div
+            className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60
+                          font-semibold text-gray-800 dark:text-gray-100 flex justify-between items-center"
+          >
             <span>🔔 Thông báo gần đây</span>
             <button
-              onClick={handleClick}
+              onClick={handleClickAll}
               className="text-emerald-600 dark:text-emerald-400 text-xs hover:underline"
             >
               Xem tất cả

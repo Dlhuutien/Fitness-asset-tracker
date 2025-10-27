@@ -1,4 +1,3 @@
-// src/components/panel/importEquipment/BranchSelector.jsx
 import { Button } from "@/components/ui/buttonn";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";

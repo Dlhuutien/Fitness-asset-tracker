@@ -7,6 +7,7 @@ import { CheckCircle2, PlusCircle } from "lucide-react";
 import VendorService from "@/services/vendorService";
 import EquipmentService from "@/services/equipmentService";
 import InvoiceService from "@/services/invoiceService";
+import BranchService from "@/services/branchService";
 
 // 🧠 Hooks
 import useAuthRole from "@/hooks/useAuthRole";
@@ -17,15 +18,13 @@ import VendorQuickAdd from "@/components/panel/vendor/VendorQuickAdd";
 import VendorSection from "@/components/panel/importEquipment/VendorSection";
 import EquipmentTable from "@/components/panel/importEquipment/EquipmentTable";
 import ImportSummary from "@/components/panel/importEquipment/ImportSummary";
+import BranchSelector from "@/components/panel/importEquipment/BranchSelector"; // 🏬 thêm dòng này
 import { Button } from "@/components/ui/buttonn";
 
 /**
  * 📦 Trang Nhập thiết bị vào kho (FitX Gym)
  */
-export default function EquipmentImportPage({
-  onRequestSwitchTab,
-  onStartImport,
-}) {
+export default function EquipmentImportPage({ onRequestSwitchTab, onStartImport }) {
   const { mutate } = useSWRConfig();
   const { isSuperAdmin, branchId } = useAuthRole();
   const { eqUnits, refreshEquipmentUnits } = useEquipmentData();
@@ -35,6 +34,8 @@ export default function EquipmentImportPage({
   // ==============================
   const [vendors, setVendors] = useState([]);
   const [equipments, setEquipments] = useState([]);
+  const [branches, setBranches] = useState([]); // 🏬 Thêm danh sách chi nhánh
+  const [selectedBranch, setSelectedBranch] = useState(branchId || ""); // 🏬 Chi nhánh đang chọn
   const [selectedVendor, setSelectedVendor] = useState("");
   const [checkedEquipmentId, setCheckedEquipmentId] = useState("");
   const [selectedItems, setSelectedItems] = useState({});
@@ -47,12 +48,14 @@ export default function EquipmentImportPage({
   useEffect(() => {
     (async () => {
       try {
-        const [v, e] = await Promise.all([
+        const [v, e, b] = await Promise.all([
           VendorService.getAll(),
           EquipmentService.getAll(),
+          BranchService.getAll(), // 🏬 lấy chi nhánh
         ]);
         setVendors(v || []);
         setEquipments(e || []);
+        setBranches(b || []);
       } catch (err) {
         console.error("❌ Load import data error:", err);
         toast.error("Không thể tải dữ liệu import.");
@@ -84,9 +87,7 @@ export default function EquipmentImportPage({
   const vendorLatestPrices = useMemo(() => {
     if (!checkedEquipmentId || !Array.isArray(eqUnits)) return {};
 
-    const related = eqUnits.filter(
-      (u) => u.equipment_id === checkedEquipmentId
-    );
+    const related = eqUnits.filter((u) => u.equipment_id === checkedEquipmentId);
 
     const byVendor = {};
     for (const u of related) {
@@ -112,9 +113,6 @@ export default function EquipmentImportPage({
   // ==============================
   // 🧾 OVERLAY NHẬP HÀNG
   // ==============================
-  // ==============================
-  // 🧾 OVERLAY NHẬP HÀNG
-  // ==============================
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [overlayMode, setOverlayMode] = useState("loading"); // "loading" | "success"
   const newFromUnitListRef = useRef(new Set());
@@ -136,7 +134,6 @@ export default function EquipmentImportPage({
           }
         });
 
-        // ✅ Khi có NEW thực sự, chuyển sang success
         if (changed && overlayMode === "loading") {
           console.log("✅ Có thiết bị mới được thêm:", ids);
           setOverlayMode("success");
@@ -150,15 +147,17 @@ export default function EquipmentImportPage({
   }, [overlayMode]);
 
   // ==============================
-  // ✅ XÁC NHẬN NHẬP HÀNG (chỉ thành công khi có NEW)
+  // ✅ XÁC NHẬN NHẬP HÀNG
   // ==============================
   const handleConfirmImport = async () => {
     try {
+      const finalBranchId = isSuperAdmin ? selectedBranch : branchId;
+
       if (!selectedVendor) {
         toast.error("⚠️ Vui lòng chọn nhà cung cấp!");
         return;
       }
-      if (!branchId) {
+      if (!finalBranchId) {
         toast.error("⚠️ Vui lòng chọn chi nhánh nhập hàng!");
         return;
       }
@@ -166,7 +165,7 @@ export default function EquipmentImportPage({
       const items = Object.values(selectedItems).map((item) => ({
         equipment_id: item.id,
         vendor_id: selectedVendor,
-        branch_id: branchId,
+        branch_id: finalBranchId,
         cost: Number(item.price) || 0,
         quantity: Number(item.qty) || 0,
         warranty_duration: Number(item.warranty_duration) || 0,
@@ -177,19 +176,14 @@ export default function EquipmentImportPage({
         return;
       }
 
-      // 🔄 Hiển thị overlay đang xử lý
       setOverlayOpen(true);
       setOverlayMode("loading");
       setLoadingSubmit(true);
 
-      // 🧾 Gửi request tạo hóa đơn nhập hàng
       const res = await InvoiceService.create({ items });
       toast.info("🧾 Đang cập nhật danh sách thiết bị...");
 
-      // Gọi refresh SWR để backend phát event fitx-units-updated
       await refreshEquipmentUnits();
-
-      // Khi có event, useEffect ở trên sẽ tự set overlayMode = "success"
     } catch (err) {
       console.error("❌ Lỗi nhập hàng:", err);
       toast.error("Không thể tạo hóa đơn nhập hàng!");
@@ -215,84 +209,14 @@ export default function EquipmentImportPage({
   // ==============================
   return (
     <div className="space-y-6 relative">
-      {/* Overlay nhập hàng */}
-      {overlayOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-md">
-          <div
-            className="relative bg-gradient-to-br from-emerald-50 to-white dark:from-gray-900 dark:to-gray-800 border border-emerald-400/30 dark:border-emerald-700/30 
-                 shadow-2xl rounded-3xl w-[90%] max-w-md p-8 text-center overflow-hidden"
-          >
-            {/* Aura energy ring */}
-            <div className="absolute inset-0 pointer-events-none">
-              <div className="absolute inset-0 bg-gradient-to-tr from-emerald-400/10 to-purple-500/10 blur-3xl animate-pulse" />
-            </div>
-
-            {overlayMode === "loading" ? (
-              <>
-                {/* Animated energy ring */}
-                <div className="relative w-20 h-20 mx-auto mb-5">
-                  <div className="absolute inset-0 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin" />
-                  <div className="absolute inset-[6px] rounded-full border-4 border-purple-400 border-b-transparent animate-[spin_1.5s_linear_infinite_reverse]" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse" />
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  Đang nhập hàng...
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                  Hệ thống FitX Gym đang cập nhật dữ liệu thiết bị mới của bạn.
-                </p>
-              </>
-            ) : (
-              <>
-                {/* Success pulse */}
-                <div className="relative w-20 h-20 mx-auto mb-5 flex items-center justify-center">
-                  <div className="absolute w-20 h-20 rounded-full bg-emerald-400/20 blur-xl animate-ping" />
-                  <div className="absolute w-16 h-16 rounded-full bg-emerald-500/30 blur-md" />
-                  <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-purple-500 shadow-lg">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-6 h-6 text-white"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  </div>
-                </div>
-
-                <h3 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  Nhập hàng thành công!
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                  Thiết bị mới đã được thêm vào hệ thống <b>FitX Gym</b> <br />
-                  và sẽ hiển thị với nhãn{" "}
-                  <span className="text-emerald-500">NEW</span>.
-                </p>
-
-                <div className="mt-6 flex justify-center">
-                  <Button
-                    onClick={() => {
-                      setOverlayOpen(false);
-                      setOverlayMode("loading");
-                      newFromUnitListRef.current.clear();
-                    }}
-                    className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:opacity-90 text-white font-semibold px-6 py-2 rounded-xl shadow-md transition"
-                  >
-                    Đồng ý
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      {/* 🏬 0️⃣ BRANCH SELECTOR */}
+      <BranchSelector
+        branches={branches}
+        selectedBranch={selectedBranch}
+        setSelectedBranch={setSelectedBranch}
+        isSuperAdmin={isSuperAdmin}
+        branchId={branchId}
+      />
 
       {/* 1️⃣ VENDOR SECTION */}
       <VendorSection
@@ -322,7 +246,7 @@ export default function EquipmentImportPage({
         checkedEquipmentId={checkedEquipmentId}
         onConfirm={handleConfirmImport}
         isSuperAdmin={isSuperAdmin}
-        branchId={branchId}
+        branchId={isSuperAdmin ? selectedBranch : branchId}
       />
 
       {/* ➕ MODAL THÊM NHANH NHÀ CUNG CẤP */}

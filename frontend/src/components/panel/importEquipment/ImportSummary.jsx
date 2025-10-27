@@ -16,7 +16,10 @@ export default function ImportSummary({
   branchId,
 }) {
   // Lấy danh sách thiết bị đã chọn để nhập
-  const rows = useMemo(() => Object.values(selectedItems || {}), [selectedItems]);
+  const rows = useMemo(
+    () => Object.values(selectedItems || {}),
+    [selectedItems]
+  );
 
   // ⚡ Update dữ liệu + kiểm tra không âm
   const updateField = (id, field, value) => {
@@ -66,8 +69,11 @@ export default function ImportSummary({
         <div className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700">
           <div className="text-gray-500">Giá gần nhất (vendor đã chọn):</div>
           <div className="font-semibold">
-            {selectedVendor && typeof vendorLatestPrices[selectedVendor] === "number"
-              ? `${vendorLatestPrices[selectedVendor].toLocaleString("vi-VN")} đ`
+            {selectedVendor &&
+            typeof vendorLatestPrices[selectedVendor] === "number"
+              ? `${vendorLatestPrices[selectedVendor].toLocaleString(
+                  "vi-VN"
+                )} đ`
               : "—"}
           </div>
         </div>
@@ -116,19 +122,27 @@ export default function ImportSummary({
                       <Input
                         type="number"
                         value={item.qty || ""}
-                        onChange={(e) => updateField(item.id, "qty", e.target.value)}
+                        onChange={(e) =>
+                          updateField(item.id, "qty", e.target.value)
+                        }
                         placeholder="VD: 2"
                         className="h-8 text-sm"
                       />
                     </div>
 
                     <div>
-                      <Label className="text-xs text-gray-400">Bảo hành (năm)</Label>
+                      <Label className="text-xs text-gray-400">
+                        Bảo hành (năm)
+                      </Label>
                       <Input
                         type="number"
                         value={item.warranty_duration || ""}
                         onChange={(e) =>
-                          updateField(item.id, "warranty_duration", e.target.value)
+                          updateField(
+                            item.id,
+                            "warranty_duration",
+                            e.target.value
+                          )
                         }
                         placeholder="VD: 2"
                         className="h-8 text-sm"
@@ -168,13 +182,7 @@ export default function ImportSummary({
         <Button
           className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:opacity-90 text-white font-semibold px-6 py-2 rounded-xl shadow-md transition"
           disabled={!rows.length}
-          onClick={() =>
-            onConfirm?.({
-              selectedVendor,
-              selectedItems,
-              branchId,
-            })
-          }
+          onClick={onConfirm}
         >
           Nhập thiết bị
         </Button>
