@@ -348,8 +348,8 @@ export default function EquipmentTypePage() {
               setVisibleColumns={setVisibleColumns}
               labels={{
                 code: "Mã loại",
-                group: "Nhóm",
                 name: "Tên loại",
+                group: "Nhóm",
                 desc: "Mô tả",
                 created: "Ngày nhập",
                 updated: "Ngày sửa",
@@ -481,19 +481,6 @@ export default function EquipmentTypePage() {
                   </TableHead>
                 )}
 
-                {visibleColumns.group && (
-                  <TableHead className="border dark:border-gray-600">
-                    <HeaderFilter
-                      selfKey="group"
-                      label="Nhóm"
-                      values={uniqueValues.group}
-                      selected={filters.group}
-                      onChange={(v) => setFilters((p) => ({ ...p, group: v }))}
-                      controller={controller}
-                    />
-                  </TableHead>
-                )}
-
                 {visibleColumns.name && (
                   <TableHead className="border dark:border-gray-600">
                     <HeaderFilter
@@ -502,6 +489,19 @@ export default function EquipmentTypePage() {
                       values={uniqueValues.name}
                       selected={filters.name}
                       onChange={(v) => setFilters((p) => ({ ...p, name: v }))}
+                      controller={controller}
+                    />
+                  </TableHead>
+                )}
+
+                {visibleColumns.group && (
+                  <TableHead className="border dark:border-gray-600">
+                    <HeaderFilter
+                      selfKey="group"
+                      label="Nhóm"
+                      values={uniqueValues.group}
+                      selected={filters.group}
+                      onChange={(v) => setFilters((p) => ({ ...p, group: v }))}
                       controller={controller}
                     />
                   </TableHead>
@@ -583,12 +583,6 @@ export default function EquipmentTypePage() {
                     </TableCell>
                   )}
 
-                  {visibleColumns.group && (
-                    <TableCell className="border dark:border-gray-600">
-                      {t.main_name}
-                    </TableCell>
-                  )}
-
                   {visibleColumns.name && (
                     <TableCell className="border dark:border-gray-600">
                       <div className="flex items-center gap-2">
@@ -599,6 +593,12 @@ export default function EquipmentTypePage() {
                           </span>
                         )}
                       </div>
+                    </TableCell>
+                  )}
+
+                  {visibleColumns.group && (
+                    <TableCell className="border dark:border-gray-600">
+                      {t.main_name}
                     </TableCell>
                   )}
 
