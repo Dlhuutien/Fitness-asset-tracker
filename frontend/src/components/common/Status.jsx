@@ -9,7 +9,7 @@ const statusColors = {
     "bg-gradient-to-r from-amber-300 to-yellow-400 text-gray-800 font-medium border-none shadow-sm",
   "Thiết bị trong kho":
     "bg-blue-500/15 text-blue-700 border border-blue-400 dark:bg-blue-500/30 dark:text-blue-300 dark:border-blue-600",
-  "Đang vận chuyển":
+  "Đang điều chuyển":
     "bg-gradient-to-r from-sky-400/20 to-indigo-500/20 text-indigo-700 border border-indigo-400 dark:from-sky-500/20 dark:to-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500",
 
   // Bảo trì
