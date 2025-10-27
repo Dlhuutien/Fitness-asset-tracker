@@ -24,7 +24,10 @@ import { Button } from "@/components/ui/buttonn";
 /**
  * 📦 Trang Nhập thiết bị vào kho (FitX Gym)
  */
-export default function EquipmentImportPage({ onRequestSwitchTab, onStartImport }) {
+export default function EquipmentImportPage({
+  onRequestSwitchTab,
+  onStartImport,
+}) {
   const { mutate } = useSWRConfig();
   const { isSuperAdmin, branchId } = useAuthRole();
   const { eqUnits, refreshEquipmentUnits } = useEquipmentData();
@@ -87,7 +90,9 @@ export default function EquipmentImportPage({ onRequestSwitchTab, onStartImport 
   const vendorLatestPrices = useMemo(() => {
     if (!checkedEquipmentId || !Array.isArray(eqUnits)) return {};
 
-    const related = eqUnits.filter((u) => u.equipment_id === checkedEquipmentId);
+    const related = eqUnits.filter(
+      (u) => u.equipment_id === checkedEquipmentId
+    );
 
     const byVendor = {};
     for (const u of related) {
@@ -149,6 +154,7 @@ export default function EquipmentImportPage({ onRequestSwitchTab, onStartImport 
   // ==============================
   // ✅ XÁC NHẬN NHẬP HÀNG
   // ==============================
+  // ==============================
   const handleConfirmImport = async () => {
     try {
       const finalBranchId = isSuperAdmin ? selectedBranch : branchId;
@@ -180,10 +186,32 @@ export default function EquipmentImportPage({ onRequestSwitchTab, onStartImport 
       setOverlayMode("loading");
       setLoadingSubmit(true);
 
-      const res = await InvoiceService.create({ items });
+      await InvoiceService.create({ items });
       toast.info("🧾 Đang cập nhật danh sách thiết bị...");
 
+      // 🔁 Refresh lại danh sách thiết bị
       await refreshEquipmentUnits();
+      const newData = eqUnits || []; // 🟢 đọc lại dữ liệu sau mutate
+
+      // 🔍 Kiểm tra thiết bị NEW
+      const hasNew = Array.isArray(newData)
+        ? newData.some(
+            (u) =>
+              (u.status && String(u.status).toUpperCase() === "NEW") ||
+              (u.badge && String(u.badge).toUpperCase() === "NEW")
+          )
+        : false;
+
+      if (hasNew) {
+        console.log("✅ Phát hiện thiết bị NEW sau khi nhập hàng");
+        setOverlayMode("success");
+        toast.success("🎉 Thiết bị mới đã được thêm vào hệ thống!");
+      } else {
+        console.warn(
+          "⚠️ Không phát hiện thiết bị NEW — fallback success sau 1s"
+        );
+        setTimeout(() => setOverlayMode("success"), 1000);
+      }
     } catch (err) {
       console.error("❌ Lỗi nhập hàng:", err);
       toast.error("Không thể tạo hóa đơn nhập hàng!");
@@ -209,6 +237,71 @@ export default function EquipmentImportPage({ onRequestSwitchTab, onStartImport 
   // ==============================
   return (
     <div className="space-y-6 relative">
+      {/* 🌀 OVERLAY NHẬP HÀNG */}
+      {overlayOpen && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="relative bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-2xl border border-emerald-500/30 w-[90%] max-w-md text-center overflow-hidden">
+            {/* 🌈 Hiệu ứng aura glow (đã fix pointer-events) */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-purple-500/10 blur-2xl animate-pulse" />
+            </div>
+
+            {overlayMode === "loading" ? (
+              <>
+                {/* 🔄 LOADING ANIMATION */}
+                <div className="relative w-20 h-20 mx-auto mb-5">
+                  <div className="absolute inset-0 rounded-full border-4 border-emerald-400 border-t-transparent animate-spin" />
+                  <div className="absolute inset-[6px] rounded-full border-4 border-purple-400 border-b-transparent animate-[spin_1.5s_linear_infinite_reverse]" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-semibold text-emerald-600 dark:text-emerald-400">
+                  Đang nhập hàng...
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                  Hệ thống FitX Gym đang thêm thiết bị mới vào kho.
+                </p>
+              </>
+            ) : (
+              <>
+                {/* ✅ SUCCESS ANIMATION */}
+                <div className="relative w-20 h-20 mx-auto mb-5 flex items-center justify-center">
+                  <div className="absolute w-20 h-20 rounded-full bg-emerald-400/20 blur-xl animate-ping" />
+                  <div className="absolute w-16 h-16 rounded-full bg-emerald-500/30 blur-md" />
+                  <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-purple-500 shadow-lg">
+                    <CheckCircle2 className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                  Nhập hàng thành công!
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Thiết bị mới đã được thêm vào hệ thống <b>FitX Gym</b> với
+                  trạng thái{" "}
+                  <span className="text-emerald-500 font-semibold">NEW</span>.
+                </p>
+
+                <div className="mt-6 flex justify-center">
+                  <Button
+                    onClick={() => {
+                      setOverlayOpen(false);
+                      setOverlayMode("loading");
+                      newFromUnitListRef.current.clear();
+                    }}
+                    className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:opacity-90 text-white font-semibold px-6 py-2 rounded-xl shadow-md transition"
+                  >
+                    Đồng ý
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* 🏬 0️⃣ BRANCH SELECTOR */}
       <BranchSelector
         branches={branches}
