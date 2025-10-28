@@ -90,7 +90,13 @@ export default function EquipmentDisposalPage() {
         setUnits(u || []);
         setFiltered(u || []);
         setBranches(b || []);
-        if (b?.length > 0) setActiveBranch(b[0].id);
+        if (b?.length > 0) {
+          if (isSuperAdmin) {
+            setActiveBranch(b[0].id);
+          } else {
+            setActiveBranch(branchId); // admin chỉ xem chi nhánh của mình
+          }
+        }
       } catch (e) {
         console.error(e);
         toast.error("Không thể tải dữ liệu thiết bị/chi nhánh.");

@@ -220,11 +220,15 @@ export default function EquipmentUnitListSection() {
           Object.values(matchColumn).every(Boolean)
         );
       })
-      .sort((a, b) =>
-        sortNewestFirst
+      .sort((a, b) => {
+        // Ưu tiên thiết bị đang còn trong chi nhánh
+        if (a.__transferred && !b.__transferred) return 1;
+        if (!a.__transferred && b.__transferred) return -1;
+        // Sau đó mới sort theo ngày
+        return sortNewestFirst
           ? new Date(b.created_at) - new Date(a.created_at)
-          : new Date(a.created_at) - new Date(b.created_at)
-      );
+          : new Date(a.created_at) - new Date(b.created_at);
+      });
   }, [
     units,
     search,
@@ -473,16 +477,20 @@ export default function EquipmentUnitListSection() {
             <TableBody>
               {currentData.map((row, idx) => {
                 const isNew = newIds.has(row.id);
+                const isTransferred = row.__transferred; // flag từ hook
+
                 return (
                   <tr
                     key={row.id}
                     onMouseEnter={() => handleHover(row.id)}
                     onClick={() => navigate(`/app/equipment/${row.id}`)}
-                    className={`text-sm transition cursor-pointer ${
-                      isNew
-                        ? "bg-emerald-50 dark:bg-emerald-800/30 animate-pulse"
-                        : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                    }`}
+                    className={`text-sm transition cursor-pointer
+          ${isNew ? "bg-emerald-50 animate-pulse" : ""}
+          ${
+            isTransferred
+              ? "bg-gray-100 text-gray-500 hover:bg-gray-200 cursor-not-allowed"
+              : "hover:bg-gray-50"
+          }`}
                   >
                     <TableCell className="text-center">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}

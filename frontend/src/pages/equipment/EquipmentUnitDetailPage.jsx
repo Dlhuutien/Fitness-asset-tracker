@@ -14,6 +14,8 @@ import Status from "@/components/common/Status";
 import { toast } from "sonner";
 import MaintainService from "@/services/MaintainService";
 import EquipmentUnitService from "@/services/equipmentUnitService";
+import useAuthRole from "@/hooks/useAuthRole";
+import EquipmentTransferHistoryService from "@/services/EquipmentTransferHistoryService";
 
 // Map vi -> en status for Status chip display
 const STATUS_MAP = {
@@ -56,6 +58,11 @@ export default function EquipmentProfilePage() {
   const [showSpecs, setShowSpecs] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [maintenanceHistory, setMaintenanceHistory] = useState([]);
+  const [transferHistoryOpen, setTransferHistoryOpen] = useState(false);
+  const [transferHistory, setTransferHistory] = useState([]);
+  const { branchId, isSuperAdmin } = useAuthRole();
+  const isForeignBranch =
+    !isSuperAdmin && data?.branch_id && data.branch_id !== branchId;
 
   // Inline edit mode
   const [editMode, setEditMode] = useState(false);
@@ -101,6 +108,19 @@ export default function EquipmentProfilePage() {
         setMaintenanceHistory(res || []);
       } catch (err) {
         console.error("❌ Lỗi khi tải lịch sử bảo trì:", err);
+      }
+    })();
+  }, [data?.id]);
+
+  // Load transfer history
+  useEffect(() => {
+    if (!data?.id) return;
+    (async () => {
+      try {
+        const res = await EquipmentTransferHistoryService.getByUnitId(data.id);
+        setTransferHistory(res || []);
+      } catch (err) {
+        console.error("❌ Lỗi khi tải lịch sử điều chuyển:", err);
       }
     })();
   }, [data?.id]);
@@ -271,15 +291,33 @@ export default function EquipmentProfilePage() {
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      {/* Back */}
-      <Button
-        onClick={() => navigate(-1)}
-        variant="outline"
-        className="flex items-center gap-2 border-brand text-brand hover:bg-brand/10 dark:hover:bg-brand-dark/30 transition-all text-sm font-medium px-3 py-1.5 rounded-md shadow-sm"
-      >
-        <ArrowLeft size={16} />
-        <span>Quay lại</span>
-      </Button>
+      {/* Back + Transfer */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => navigate(-1)}
+            variant="outline"
+            className="flex items-center gap-2 border-brand text-brand hover:bg-brand/10 dark:hover:bg-brand-dark/30 transition-all text-sm font-medium px-3 py-1.5 rounded-md shadow-sm"
+          >
+            <ArrowLeft size={16} />
+            <span>Quay lại</span>
+          </Button>
+
+          {/* 🏭 Nút điều chuyển */}
+          {!isForeignBranch && (
+            <Button
+              onClick={() =>
+                navigate("/app/equipment/transfer", {
+                  state: { preselectedUnit: data }, // ✅ gửi dữ liệu thiết bị hiện tại
+                })
+              }
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-400 to-purple-600 hover:from-indigo-500 hover:to-purple-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all text-sm font-semibold"
+            >
+              🔁 Điều chuyển
+            </Button>
+          )}
+        </div>
+      </div>
 
       {/* Card chính */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6">
@@ -312,57 +350,59 @@ export default function EquipmentProfilePage() {
                 </div>
               )}
 
-              <div className="flex items-center gap-3">
-                {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
-                {data.status?.toLowerCase() === "in stock" && !editMode && (
-                  <Button
-                    onClick={handleActivate}
-                    disabled={loading}
-                    className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
-                  >
-                    🚀 Đưa vào hoạt động
-                  </Button>
-                )}
-
-                {/* 📦 Nếu thiết bị đang hoạt động => cho phép đưa lại vào kho */}
-                {data.status?.toLowerCase() === "active" && !editMode && (
-                  <Button
-                    onClick={handleMoveToStock}
-                    disabled={loading}
-                    className="bg-gradient-to-r from-blue-400 to-indigo-600 hover:from-blue-500 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
-                  >
-                    📦 Đưa vào kho
-                  </Button>
-                )}
-
-                {/* ✏️ Nút Sửa / Hủy / Lưu */}
-                {!editMode ? (
-                  <Button
-                    onClick={() => setEditMode(true)}
-                    variant="outline"
-                    className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all font-semibold"
-                  >
-                    ✏️ Sửa thông tin
-                  </Button>
-                ) : (
-                  <>
+              {!isForeignBranch && (
+                <div className="flex items-center gap-3">
+                  {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
+                  {data.status?.toLowerCase() === "in stock" && !editMode && (
                     <Button
-                      onClick={() => setEditMode(false)}
-                      variant="outline"
-                      className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
-                    >
-                      Hủy
-                    </Button>
-                    <Button
-                      onClick={handleSave}
+                      onClick={handleActivate}
                       disabled={loading}
-                      className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
+                      className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
                     >
-                      💾 Lưu thay đổi
+                      🚀 Đưa vào hoạt động
                     </Button>
-                  </>
-                )}
-              </div>
+                  )}
+
+                  {/* 📦 Nếu thiết bị đang hoạt động => cho phép đưa lại vào kho */}
+                  {data.status?.toLowerCase() === "active" && !editMode && (
+                    <Button
+                      onClick={handleMoveToStock}
+                      disabled={loading}
+                      className="bg-gradient-to-r from-blue-400 to-indigo-600 hover:from-blue-500 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
+                    >
+                      📦 Đưa vào kho
+                    </Button>
+                  )}
+
+                  {/* ✏️ Nút Sửa / Hủy / Lưu */}
+                  {!editMode ? (
+                    <Button
+                      onClick={() => setEditMode(true)}
+                      variant="outline"
+                      className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all font-semibold"
+                    >
+                      ✏️ Sửa thông tin
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={() => setEditMode(false)}
+                        variant="outline"
+                        className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
+                      >
+                        Hủy
+                      </Button>
+                      <Button
+                        onClick={handleSave}
+                        disabled={loading}
+                        className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
+                      >
+                        💾 Lưu thay đổi
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Nhóm trạng thái + id + nhóm */}
@@ -456,9 +496,18 @@ export default function EquipmentProfilePage() {
         maintenanceHistory={maintenanceHistory}
       />
 
+      {/* Lịch sửchuyểnhuyển */}
+      <TransferHistorySection
+        transferHistoryOpen={transferHistoryOpen}
+        setTransferHistoryOpen={setTransferHistoryOpen}
+        transferHistory={transferHistory}
+      />
+
       {/* Dừng tạm thời */}
       <PauseSection
         data={data}
+        branchId={branchId}
+        isForeignBranch={isForeignBranch}
         isTemporarilyStopped={isTemporarilyStopped}
         reason={reason}
         setReason={setReason}
@@ -653,9 +702,86 @@ function HistorySection({ historyOpen, setHistoryOpen, maintenanceHistory }) {
   );
 }
 
+/* ===== Lịch sử điều chuyển ===== */
+function TransferHistorySection({
+  transferHistoryOpen,
+  setTransferHistoryOpen,
+  transferHistory,
+}) {
+  return (
+    <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+      <button
+        onClick={() => setTransferHistoryOpen((p) => !p)}
+        className="w-full flex justify-between items-center p-6 hover:bg-gray-50"
+      >
+        <h2 className="text-lg font-semibold text-gray-800">
+          Lịch sử điều chuyển thiết bị
+        </h2>
+        <ChevronDown
+          className={`w-5 h-5 text-gray-600 transform transition-transform ${
+            transferHistoryOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+
+      {transferHistoryOpen && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          transition={{ duration: 0.3 }}
+          className="p-6 border-t"
+        >
+          {transferHistory.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm border">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-2 border">Thời gian</th>
+                    <th className="p-2 border">Từ chi nhánh</th>
+                    <th className="p-2 border">Đến chi nhánh</th>
+                    <th className="p-2 border">Người nhận</th>
+                    <th className="p-2 border">Mô tả</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transferHistory.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                      <td className="p-2 border text-center">
+                        {item.moved_at
+                          ? new Date(item.moved_at).toLocaleString("vi-VN")
+                          : "—"}
+                      </td>
+                      <td className="p-2 border text-center">
+                        {item.from_branch_name || item.from_branch_id || "—"}
+                      </td>
+                      <td className="p-2 border text-center">
+                        {item.to_branch_name || item.to_branch_id || "—"}
+                      </td>
+                      <td className="p-2 border text-center">
+                        {item.receiver_name || "—"}
+                      </td>
+                      <td className="p-2 border">{item.description || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm italic text-gray-500">
+              (Chưa có lịch sử điều chuyển)
+            </p>
+          )}
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
 /* ===== Dừng tạm thời ===== */
 function PauseSection({
   data,
+  branchId,
+  isForeignBranch,
   isTemporarilyStopped,
   reason,
   setReason,
@@ -664,7 +790,9 @@ function PauseSection({
   successMsg,
   errorMsg,
 }) {
-  if (data.status?.toLowerCase() !== "active") return null;
+  if (data.status?.toLowerCase() !== "active" || isForeignBranch) {
+    return null;
+  }
 
   return !isTemporarilyStopped ? (
     <div className="flex flex-col items-center gap-3 pt-4">

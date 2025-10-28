@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/buttonn";
 import {
   Table,
@@ -97,6 +98,21 @@ export default function TransferCreateSection() {
     branch_id: true,
   });
 
+  const location = useLocation();
+
+  // Nếu từ trang chi tiết điều hướng sang -> tick sẵn thiết bị đó
+  useEffect(() => {
+    const preselected = location.state?.preselectedUnit;
+    if (preselected) {
+      setSelected({ [preselected.id]: preselected });
+      toast.info(
+        `✅ Đã chọn sẵn thiết bị: ${
+          preselected.equipment?.name || preselected.id
+        }`
+      );
+    }
+  }, [location.state]);
+
   // ===== Load dữ liệu =====
   useEffect(() => {
     (async () => {
@@ -110,10 +126,14 @@ export default function TransferCreateSection() {
         setFiltered(u || []);
         setBranches(b || []);
         if (b?.length > 0) {
-          setActiveBranch(b[0].id); // mặc định chi nhánh hiện tại
-          // Mặc định chọn chi nhánh đích là chi nhánh tiếp theo (nếu có),
-          // nếu chỉ có 1 chi nhánh thì vẫn để "all"
-          if (b.length > 1) setDestBranch(b[1].id);
+          if (isSuperAdmin) {
+            setActiveBranch(b[0].id);
+            if (b.length > 1) setDestBranch(b[1].id);
+          } else {
+            setActiveBranch(branchId); // admin => chi nhánh hiện tại
+            const nextBranch = b.find((x) => x.id !== branchId);
+            setDestBranch(nextBranch ? nextBranch.id : "all");
+          }
         }
       } catch (e) {
         console.error(e);
