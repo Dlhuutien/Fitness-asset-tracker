@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -55,6 +56,7 @@ export default function EquipmentDisposalPage() {
   const { isSuperAdmin, branchId } = useAuthRole();
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [branchLocked, setBranchLocked] = useState(false);
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -78,6 +80,27 @@ export default function EquipmentDisposalPage() {
     branch_id: true,
   });
 
+  const location = useLocation();
+
+  useEffect(() => {
+    const preselected = location.state?.preselectedUnit;
+    const branchFromEquip = location.state?.branch_id;
+
+    if (branchFromEquip) {
+      setActiveBranch(branchFromEquip); // ✅ Gán chi nhánh mặc định theo thiết bị
+      setBranchLocked(true); // ✅ Khóa dropdown chi nhánh
+    }
+
+    if (preselected) {
+      setSelected({ [preselected.id]: preselected });
+      toast.info(
+        `🗑️ Đã chọn sẵn thiết bị: ${
+          preselected.equipment?.name || preselected.id
+        }`
+      );
+    }
+  }, [location.state]);
+
   // ===== Load dữ liệu =====
   useEffect(() => {
     (async () => {
@@ -87,14 +110,17 @@ export default function EquipmentDisposalPage() {
           EquipmentUnitService.getByStatusGroup(["In Stock", "Inactive"]),
           BranchService.getAll(),
         ]);
+
         setUnits(u || []);
         setFiltered(u || []);
         setBranches(b || []);
-        if (b?.length > 0) {
-          if (isSuperAdmin) {
-            setActiveBranch(b[0].id);
-          } else {
-            setActiveBranch(branchId); // admin chỉ xem chi nhánh của mình
+
+        // ✅ Chỉ gán chi nhánh mặc định nếu chưa có từ màn trước
+        if (!activeBranch) {
+          if (location.state?.branch_id) {
+            setActiveBranch(location.state.branch_id);
+          } else if (b?.length > 0) {
+            setActiveBranch(isSuperAdmin ? b[0].id : branchId);
           }
         }
       } catch (e) {
@@ -104,7 +130,8 @@ export default function EquipmentDisposalPage() {
         setLoading(false);
       }
     })();
-  }, []);
+    // thêm activeBranch & location.state để dependency đúng
+  }, [activeBranch, location.state]);
 
   // ===== Search + Filter =====
   useEffect(() => {
@@ -294,12 +321,16 @@ export default function EquipmentDisposalPage() {
                 setActiveBranch(v);
                 setCurrentPage(1);
               }}
-              disabled={selectedItems.length > 0}
+              disabled={selectedItems.length > 0 || branchLocked}
             >
               <SelectTrigger
                 className={`h-9 w-48 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 
-        ${selectedItems.length > 0 ? "opacity-60 cursor-not-allowed" : ""}
-      `}
+  ${
+    selectedItems.length > 0 || branchLocked
+      ? "opacity-60 cursor-not-allowed"
+      : ""
+  }
+`}
               >
                 <SelectValue placeholder="Chi nhánh" />
               </SelectTrigger>
@@ -349,7 +380,10 @@ export default function EquipmentDisposalPage() {
               Thiết bị được chọn để thanh lý ({selectedItems.length})
             </h2>
             <Button
-              onClick={() => setSelected({})}
+              onClick={() => {
+                setSelected({});
+                setBranchLocked(false); // ✅ Cho phép chọn lại chi nhánh khi không còn thiết bị
+              }}
               className="ml-auto bg-gray-500 hover:bg-gray-600 text-white text-sm px-3 py-1"
             >
               Bỏ chọn tất cả

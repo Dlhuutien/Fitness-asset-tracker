@@ -76,6 +76,8 @@ export default function TransferCreateSection() {
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [branchLocked, setBranchLocked] = useState(false);
+
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
     id: [],
@@ -103,6 +105,13 @@ export default function TransferCreateSection() {
   // Nếu từ trang chi tiết điều hướng sang -> tick sẵn thiết bị đó
   useEffect(() => {
     const preselected = location.state?.preselectedUnit;
+    const branchFromEquip = preselected?.branch_id; // hoặc location.state?.branch_id
+
+    if (branchFromEquip) {
+      setActiveBranch(branchFromEquip);
+      setBranchLocked(true); // ✅ Khóa chi nhánh nếu từ trang chi tiết
+    }
+
     if (preselected) {
       setSelected({ [preselected.id]: preselected });
       toast.info(
@@ -122,18 +131,43 @@ export default function TransferCreateSection() {
           EquipmentUnitService.getByStatusGroup(["Active", "In Stock"]),
           BranchService.getAll(),
         ]);
+
         setUnits(u || []);
         setFiltered(u || []);
         setBranches(b || []);
-        if (b?.length > 0) {
+
+        const preselected = location.state?.preselectedUnit;
+        const branchFromEquip = preselected?.branch_id;
+
+        // 🧩 Ưu tiên chi nhánh thiết bị từ trang chi tiết
+        if (branchFromEquip && b?.length > 0) {
+          setActiveBranch(branchFromEquip);
+          setBranchLocked(true);
+
+          // Gợi ý: tự động gợi chi nhánh đích khác
+          const nextBranch = b.find((x) => x.id !== branchFromEquip);
+          if (nextBranch) setDestBranch(nextBranch.id);
+        }
+        // Nếu không có preselected → gán mặc định
+        else if (!activeBranch && b?.length > 0) {
           if (isSuperAdmin) {
             setActiveBranch(b[0].id);
             if (b.length > 1) setDestBranch(b[1].id);
           } else {
-            setActiveBranch(branchId); // admin => chi nhánh hiện tại
+            setActiveBranch(branchId);
             const nextBranch = b.find((x) => x.id !== branchId);
             setDestBranch(nextBranch ? nextBranch.id : "all");
           }
+        }
+
+        // Nếu có preselectedUnit → tick luôn
+        if (preselected) {
+          setSelected({ [preselected.id]: preselected });
+          toast.info(
+            `✅ Đã chọn sẵn thiết bị: ${
+              preselected.equipment?.name || preselected.id
+            }`
+          );
         }
       } catch (e) {
         console.error(e);
@@ -142,7 +176,7 @@ export default function TransferCreateSection() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [location.state]);
 
   // ===== Search + Filter =====
   useEffect(() => {
@@ -315,12 +349,12 @@ export default function TransferCreateSection() {
                 setActiveBranch(v);
                 setCurrentPage(1);
               }}
-              disabled={selectedItems.length > 0}
+              disabled={selectedItems.length > 0 || branchLocked}
             >
               <SelectTrigger
                 className={`h-9 w-48 text-sm bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-700 
                   ${
-                    selectedItems.length > 0
+                    selectedItems.length > 0 || branchLocked
                       ? "opacity-60 cursor-not-allowed"
                       : ""
                   }
@@ -428,7 +462,10 @@ export default function TransferCreateSection() {
               Thiết bị đang chọn để điều chuyển ({selectedItems.length})
             </h2>
             <Button
-              onClick={() => setSelected({})}
+              onClick={() => {
+                setSelected({});
+                setBranchLocked(false); // ✅ Cho phép chọn lại chi nhánh
+              }}
               className="ml-auto bg-rose-500 hover:bg-rose-600 text-white text-sm px-3 py-1"
             >
               Bỏ chọn tất cả
