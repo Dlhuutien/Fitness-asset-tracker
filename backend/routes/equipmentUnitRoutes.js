@@ -38,6 +38,14 @@ router.get(
   equipmentUnitController.getUnitsByEquipmentId
 );
 
+// Lấy danh sách thiết bị từng thuộc chi nhánh này nhưng hiện tại không còn
+router.get(
+  "/transfer-history",
+  verifyAccessToken,
+  branchFilterMiddleware,
+  equipmentUnitController.getUnitsPreviouslyInBranch
+);
+
 // READ ONE
 router.get("/:id", equipmentUnitController.getUnitById);
 

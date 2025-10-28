@@ -5,6 +5,7 @@ const categoryTypeRepository = require("../repositories/categoryTypeRepository")
 const categoryMainRepository = require("../repositories/categoryMainRepository");
 const attributeValueRepository = require("../repositories/attributeValueRepository");
 const attributeRepository = require("../repositories/attributeRepository");
+const equipmentTransferHistoryRepository = require("../repositories/equipmentTransferHistoryRepository");
 
 const equipmentUnitService = {
   getAllUnits: async (branchFilter = null) => {
@@ -135,9 +136,16 @@ const equipmentUnitService = {
   },
 
   // Cập nhật thiết bị
-  updateUnit: async (id, data) => {
+  updateUnit: async (id, data, userBranchId = null) => {
     const existing = await equipmentUnitRepository.findById(id);
     if (!existing) throw new Error("Equipment Unit not found");
+
+    if (userBranchId && userBranchId !== existing.branch_id) {
+      throw new Error(
+        "Bạn không có quyền cập nhật thiết bị này (chỉ được xem)."
+      );
+    }
+
     return await equipmentUnitRepository.update(id, data);
   },
 
@@ -184,6 +192,89 @@ const equipmentUnitService = {
       ...u,
       vendor_name: vendorMap[u.vendor_id]?.name || null,
       equipment,
+    }));
+  },
+
+  // ===================================================
+  // 🔍 LẤY THIẾT BỊ TỪNG THUỘC CHI NHÁNH NHƯNG ĐÃ CHUYỂN ĐI
+  // ===================================================
+  getUnitsPreviouslyInBranch: async (branchId) => {
+    if (!branchId) throw new Error("Branch ID is required");
+
+    // 1️⃣ Lấy toàn bộ lịch sử chuyển liên quan tới chi nhánh này
+    const histories = await equipmentTransferHistoryRepository.findByBranch(
+      branchId
+    );
+    if (!histories.length) return [];
+
+    // 2️⃣ Lấy danh sách unit từng ở chi nhánh này
+    const relatedUnitIds = [
+      ...new Set(histories.map((h) => h.equipment_unit_id)),
+    ];
+
+    // 3️⃣ Lấy thông tin chi tiết các unit
+    const allUnits = await equipmentUnitRepository.batchFindByIds(
+      relatedUnitIds
+    );
+
+    // 4️⃣ Lọc bỏ những unit hiện tại vẫn còn ở chi nhánh đó
+    const filteredUnits = allUnits.filter((u) => u.branch_id !== branchId);
+    if (!filteredUnits.length) return [];
+
+    // 5️⃣ Gom equipment_id & vendor_id để join nhanh
+    const equipmentIds = [...new Set(filteredUnits.map((u) => u.equipment_id))];
+    const equipments = await equipmentRepository.batchFindByIds(equipmentIds);
+
+    const vendorIds = [
+      ...new Set(filteredUnits.map((u) => u.vendor_id).filter(Boolean)),
+    ];
+    const vendors = vendorIds.length
+      ? await Promise.all(vendorIds.map((id) => vendorRepository.findById(id)))
+      : [];
+    const vendorMap = Object.fromEntries(
+      vendorIds.map((id, i) => [id, vendors[i]])
+    );
+
+    // 6️⃣ Join type & main name cho mỗi equipment
+    const typeCache = {};
+    const mainCache = {};
+    const enrichedEquipments = await Promise.all(
+      equipments.map(async (eq) => {
+        if (!eq) return null;
+        let type = typeCache[eq.category_type_id];
+        if (!type) {
+          type = await categoryTypeRepository.findById(eq.category_type_id);
+          typeCache[eq.category_type_id] = type;
+        }
+
+        let main = null;
+        if (type) {
+          const mainId = type.category_main_id;
+          if (mainCache[mainId]) {
+            main = mainCache[mainId];
+          } else {
+            main = await categoryMainRepository.findById(mainId);
+            mainCache[mainId] = main;
+          }
+        }
+
+        return {
+          ...eq,
+          type_name: type?.name || null,
+          main_name: main?.name || null,
+        };
+      })
+    );
+
+    const equipmentMap = Object.fromEntries(
+      enrichedEquipments.filter(Boolean).map((eq) => [eq.id, eq])
+    );
+
+    // 7️⃣ Trả về format thống nhất với getAllUnits()
+    return filteredUnits.map((u) => ({
+      ...u,
+      vendor_name: vendorMap[u.vendor_id]?.name || null,
+      equipment: equipmentMap[u.equipment_id] || null,
     }));
   },
 };

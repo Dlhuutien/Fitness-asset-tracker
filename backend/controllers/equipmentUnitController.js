@@ -23,7 +23,8 @@ const equipmentUnitController = {
     try {
       const updated = await equipmentUnitService.updateUnit(
         req.params.id,
-        req.body
+        req.body,
+        req.user.branch_id
       );
       res.json(updated);
     } catch (err) {
@@ -74,6 +75,16 @@ const equipmentUnitController = {
         statuses.includes(u.status.toLowerCase())
       );
       res.json(filtered);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  },
+  getUnitsPreviouslyInBranch: async (req, res) => {
+    try {
+      const units = await equipmentUnitService.getUnitsPreviouslyInBranch(
+        req.branchFilter
+      );
+      res.json(units);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

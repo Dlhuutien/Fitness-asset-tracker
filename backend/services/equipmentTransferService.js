@@ -5,6 +5,8 @@ const equipmentUnitRepository = require("../repositories/equipmentUnitRepository
 const userRepository = require("../repositories/userRepository");
 const equipmentService = require("./equipmentService");
 const equipmentRepository = require("../repositories/equipmentRepository");
+const equipmentTransferHistoryRepository = require("../repositories/equipmentTransferHistoryRepository");
+const { v4: uuidv4 } = require("uuid");
 
 const equipmentTransferService = {
   // ===================================================
@@ -381,6 +383,18 @@ const equipmentTransferService = {
         branch_id: existing.to_branch_id,
         status: "In Stock",
         description,
+      });
+
+      // 🧩 Ghi lại lịch sử vận chuyển (gọi repository trực tiếp)
+      await equipmentTransferHistoryRepository.create({
+        id: uuidv4(),
+        equipment_unit_id: d.equipment_unit_id,
+        from_branch_id: existing.from_branch_id,
+        to_branch_id: existing.to_branch_id,
+        transfer_id: id,
+        moved_at: move_receive_date || new Date().toISOString(),
+        receiver_id: userSub,
+        description: `Thiết bị được chuyển từ ${existing.from_branch_id} sang ${existing.to_branch_id}`,
       });
     }
 

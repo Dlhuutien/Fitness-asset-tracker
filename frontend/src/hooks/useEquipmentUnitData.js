@@ -2,9 +2,11 @@ import useSWR, { useSWRConfig } from "swr";
 import axios from "@/config/axiosConfig";
 import { useEffect, useRef } from "react";
 import { API } from "@/config/url";
+import useAuthRole from "@/hooks/useAuthRole"; // 🧠 Thêm hook phân quyền
 
 const KEY_UNIT = `${API}equipmentUnit`;
 const KEY_CAT = `${API}categoryMain`;
+const KEY_HISTORY = `${API}equipmentUnit/transfer-history`; // 🆕 API lấy thiết bị từng thuộc chi nhánh
 
 /**
  * Fetcher sử dụng axios interceptor (tự động gắn token, refresh, retry)
@@ -16,6 +18,7 @@ const fetcher = async (url) => {
 
 export function useEquipmentData() {
   const { mutate } = useSWRConfig();
+  const { isSuperAdmin } = useAuthRole(); // 🧠 Lấy quyền user hiện tại
 
   // --- Equipment Units ---
   const {
@@ -28,6 +31,16 @@ export function useEquipmentData() {
     refreshInterval: 0,
   });
 
+  // 🆕 --- Equipment Units đã chuyển đi (chỉ dành cho admin, operator, technician) ---
+  const {
+    data: historyUnits,
+    error: historyErr,
+    isLoading: historyLoading,
+  } = useSWR(isSuperAdmin ? null : KEY_HISTORY, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 300000,
+  });
+
   // --- Category Main ---
   const {
     data: cats,
@@ -38,23 +51,39 @@ export function useEquipmentData() {
     dedupingInterval: 300000,
   });
 
-  const refreshEquipmentUnits = () => mutate(KEY_UNIT);
+  // --- 🆕 Refresh tất cả ---
+  const refreshEquipmentUnits = () => {
+    mutate(KEY_UNIT);
+    if (!isSuperAdmin) mutate(KEY_HISTORY); // 🆕 refresh luôn danh sách transfer-history nếu có
+  };
   const refreshCategories = () => mutate(KEY_CAT);
+
+  // --- 🆕 Merge 2 danh sách ---
+  const mergedUnits =
+    isSuperAdmin || !Array.isArray(historyUnits)
+      ? eqUnits || []
+      : [
+          ...(eqUnits || []),
+          ...(historyUnits || []).map((u) => ({
+            ...u,
+            __transferred: true, // flag đánh dấu thiết bị đã rời chi nhánh
+          })),
+        ];
 
   // --- Phát sự kiện khi có thiết bị mới ---
   const prevSignatureRef = useRef("");
 
   useEffect(() => {
-    if (!Array.isArray(eqUnits)) return;
+    if (!Array.isArray(mergedUnits)) return; // 🆕 đổi eqUnits -> mergedUnits để lắng nghe cả 2 danh sách
 
     // Lọc record có status NEW
-    const newUnits = eqUnits.filter(
+    const newUnits = mergedUnits.filter(
       (u) =>
         (u.status && String(u.status).toUpperCase() === "NEW") ||
         (u.badge && String(u.badge).toUpperCase() === "NEW")
     );
 
-    console.log("👀 SWR equipmentUnit fetched:", eqUnits.length, "items");
+    console.log("👀 SWR equipmentUnit fetched:", mergedUnits.length, "items");
     if (newUnits.length === 0) return;
 
     const ids = newUnits
@@ -72,12 +101,12 @@ export function useEquipmentData() {
         );
       }, 300);
     }
-  }, [eqUnits]);
+  }, [mergedUnits]);
 
   return {
-    eqUnits,
-    eqErr,
-    unitLoading,
+    eqUnits: mergedUnits, // 🆕 thay vì eqUnits gốc
+    eqErr: eqErr || historyErr, // 🆕 gộp lỗi
+    unitLoading: unitLoading || historyLoading, // 🆕 gộp trạng thái loading
     cats,
     catErr,
     catLoading,
