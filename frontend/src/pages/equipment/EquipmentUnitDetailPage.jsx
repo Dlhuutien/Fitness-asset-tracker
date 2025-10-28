@@ -303,18 +303,45 @@ export default function EquipmentProfilePage() {
             <span>Quay lại</span>
           </Button>
 
-          {/* 🏭 Nút điều chuyển */}
+          {/* 🔁 Điều chuyển + 🗑️ Thanh lý */}
           {!isForeignBranch && (
-            <Button
-              onClick={() =>
-                navigate("/app/equipment/transfer", {
-                  state: { preselectedUnit: data }, // ✅ gửi dữ liệu thiết bị hiện tại
-                })
-              }
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-400 to-purple-600 hover:from-indigo-500 hover:to-purple-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all text-sm font-semibold"
-            >
-              🔁 Điều chuyển
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* 🏭 Nút điều chuyển (Active hoặc In Stock) */}
+              {["active", "in stock"].includes(data.status?.toLowerCase()) && (
+                <Button
+                  onClick={() =>
+                    navigate("/app/equipment/transfer", {
+                      state: {
+                        preselectedUnit: data,
+                        branch_id: data.branch_id,
+                      },
+                    })
+                  }
+                  className="flex items-center gap-2 bg-gradient-to-r from-indigo-400 to-purple-600 hover:from-indigo-500 hover:to-purple-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all text-sm font-semibold"
+                >
+                  Điều chuyển
+                </Button>
+              )}
+
+              {/* 🗑️ Nút thanh lý (Inactive hoặc In Stock) */}
+              {["inactive", "in stock"].includes(
+                data.status?.toLowerCase()
+              ) && (
+                <Button
+                  onClick={() =>
+                    navigate("/app/equipment/disposal", {
+                      state: {
+                        preselectedUnit: data,
+                        branch_id: data.branch_id, // ✅ gửi kèm chi nhánh thiết bị
+                      },
+                    })
+                  }
+                  className="flex items-center gap-2 bg-gradient-to-r from-rose-400 to-rose-600 hover:from-rose-500 hover:to-rose-700 text-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all text-sm font-semibold"
+                >
+                  Thanh lý
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </div>
