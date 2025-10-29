@@ -252,6 +252,7 @@ export default function DashboardPage() {
 
   const [range, setRange] = useState("month"); // month | quarter | year
   const [tab, setTab] = useState("overview"); // overview | charts | maintenance | activity
+  const { isTechnician, isOperator } = useAuthRole();
 
   const STATUS_MAP_VN = {
     Active: "Hoạt động",
@@ -660,7 +661,7 @@ export default function DashboardPage() {
 
   // ⚠️ Nếu có >0 thì mới hiện cảnh báo
   useEffect(() => {
-    if (urgentCount > 0) {
+    if (!isOperator && urgentCount > 0) {
       toast.warning(`⚠️ Có ${urgentCount} thiết bị đang Ngừng tạm thời!`);
     }
   }, [urgentCount]);
@@ -821,20 +822,27 @@ export default function DashboardPage() {
             >
               Tổng quan
             </TabPill>
-            <TabPill
-              icon={<BarChart2 className="w-4 h-4" />}
-              active={tab === "charts"}
-              onClick={() => setTab("charts")}
-            >
-              Biểu đồ
-            </TabPill>
-            <TabPill
-              icon={<Wrench className="w-4 h-4" />}
-              active={tab === "maintenance"}
-              onClick={() => setTab("maintenance")}
-            >
-              Bảo trì
-            </TabPill>
+
+            {/* 🚫 Ẩn tab Biểu đồ và Bảo trì với technician + operator */}
+            {!isTechnician && !isOperator && (
+              <>
+                <TabPill
+                  icon={<BarChart2 className="w-4 h-4" />}
+                  active={tab === "charts"}
+                  onClick={() => setTab("charts")}
+                >
+                  Biểu đồ
+                </TabPill>
+
+                <TabPill
+                  icon={<Wrench className="w-4 h-4" />}
+                  active={tab === "maintenance"}
+                  onClick={() => setTab("maintenance")}
+                >
+                  Bảo trì
+                </TabPill>
+              </>
+            )}
           </div>
 
           {/* Actions + Notifications */}
@@ -938,7 +946,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* WARNING BANNER */}
-      {urgentCount > 0 && (
+      {!isOperator && urgentCount > 0 && (
         <div className="mb-6 rounded-xl border border-amber-300/30 bg-amber-50/60 dark:bg-amber-500/10 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <AlertTriangle className="text-amber-500" />
@@ -967,85 +975,87 @@ export default function DashboardPage() {
             transition={{ duration: 0.25 }}
           >
             {/* Stats row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-              <GlassStat
-                title="Tổng thiết bị"
-                value={String(totals.devices)}
-                subtitle={`${
-                  diffDevices >= 0 ? "+" : ""
-                }${diffDevices} so với ${
-                  range === "month"
-                    ? "tháng"
-                    : range === "quarter"
-                    ? "quý"
-                    : "năm"
-                } trước`}
-                icon={Dumbbell}
-                color="from-emerald-400/30 to-emerald-600/30"
-                spark={
-                  sparkDevices.length > 1 ? sparkDevices : [totals.devices]
-                }
-              />
-              <GlassStat
-                title="Nhân viên"
-                value={String(totals.staff)}
-                subtitle={`${diffStaff >= 0 ? "+" : ""}${diffStaff} ${
-                  range === "month"
-                    ? "so với tháng trước"
-                    : range === "quarter"
-                    ? "so với quý trước"
-                    : "so với năm trước"
-                }`}
-                icon={Users}
-                color="from-blue-400/30 to-indigo-600/30"
-                spark={sparkStaff}
-              />
-              <GlassStat
-                title="Nhà cung cấp"
-                value={String(totals.vendors)}
-                subtitle={
-                  diffVendors === 0
-                    ? "Ổn định"
-                    : `${diffVendors > 0 ? "+" : ""}${diffVendors} ${
-                        range === "month"
-                          ? "so với tháng trước"
-                          : range === "quarter"
-                          ? "so với quý trước"
-                          : "so với năm trước"
-                      }`
-                }
-                icon={Truck}
-                color="from-indigo-400/30 to-purple-600/30"
-                spark={sparkVendors}
-              />
-              {/* 💸 Chi phí nhập thiết bị */}
-              <GlassStat
-                title="Chi phí nhập thiết bị"
-                value={formatVND(totalImportCost)}
-                subtitle="Tổng chi phí nhập hàng trong kỳ"
-                icon={BarChart3}
-                color="from-amber-400/30 to-orange-500/30"
-                spark={sparkImport}
-              />
+            {!isTechnician && !isOperator && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+                <GlassStat
+                  title="Tổng thiết bị"
+                  value={String(totals.devices)}
+                  subtitle={`${
+                    diffDevices >= 0 ? "+" : ""
+                  }${diffDevices} so với ${
+                    range === "month"
+                      ? "tháng"
+                      : range === "quarter"
+                      ? "quý"
+                      : "năm"
+                  } trước`}
+                  icon={Dumbbell}
+                  color="from-emerald-400/30 to-emerald-600/30"
+                  spark={
+                    sparkDevices.length > 1 ? sparkDevices : [totals.devices]
+                  }
+                />
+                <GlassStat
+                  title="Nhân viên"
+                  value={String(totals.staff)}
+                  subtitle={`${diffStaff >= 0 ? "+" : ""}${diffStaff} ${
+                    range === "month"
+                      ? "so với tháng trước"
+                      : range === "quarter"
+                      ? "so với quý trước"
+                      : "so với năm trước"
+                  }`}
+                  icon={Users}
+                  color="from-blue-400/30 to-indigo-600/30"
+                  spark={sparkStaff}
+                />
+                <GlassStat
+                  title="Nhà cung cấp"
+                  value={String(totals.vendors)}
+                  subtitle={
+                    diffVendors === 0
+                      ? "Ổn định"
+                      : `${diffVendors > 0 ? "+" : ""}${diffVendors} ${
+                          range === "month"
+                            ? "so với tháng trước"
+                            : range === "quarter"
+                            ? "so với quý trước"
+                            : "so với năm trước"
+                        }`
+                  }
+                  icon={Truck}
+                  color="from-indigo-400/30 to-purple-600/30"
+                  spark={sparkVendors}
+                />
+                {/* 💸 Chi phí nhập thiết bị */}
+                <GlassStat
+                  title="Chi phí nhập thiết bị"
+                  value={formatVND(totalImportCost)}
+                  subtitle="Tổng chi phí nhập hàng trong kỳ"
+                  icon={BarChart3}
+                  color="from-amber-400/30 to-orange-500/30"
+                  spark={sparkImport}
+                />
 
-              <GlassStat
-                title="Chi phí bảo trì"
-                value={formatVND(totalMaintenanceCost)}
-                subtitle="Tổng chi phí bảo trì trong kỳ"
-                icon={Wrench}
-                color="from-amber-300/30 to-amber-500/30"
-                spark={sparkMaintenance}
-              />
+                <GlassStat
+                  title="Chi phí bảo trì"
+                  value={formatVND(totalMaintenanceCost)}
+                  subtitle="Tổng chi phí bảo trì trong kỳ"
+                  icon={Wrench}
+                  color="from-amber-300/30 to-amber-500/30"
+                  spark={sparkMaintenance}
+                />
 
-              <GlassStat
-                title="Chi phí thanh lý"
-                value={formatVND(totalDisposalCost)}
-                subtitle="Tổng chi phí thanh lý trong kỳ"
-                icon={Trash2}
-                color="from-rose-400/30 to-rose-600/30"
-                spark={sparkDisposal}
-              />
-            </div>
+                <GlassStat
+                  title="Chi phí thanh lý"
+                  value={formatVND(totalDisposalCost)}
+                  subtitle="Tổng chi phí thanh lý trong kỳ"
+                  icon={Trash2}
+                  color="from-rose-400/30 to-rose-600/30"
+                  spark={sparkDisposal}
+                />
+              </div>
+            )}
 
             {/* Top section: Lava + Donut */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 mb-8">

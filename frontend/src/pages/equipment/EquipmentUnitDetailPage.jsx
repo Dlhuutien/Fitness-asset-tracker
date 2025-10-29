@@ -60,7 +60,7 @@ export default function EquipmentProfilePage() {
   const [maintenanceHistory, setMaintenanceHistory] = useState([]);
   const [transferHistoryOpen, setTransferHistoryOpen] = useState(false);
   const [transferHistory, setTransferHistory] = useState([]);
-  const { branchId, isSuperAdmin } = useAuthRole();
+  const { branchId, isSuperAdmin, isTechnician, isOperator } = useAuthRole();
   const isForeignBranch =
     !isSuperAdmin && data?.branch_id && data.branch_id !== branchId;
 
@@ -304,7 +304,7 @@ export default function EquipmentProfilePage() {
           </Button>
 
           {/* 🔁 Điều chuyển + 🗑️ Thanh lý */}
-          {!isForeignBranch && (
+          {!isForeignBranch && !(isTechnician || isOperator) && (
             <div className="flex items-center gap-2">
               {/* 🏭 Nút điều chuyển (Active hoặc In Stock) */}
               {["active", "in stock"].includes(data.status?.toLowerCase()) && (
@@ -377,7 +377,7 @@ export default function EquipmentProfilePage() {
                 </div>
               )}
 
-              {!isForeignBranch && (
+              {!isForeignBranch && !isTechnician && (
                 <div className="flex items-center gap-3">
                   {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
                   {data.status?.toLowerCase() === "in stock" && !editMode && (

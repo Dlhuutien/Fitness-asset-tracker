@@ -14,6 +14,7 @@ import {
 import EquipmentService from "@/services/equipmentService";
 import AttributeService from "@/services/attributeService";
 import { toast } from "sonner";
+import useAuthRole from "@/hooks/useAuthRole";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString("vi-VN") : "—");
 
@@ -25,6 +26,7 @@ export default function EquipmentProfilePage() {
   const [editing, setEditing] = useState(false);
   const [equipment, setEquipment] = useState(null);
   const [saveMessage, setSaveMessage] = useState({ type: "", text: "" });
+  const { isTechnician } = useAuthRole();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -244,12 +246,14 @@ export default function EquipmentProfilePage() {
           {/* Nút hành động */}
           <div className="flex justify-end gap-3">
             {!editing ? (
-              <Button
-                onClick={() => setEditing(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
-              >
-                ✏️ Chỉnh sửa
-              </Button>
+              !isTechnician && (
+                <Button
+                  onClick={() => setEditing(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+                >
+                  ✏️ Chỉnh sửa
+                </Button>
+              )
             ) : (
               <>
                 <Button

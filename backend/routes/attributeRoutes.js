@@ -4,11 +4,11 @@ const { verifyAccessToken, requireRole } = require("../middlewares/authMiddlewar
 
 const router = express.Router();
 
-// Tạo attribute (chỉ admin, super-admin)
+// Tạo attribute
 router.post(
   "/",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   attributeController.createAttribute
 );
 
@@ -18,11 +18,11 @@ router.get("/", attributeController.getAttributes);
 // Lấy attribute theo id
 router.get("/:id", attributeController.getAttributeById);
 
-// Update attribute (chỉ admin, super-admin)
+// Update attribute
 router.put(
   "/:id",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   attributeController.updateAttribute
 );
 

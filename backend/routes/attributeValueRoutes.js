@@ -3,11 +3,11 @@ const router = express.Router();
 const attributeValueController = require("../controllers/attributeValueController");
 const { verifyAccessToken, requireRole } = require("../middlewares/authMiddleware");
 
-// Create (admin only)
+// Create
 router.post(
   "/",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   attributeValueController.createAttributeValue
 );
 
@@ -27,11 +27,11 @@ router.get("/attribute/:attribute_id", attributeValueController.getAttributeValu
 router.put(
   "/:id",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   attributeValueController.updateAttributeValue
 );
 
-// Delete (admin only - nếu muốn giống CategoryType luôn)
+// Delete (admin only)
 router.delete(
   "/:id",
   verifyAccessToken,

@@ -9,7 +9,7 @@ const router = express.Router();
 router.post(
   "/",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   upload,
   categoryController.createCategory
 );
@@ -22,7 +22,7 @@ router.get("/:id", categoryController.getCategoryById);
 router.put(
   "/:id",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   upload,
   categoryController.updateCategory
 );

@@ -5,11 +5,11 @@ const upload = require("../middlewares/upload");
 
 const router = express.Router();
 
-// Create (admin only)
+// Create
 router.post(
   "/",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   upload,
   equipmentController.createEquipment
 );
@@ -25,11 +25,11 @@ router.get("/attribute/:id", equipmentController.getEquipmentAttributeById);
 // Read by category_type_id
 router.get("/categoryType/:category_type_id", equipmentController.getByCategoryTypeId);
 
-// Update (admin only)
+// Update
 router.put(
   "/:id",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   upload,
   equipmentController.updateEquipment
 );
