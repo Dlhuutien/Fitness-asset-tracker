@@ -31,6 +31,7 @@ import {
   getUniqueValues,
 } from "@/components/common/ExcelTableTools";
 import { exportToExcel } from "@/services/Files";
+import useAuthRole from "@/hooks/useAuthRole";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -52,6 +53,8 @@ export default function EquipmentGroupPage() {
   const [goToPage, setGoToPage] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  const { isTechnician } = useAuthRole();
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -250,100 +253,100 @@ export default function EquipmentGroupPage() {
         }
         .animate-rowPulse { animation: rowPulse 1.2s ease-in-out infinite; }
       `}</style>
-{/* ===== Toolbar ===== */}
-<div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-  {/* ==== Nhóm trái: Tìm kiếm + Sắp xếp + Export Excel ==== */}
-  <div className="flex flex-wrap items-center gap-2">
+      {/* ===== Toolbar ===== */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+        {/* ==== Nhóm trái: Tìm kiếm + Sắp xếp + Export Excel ==== */}
+        <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-base md:text-lg font-semibold text-emerald-600 mr-2">
             Danh sách nhóm thiết bị
           </h2>
-    <Input
-      placeholder="🔍 Tìm nhóm..."
-      value={search}
-      onChange={(e) => {
-        setSearch(e.target.value);
-        setCurrentPage(1);
-      }}
-      className="h-9 w-52 border-gray-300 dark:border-gray-700 text-sm"
-    />
+          <Input
+            placeholder="🔍 Tìm nhóm..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-9 w-52 border-gray-300 dark:border-gray-700 text-sm"
+          />
 
-    <Button
-      onClick={() => setSortNewestFirst((p) => !p)}
-      className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
-    >
-      <ArrowDownUp size={16} />
-      {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
-    </Button>
+          <Button
+            onClick={() => setSortNewestFirst((p) => !p)}
+            className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm px-3"
+          >
+            <ArrowDownUp size={16} />
+            {sortNewestFirst ? "Mới → Cũ" : "Cũ → Mới"}
+          </Button>
 
-    <Button
-      onClick={() => {
-        if (!filtered || filtered.length === 0) {
-          toast.warning("⚠️ Không có dữ liệu để xuất!");
-          return;
-        }
+          <Button
+            onClick={() => {
+              if (!filtered || filtered.length === 0) {
+                toast.warning("⚠️ Không có dữ liệu để xuất!");
+                return;
+              }
 
-        const data = filtered.map((g) => ({
-          "Mã nhóm": g.id,
-          "Tên nhóm": g.name,
-          "Mô tả": g.description,
-          "Ngày nhập": new Date(g.created_at).toLocaleDateString("vi-VN"),
-          "Ngày sửa": new Date(g.updated_at).toLocaleDateString("vi-VN"),
-        }));
+              const data = filtered.map((g) => ({
+                "Mã nhóm": g.id,
+                "Tên nhóm": g.name,
+                "Mô tả": g.description,
+                "Ngày nhập": new Date(g.created_at).toLocaleDateString("vi-VN"),
+                "Ngày sửa": new Date(g.updated_at).toLocaleDateString("vi-VN"),
+              }));
 
-        exportToExcel(data, "Danh_sach_nhom_thiet_bi");
-        toast.success(`✅ Đã xuất ${data.length} nhóm ra Excel!`);
-      }}
-      className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
-    >
-      <Download className="w-4 h-4" />
-      Export Excel
-    </Button>
-  </div>
+              exportToExcel(data, "Danh_sach_nhom_thiet_bi");
+              toast.success(`✅ Đã xuất ${data.length} nhóm ra Excel!`);
+            }}
+            className="flex items-center gap-2 h-9 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium shadow-sm hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-200"
+          >
+            <Download className="w-4 h-4" />
+            Export Excel
+          </Button>
+        </div>
 
-  {/* ==== Nhóm phải: Thêm nhóm + Hiển thị cột ==== */}
-  <div className="flex items-center gap-2">
-    <Button
-      onClick={() => {
-        setShowForm((prev) => !prev);
-        setGroupForm({ name: "", desc: "", img: null, preview: "" });
-        setEditGroupId(null);
-        setErrorMsg("");
-      }}
-      className={`flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-lg transition-all ${
-        showForm
-          ? "bg-red-500 hover:bg-red-600 text-white"
-          : "bg-emerald-500 hover:bg-emerald-600 text-white"
-      }`}
-    >
-      {showForm ? (
-        <>
-          <XCircle size={16} /> Hủy
-        </>
-      ) : (
-        <>
-          <Plus size={16} /> Thêm nhóm
-        </>
-      )}
-    </Button>
+        {/* ==== Nhóm phải: Thêm nhóm + Hiển thị cột ==== */}
+        <div className="flex items-center gap-2">
+          {!isTechnician && (
+            <Button
+              onClick={() => {
+                setShowForm((prev) => !prev);
+                setGroupForm({ name: "", desc: "", img: null, preview: "" });
+                setEditGroupId(null);
+                setErrorMsg("");
+              }}
+              className={`flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-lg transition-all ${
+                showForm
+                  ? "bg-red-500 hover:bg-red-600 text-white"
+                  : "bg-emerald-500 hover:bg-emerald-600 text-white"
+              }`}
+            >
+              {showForm ? (
+                <>
+                  <XCircle size={16} /> Hủy
+                </>
+              ) : (
+                <>
+                  <Plus size={16} /> Thêm nhóm
+                </>
+              )}
+            </Button>
+          )}
 
-    <div className="h-9 flex items-center">
-      <ColumnVisibilityButton
-        visibleColumns={visibleColumns}
-        setVisibleColumns={setVisibleColumns}
-        labels={{
-          image: "Ảnh",
-          code: "Mã nhóm",
-          name: "Tên nhóm",
-          desc: "Mô tả",
-          created: "Ngày nhập",
-          updated: "Ngày sửa",
-        }}
-      />
-    </div>
-  </div>
-</div>
-
-
+          <div className="h-9 flex items-center">
+            <ColumnVisibilityButton
+              visibleColumns={visibleColumns}
+              setVisibleColumns={setVisibleColumns}
+              labels={{
+                image: "Ảnh",
+                code: "Mã nhóm",
+                name: "Tên nhóm",
+                desc: "Mô tả",
+                created: "Ngày nhập",
+                updated: "Ngày sửa",
+              }}
+            />
+          </div>
+        </div>
+      </div>
 
       <AnimatePresence>
         {showForm && (
@@ -524,9 +527,11 @@ export default function EquipmentGroupPage() {
                     Ngày sửa
                   </TableHead>
                 )}
-                <TableHead className="text-center border dark:border-gray-600">
-                  Hành động
-                </TableHead>
+                {!isTechnician && (
+                  <TableHead className="text-center border dark:border-gray-600">
+                    Hành động
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
 
@@ -603,24 +608,26 @@ export default function EquipmentGroupPage() {
                     </TableCell>
                   )}
 
-                  <TableCell className="text-center border dark:border-gray-600">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() => {
-                        setGroupForm({
-                          name: g.name,
-                          desc: g.description,
-                          img: g.image,
-                          preview: g.image || "",
-                        });
-                        setEditGroupId(g.id);
-                        setShowForm(true);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </Button>
-                  </TableCell>
+                  {!isTechnician && (
+                    <TableCell className="text-center border dark:border-gray-600">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => {
+                          setGroupForm({
+                            name: g.name,
+                            desc: g.description,
+                            img: g.image,
+                            preview: g.image || "",
+                          });
+                          setEditGroupId(g.id);
+                          setShowForm(true);
+                        }}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                    </TableCell>
+                  )}
                 </motion.tr>
               ))}
             </TableBody>

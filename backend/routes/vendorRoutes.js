@@ -4,11 +4,11 @@ const { verifyAccessToken, requireRole } = require("../middlewares/authMiddlewar
 
 const router = express.Router();
 
-// Tạo vendor (chỉ admin, super-admin)
+// Tạo vendor
 router.post(
   "/",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   vendorController.createVendor
 );
 
@@ -16,11 +16,11 @@ router.get("/", vendorController.getVendors);
 
 router.get("/:id", vendorController.getVendorById);
 
-// Update vendor (chỉ admin, super-admin)
+// Update vendor
 router.put(
   "/:id",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   vendorController.updateVendor
 );
 

@@ -27,7 +27,6 @@ router.get(
 router.get(
   "/status-group",
   verifyAccessToken,
-  requireRole("super-admin", "admin", "technician"),
   branchFilterMiddleware,
   equipmentUnitController.getByStatusGroup
 );
@@ -53,7 +52,6 @@ router.get("/:id", equipmentUnitController.getUnitById);
 router.put(
   "/:id",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
   equipmentUnitController.updateUnit
 );
 

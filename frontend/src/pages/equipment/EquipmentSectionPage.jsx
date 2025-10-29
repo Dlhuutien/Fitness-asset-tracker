@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { exportToExcel } from "@/services/Files";
 import EquipmentAddCardPage from "@/pages/equipment/EquipmentAddCardPage";
 import { useRef } from "react";
+import useAuthRole from "@/hooks/useAuthRole";
 
 import {
   AlertDialog,
@@ -45,6 +46,7 @@ export default function EquipmentSectionPage() {
   const [openAddCard, setOpenAddCard] = useState(false);
   const navigate = useNavigate();
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const { isTechnician } = useAuthRole();
 
   const { groups, groupErr, groupLoading, equipments, eqErr, eqLoading } =
     useEquipmentData();
@@ -202,12 +204,14 @@ export default function EquipmentSectionPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => setOpenAddCard(true)}
-            className="flex items-center gap-2 h-9 px-3 text-sm font-medium rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all"
-          >
-            <Plus size={16} /> Thêm dòng thiết bị
-          </Button>
+          {!isTechnician && (
+            <Button
+              onClick={() => setOpenAddCard(true)}
+              className="flex items-center gap-2 h-9 px-3 text-sm font-medium rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all"
+            >
+              <Plus size={16} /> Thêm dòng thiết bị
+            </Button>
+          )}
 
           <ColumnVisibilityButton
             visibleColumns={visibleColumns}

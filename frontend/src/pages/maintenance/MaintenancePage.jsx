@@ -2,14 +2,20 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import MaintenanceUrgentSection from "@/components/layouts/maintenance/MaintenanceUrgentSection";
 import MaintenanceReadySection from "@/components/layouts/maintenance/MaintenanceReadySection";
+import useAuthRole from "@/hooks/useAuthRole";
 
 export default function MaintenancePage() {
-  const [tab, setTab] = useState("urgent");
+  const { isTechnician } = useAuthRole();
 
-  const tabs = [
-    { key: "urgent", label: "🚨 Ngừng tạm thời" },
-    { key: "ready", label: "🧾 Chờ phê duyệt" },
-  ];
+  // 🧭 Nếu là technician thì chỉ có tab urgent
+  const tabs = isTechnician
+    ? [{ key: "urgent", label: "🚨 Ngừng tạm thời" }]
+    : [
+        { key: "urgent", label: "🚨 Ngừng tạm thời" },
+        { key: "ready", label: "🧾 Chờ phê duyệt" },
+      ];
+
+  const [tab, setTab] = useState(tabs[0].key);
 
   return (
     <div className="space-y-6">

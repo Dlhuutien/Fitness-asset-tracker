@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import DashboardLayout from "@/components/layouts/dashboard/DashboardLayout";
 import PageTransition from "@/components/common/PageTransition";
+import useAuthRole from "@/hooks/useAuthRole";
 
 // 🧩 Auth
 import LoginPage from "@/pages/LoginPage";
@@ -42,6 +43,84 @@ import UserProfile from "@/pages/userProfile/UserProfile";
 
 // 🔔 Notification
 import NotificationScreen from "@/pages/NotificationScreen";
+
+
+function ProtectedTransferRoute() {
+  const { isTechnician, isOperator } = useAuthRole();
+
+  if (isTechnician || isOperator) {
+    // 🚫 Không có quyền → quay về dashboard
+    return <Navigate to="/app" replace />;
+  }
+
+  return <TransferEquipmentPage />;
+}
+
+function ProtectedDisposalRoute() {
+  const { isTechnician, isOperator } = useAuthRole();
+
+  if (isTechnician || isOperator) {
+    // 🚫 Không có quyền → quay về dashboard
+    return <Navigate to="/app" replace />;
+  }
+
+  return <EquipmentDisposalPage />;
+}
+
+function ProtectedMaintenanceRoute() {
+  const { isOperator } = useAuthRole();
+
+  if (isOperator) {
+    // 🚫 Nhân viên trực phòng không được phép truy cập
+    return <Navigate to="/app" replace />;
+  }
+
+  return <MaintenancePage />;
+}
+
+function ProtectedBranchRoute() {
+  const { isTechnician, isOperator } = useAuthRole();
+
+  if (isTechnician || isOperator) {
+    // 🚫 Không có quyền → quay về dashboard
+    return <Navigate to="/app" replace />;
+  }
+
+  return <BranchPage />;
+}
+
+function ProtectedInvoiceRoute() {
+  const { isTechnician, isOperator } = useAuthRole();
+
+  if (isTechnician || isOperator) {
+    // 🚫 Không có quyền → quay về dashboard
+    return <Navigate to="/app" replace />;
+  }
+
+  return <InvoicePage />;
+}
+
+function ProtectedStaffRoute() {
+  const { isTechnician, isOperator } = useAuthRole();
+
+  if (isTechnician || isOperator) {
+    // 🚫 Không có quyền quản lý nhân viên
+    return <Navigate to="/app" replace />;
+  }
+
+  return <StaffPage />;
+}
+
+function ProtectedVendorRoute() {
+  const { isTechnician } = useAuthRole();
+
+  if (isTechnician) {
+    // 🚫 Kỹ thuật viên không được phép xem danh sách nhà cung cấp
+    return <Navigate to="/app" replace />;
+  }
+
+  return <VendorPage />;
+}
 
 const routes = [
   // 🔐 Auth
@@ -114,7 +193,7 @@ const routes = [
         path: "/app/equipment/transfer",
         element: (
           <PageTransition>
-            <TransferEquipmentPage />
+            <ProtectedTransferRoute />
           </PageTransition>
         ),
       },
@@ -122,7 +201,7 @@ const routes = [
         path: "/app/equipment/disposal",
         element: (
           <PageTransition>
-            <EquipmentDisposalPage />
+            <ProtectedDisposalRoute />
           </PageTransition>
         ),
       },
@@ -156,7 +235,7 @@ const routes = [
         path: "/app/maintenance",
         element: (
           <PageTransition>
-            <MaintenancePage />
+            <ProtectedMaintenanceRoute />
           </PageTransition>
         ),
       },
@@ -166,7 +245,7 @@ const routes = [
         path: "/app/invoice",
         element: (
           <PageTransition>
-            <InvoicePage />
+            <ProtectedInvoiceRoute />
           </PageTransition>
         ),
       },
@@ -176,7 +255,7 @@ const routes = [
         path: "/app/vendor",
         element: (
           <PageTransition>
-            <VendorPage />
+            <ProtectedVendorRoute />
           </PageTransition>
         ),
       },
@@ -186,7 +265,7 @@ const routes = [
         path: "/app/staff",
         element: (
           <PageTransition>
-            <StaffPage />
+            <ProtectedStaffRoute />
           </PageTransition>
         ),
       },
@@ -212,7 +291,7 @@ const routes = [
         path: "/app/branch",
         element: (
           <PageTransition>
-            <BranchPage />
+            <ProtectedBranchRoute />
           </PageTransition>
         ),
       },

@@ -25,6 +25,7 @@ import { exportToExcel } from "@/services/Files";
 
 import CategoryMainService from "@/services/categoryMainService";
 import CategoryTypeService from "@/services/categoryTypeService";
+import useAuthRole from "@/hooks/useAuthRole";
 
 import {
   HeaderFilter,
@@ -52,6 +53,8 @@ export default function EquipmentTypePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [goToPage, setGoToPage] = useState("");
+
+  const { isTechnician } = useAuthRole();
 
   // Hiệu ứng NEW
   const [highlightedId, setHighlightedId] = useState(null);
@@ -319,29 +322,30 @@ export default function EquipmentTypePage() {
 
         {/* === Nhóm phải: Thêm loại + Hiển thị cột === */}
         <div className="flex items-center gap-2">
-          <Button
-            onClick={() => {
-              setShowForm((v) => !v);
-              setTypeForm({ name: "", desc: "", group: "" });
-              setEditTypeId(null);
-            }}
-            className={`flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-lg transition-all ${
-              showForm
-                ? "bg-red-500 hover:bg-red-600 text-white"
-                : "bg-emerald-500 hover:bg-emerald-600 text-white"
-            }`}
-          >
-            {showForm ? (
-              <>
-                <XCircle size={18} /> Hủy
-              </>
-            ) : (
-              <>
-                <Plus size={18} /> Thêm loại
-              </>
-            )}
-          </Button>
-
+          {!isTechnician && (
+            <Button
+              onClick={() => {
+                setShowForm((v) => !v);
+                setTypeForm({ name: "", desc: "", group: "" });
+                setEditTypeId(null);
+              }}
+              className={`flex items-center justify-center gap-2 h-9 px-4 text-sm font-medium rounded-lg transition-all ${
+                showForm
+                  ? "bg-red-500 hover:bg-red-600 text-white"
+                  : "bg-emerald-500 hover:bg-emerald-600 text-white"
+              }`}
+            >
+              {showForm ? (
+                <>
+                  <XCircle size={18} /> Hủy
+                </>
+              ) : (
+                <>
+                  <Plus size={18} /> Thêm loại
+                </>
+              )}
+            </Button>
+          )}
           <div className="h-9 flex items-center">
             <ColumnVisibilityButton
               visibleColumns={visibleColumns}
@@ -549,10 +553,11 @@ export default function EquipmentTypePage() {
                     />
                   </TableHead>
                 )}
-
-                <TableHead className="text-center border dark:border-gray-600">
-                  Hành động
-                </TableHead>
+                {!isTechnician && (
+                  <TableHead className="text-center border dark:border-gray-600">
+                    Hành động
+                  </TableHead>
+                )}
               </TableRow>
             </TableHeader>
 
@@ -621,24 +626,25 @@ export default function EquipmentTypePage() {
                       {new Date(t.updated_at).toLocaleDateString("vi-VN")}
                     </TableCell>
                   )}
-
-                  <TableCell className="text-center border dark:border-gray-600">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      onClick={() => {
-                        setTypeForm({
-                          name: t.name,
-                          desc: t.description,
-                          group: t.category_main_id,
-                        });
-                        setEditTypeId(t.id);
-                        setShowForm(true);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </Button>
-                  </TableCell>
+                  {!isTechnician && (
+                    <TableCell className="text-center border dark:border-gray-600">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => {
+                          setTypeForm({
+                            name: t.name,
+                            desc: t.description,
+                            group: t.category_main_id,
+                          });
+                          setEditTypeId(t.id);
+                          setShowForm(true);
+                        }}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                    </TableCell>
+                  )}
                 </motion.tr>
               ))}
             </TableBody>

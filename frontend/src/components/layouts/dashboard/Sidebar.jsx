@@ -14,11 +14,13 @@ import { motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import oldLogo from "@/assets/FitXGym.png";
 import SidebarItem from "./SidebarItem";
+import useAuthRole from "@/hooks/useAuthRole";
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const location = useLocation();
+  const { isTechnician, isOperator } = useAuthRole();
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -33,54 +35,119 @@ export default function Sidebar() {
     return () => observer.disconnect();
   }, []);
 
-const menuItems = [
-  {
-    key: "dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    path: "/app",
-  },
-  {
-    key: "equipment",
-    label: "Quản lý thiết bị",
-    icon: Dumbbell,
-    children: [
-      { label: "Danh mục nhóm", path: "/app/equipment/group" },
-      { label: "Danh mục loại", path: "/app/equipment/type" },
-      { label: "Danh mục dòng", path: "/app/equipment/list" },
-      { label: "Danh mục thiết bị", path: "/app/equipment/unit" },
-      // { label: "Nhập thiết bị", path: "/app/equipment/import" },
-      { label: "Chuyển thiết bị", path: "/app/equipment/transfer" },
-      { label: "Bảo trì thiết bị", path: "/app/maintenance" },
-      { label: "Thanh lý thiết bị", path: "/app/equipment/disposal" },
-    ],
-  },
-  {
-    key: "staff",
-    label: "Quản lý nhân viên",
-    icon: Users,
-    path: "/app/staff",
-  },
-  {
-    key: "vendor",
-    label: "Quản lý nhà cung cấp",
-    icon: Truck,
-    path: "/app/vendor",
-  },
-  {
-    key: "branch",
-    label: "Quản lý chi nhánh",
-    icon: Building2,
-    path: "/app/branch",
-  },
-  {
-    key: "invoice",
-    label: "Danh sách hóa đơn",
-    icon: BarChart3,
-    path: "/app/invoice",
-  },
-];
+  let menuItems = [
+    {
+      key: "dashboard",
+      label: "Dashboard",
+      icon: LayoutDashboard,
+      path: "/app",
+    },
+    {
+      key: "equipment",
+      label: "Quản lý thiết bị",
+      icon: Dumbbell,
+      children: [
+        { label: "Danh mục nhóm", path: "/app/equipment/group" },
+        { label: "Danh mục loại", path: "/app/equipment/type" },
+        { label: "Danh mục dòng", path: "/app/equipment/list" },
+        { label: "Danh mục thiết bị", path: "/app/equipment/unit" },
+        // { label: "Nhập thiết bị", path: "/app/equipment/import" },
+        { label: "Chuyển thiết bị", path: "/app/equipment/transfer" },
+        { label: "Bảo trì thiết bị", path: "/app/maintenance" },
+        { label: "Thanh lý thiết bị", path: "/app/equipment/disposal" },
+      ],
+    },
+    {
+      key: "staff",
+      label: "Quản lý nhân viên",
+      icon: Users,
+      path: "/app/staff",
+    },
+    {
+      key: "vendor",
+      label: "Quản lý nhà cung cấp",
+      icon: Truck,
+      path: "/app/vendor",
+    },
+    {
+      key: "branch",
+      label: "Quản lý chi nhánh",
+      icon: Building2,
+      path: "/app/branch",
+    },
+    {
+      key: "invoice",
+      label: "Danh sách hóa đơn",
+      icon: BarChart3,
+      path: "/app/invoice",
+    },
+  ];
 
+  // 🧩 Lọc bỏ “Chuyển thiết bị” cho technician & operator
+  if (isTechnician || isOperator) {
+    menuItems = menuItems.map((item) => {
+      if (item.key === "equipment") {
+        return {
+          ...item,
+          children: item.children.filter(
+            (child) =>
+              child.path !== "/app/equipment/transfer" &&
+              child.path !== "/app/equipment/disposal"
+          ),
+        };
+      }
+      return item;
+    });
+  }
+
+  // 🧩 Lọc bỏ “Chuyển thiết bị”, “Thanh lý thiết bị”, “Bảo trì thiết bị” cho technician & operator
+  menuItems = menuItems.map((item) => {
+    if (item.key === "equipment") {
+      let filteredChildren = item.children;
+
+      // 🚫 Operator
+      if (isOperator) {
+        filteredChildren = filteredChildren.filter(
+          (child) =>
+            child.path !== "/app/equipment/transfer" &&
+            child.path !== "/app/equipment/disposal" &&
+            child.path !== "/app/maintenance"
+        );
+      }
+
+      // 🚫 Technician
+      if (isTechnician) {
+        filteredChildren = filteredChildren.filter(
+          (child) =>
+            child.path !== "/app/equipment/transfer" &&
+            child.path !== "/app/equipment/disposal"
+        );
+      }
+
+      return { ...item, children: filteredChildren };
+    }
+    return item;
+  });
+
+  // 🧩 Ẩn “Chi nhánh”, “Danh sách hóa đơn”, “Quản lý nhân viên” cho technician & operator
+  // 🧩 Ẩn thêm “Nhà cung cấp” cho technician
+  if (isTechnician || isOperator) {
+    menuItems = menuItems.filter((item) => {
+      if (isTechnician) {
+        // Technician: ẩn branch, invoice, staff, vendor
+        return (
+          item.key !== "branch" &&
+          item.key !== "invoice" &&
+          item.key !== "staff" &&
+          item.key !== "vendor"
+        );
+      }
+      // Operator: ẩn branch, invoice, staff (vẫn giữ vendor)
+      return (
+        item.key !== "branch" && item.key !== "invoice" && item.key !== "staff"
+      );
+    });
+  }
 
   const sidebarTheme =
     theme === "dark"
@@ -91,8 +158,8 @@ const menuItems = [
     <motion.aside
       animate={{ width: collapsed ? 80 : 260 }}
       transition={{ duration: 0.35, ease: "easeInOut" }}
-      className={`relative shadow-2xl flex flex-col transition-colors ${sidebarTheme}`}
-    >
+      className={`h-full flex flex-col shadow-2xl transition-colors ${sidebarTheme}`}
+>
       {/* Logo */}
       <div className="flex items-center gap-4 px-6 py-8 justify-center">
         <img
@@ -114,7 +181,7 @@ const menuItems = [
       </div>
 
       {/* Menu */}
-      <nav className="mt-4 flex-1 overflow-y-auto px-2">
+      <nav className="mt-4 flex-1 overflow-y-auto px-2 hide-scrollbar">
         <ul
           className={`${
             collapsed ? "flex flex-col items-center gap-6" : "space-y-4"

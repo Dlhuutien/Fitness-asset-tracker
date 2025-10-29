@@ -23,7 +23,7 @@ export default function DashboardLayout() {
   return (
     <div className="flex min-h-screen bg-bg-light dark:bg-bg-dark font-sans transition-colors">
       {/* ✅ Sidebar cố định, z-50 để nằm trên header */}
-      <div className="fixed top-0 left-0 h-screen overflow-y-auto hide-scrollbar z-50 min-w-[300px]">
+      <div className="fixed top-0 left-0 h-screen z-50">
         <Sidebar />
       </div>
 

@@ -4,11 +4,11 @@ const { verifyAccessToken, requireRole } = require("../middlewares/authMiddlewar
 
 const router = express.Router();
 
-// Create (admin only)
+// Create
 router.post(
   "/",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   categoryTypeController.createCategoryType
 );
 
@@ -21,11 +21,11 @@ router.get("/:id", categoryTypeController.getCategoryTypeById);
 // Read id category_main
 router.get("/main/:category_main_id", categoryTypeController.getCategoryTypesByMainId);
 
-// Update (admin only)
+// Update
 router.put(
   "/:id",
   verifyAccessToken,
-  requireRole("admin", "super-admin"),
+  requireRole("admin", "super-admin", "operator"),
   categoryTypeController.updateCategoryType
 );
 
