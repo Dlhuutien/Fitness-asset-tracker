@@ -37,6 +37,24 @@ const MaintenanceModel = {
     return item;
   },
 
+  // 🕒 Tạo bảo trì được lên lịch (chỉ có scheduled_at)
+  createScheduledMaintenance: async (data) => {
+    const item = {
+      id: uuidv4(),
+      equipment_unit_id: data.equipment_unit_id,
+      branch_id: data.branch_id,
+      assigned_by: data.assigned_by,
+      maintenance_reason: data.maintenance_reason,
+      maintenance_detail: data.maintenance_detail || null,
+      scheduled_at: data.scheduled_at, // ✅ chỉ lưu thời gian
+      end_date: null,
+      warranty: data.warranty,
+    };
+
+    await dynamodb.send(new PutCommand({ TableName: tableName, Item: item }));
+    return item;
+  },
+
   getAll: async () => {
     const result = await dynamodb.send(
       new ScanCommand({ TableName: tableName })
@@ -82,6 +100,12 @@ const MaintenanceModel = {
       expAttrNames["#md"] = "maintenance_detail";
       expAttrValues[":md"] = data.maintenance_detail;
     }
+    if (data.start_date !== undefined) {
+      updateExp.push("#sd = :sd");
+      expAttrNames["#sd"] = "start_date";
+      expAttrValues[":sd"] = data.start_date;
+    }
+
     if (data.end_date !== undefined) {
       updateExp.push("#ed = :ed");
       expAttrNames["#ed"] = "end_date";

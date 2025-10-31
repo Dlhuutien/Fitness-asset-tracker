@@ -10,6 +10,13 @@ const branchFilterMiddleware = require("../middlewares/branchFilterMiddleware");
 // CREATE
 router.post("/", verifyAccessToken, maintenanceController.create);
 
+// 🕒 Lên lịch bảo trì
+router.post(
+  "/schedule",
+  verifyAccessToken,
+  maintenanceController.schedule
+);
+
 // GET maintenance theo unit ID
 router.get(
   "/by-unit/:unitId",

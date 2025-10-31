@@ -42,6 +42,48 @@ const maintenanceController = {
     }
   },
 
+  // =======================================================
+  // 🕒 Lên lịch bảo trì (Schedule Maintenance)
+  // =======================================================
+  schedule: async (req, res) => {
+    try {
+      const { role, sub } = req.user;
+
+      const data = {
+        ...req.body,
+        assigned_by: sub,
+      };
+
+      // 1️⃣ Gọi service để tạo maintenance có scheduled_at
+      const maintenance = await maintenanceService.scheduleMaintenance(
+        data,
+        role
+      );
+
+      // 2️⃣ Gửi thông báo tới admin / super-admin
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+        "technician",
+      ]);
+
+      // await notificationService.notifyMaintenanceScheduled(
+      //   maintenance,
+      //   admins,
+      //   sub
+      // );
+
+      // 3️⃣ Trả về response
+      res.status(201).json({
+        message: "Maintenance scheduled successfully",
+        maintenance,
+      });
+    } catch (error) {
+      console.error("❌ Error scheduling maintenance:", error);
+      res.status(400).json({ error: error.message });
+    }
+  },
+
   progress: async (req, res) => {
     try {
       const { sub } = req.user; // user_id lấy từ token
