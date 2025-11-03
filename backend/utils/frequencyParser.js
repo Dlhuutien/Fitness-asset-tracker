@@ -20,6 +20,11 @@ function parseFrequencyToRate(frequency) {
     if (unit.startsWith("month")) return `rate(${num * 30} days)`;
     if (unit.startsWith("year")) return `rate(${num * 365} days)`;
 
+    // ⚙️ Fix: nếu số > 1 mà chưa có 's', thêm vào để AWS hiểu đúng cú pháp
+    if (parseInt(num) > 1 && !unit.endsWith("s")) {
+      unit = unit + "s";
+    }
+
     const result = `rate(${num} ${unit})`;
     console.log(`⏱️ [Scheduler] Frequency '${frequency}' → ${result}`);
     return result;
@@ -29,6 +34,7 @@ function parseFrequencyToRate(frequency) {
   if (["daily", "day"].includes(freq)) return "rate(1 day)";
   if (["weekly", "week"].includes(freq)) return "rate(7 days)";
   if (["monthly", "month"].includes(freq)) return "rate(30 days)";
+  if (["yearly", "year"].includes(freq)) return "rate(365 days)";
 
   // Special test mode
   if (freq.includes("3m")) return "rate(3 minutes)";
@@ -105,31 +111,6 @@ function nextDateByFrequency(iso, frequency) {
   return d.toISOString();
 }
 
-function parseFrequencyToRate(frequency) {
-  if (!frequency || typeof frequency !== "string") return "rate(7 days)";
-  let freq = frequency.trim().toLowerCase();
-
-  const match = freq.match(
-    /(\d+)\s*(_|\s)*(minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years)/
-  );
-  if (match) {
-    const num = match[1];
-    let unit = match[3];
-    if (unit.startsWith("month")) return `rate(${num * 30} days)`;
-    if (unit.startsWith("year")) return `rate(${num * 365} days)`;
-    const result = `rate(${num} ${unit})`;
-    console.log(`⏱️ [Scheduler] Frequency '${frequency}' → ${result}`);
-    return result;
-  }
-
-  if (["daily", "day"].includes(freq)) return "rate(1 day)";
-  if (["weekly", "week"].includes(freq)) return "rate(7 days)";
-  if (["monthly", "month"].includes(freq)) return "rate(30 days)";
-
-  if (freq.includes("3m")) return "rate(3 minutes)";
-  return "rate(7 days)";
-}
-
 /**
  * 🧠 Định dạng frequency ra tiếng Việt thân thiện
  * @param {string} frequency - Chuỗi frequency (vd: "3_days", "2_weeks", "daily")
@@ -172,4 +153,8 @@ function formatFrequencyLabel(frequency) {
   return "Không xác định";
 }
 
-module.exports = { parseFrequencyToRate, nextDateByFrequency, formatFrequencyLabel };
+module.exports = {
+  parseFrequencyToRate,
+  nextDateByFrequency,
+  formatFrequencyLabel,
+};

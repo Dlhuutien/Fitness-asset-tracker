@@ -7,7 +7,10 @@ const maintenancePlanRepository = require("../repositories/maintenancePlanReposi
 const equipmentRepository = require("../repositories/equipmentRepository");
 const userService = require("./userService");
 const notificationService = require("./notificationService");
-const { parseFrequencyToRate, nextDateByFrequency } = require("../utils/frequencyParser");
+const {
+  parseFrequencyToRate,
+  nextDateByFrequency,
+} = require("../utils/frequencyParser");
 
 const scheduler = new SchedulerClient({ region: process.env.AWS_REGION });
 
@@ -18,19 +21,25 @@ async function createReminderSchedule(plan) {
   // 🇹🇭 Lấy thời gian nhắc chính xác
   let reminderDate = new Date(plan.next_maintenance_date);
 
-  // Nếu nhỏ hơn hiện tại => lùi sang ngày mai
+  // Nếu nhỏ hơn hoặc bằng hiện tại => dùng luôn thời điểm hiện tại
   if (reminderDate <= new Date()) {
-    console.log("⚠️ Reminder date đã qua, đặt lại sang ngày mai");
-    reminderDate.setDate(reminderDate.getDate() + 1);
+    reminderDate = new Date();
+    console.log(
+      "⚠️ Reminder date đã qua, dùng luôn thời điểm hiện tại:",
+      reminderDate.toISOString()
+    );
   }
 
   // 🔹 Map frequency → AWS rate()
   const scheduleExpression = parseFrequencyToRate(plan.frequency);
 
   const input = {
-    Name: `remind-${plan.id}`,
+    Name: `remind-${plan.id}-${Date.now()}`,
     ScheduleExpression: scheduleExpression,
     ScheduleExpressionTimezone: "Asia/Bangkok",
+    StartDate: new Date(
+      new Date(plan.next_maintenance_date).getTime() - 7 * 60 * 60 * 1000
+    ),
     FlexibleTimeWindow: { Mode: "OFF" },
     Target: {
       Arn: process.env.TARGET_LAMBDA_ARN,
@@ -112,7 +121,11 @@ async function advanceAndReschedule(plan) {
   });
 
   // Tạo schedule mới
-  const arn = await createReminderSchedule(updated);
+  //   const arn = await createReminderSchedule(updated);
+  const arn = await createReminderSchedule({
+    ...updated,
+    next_maintenance_date: nextIso,
+  });
   await maintenancePlanRepository.update(plan.id, {
     reminder_schedule_arn: arn,
   });
