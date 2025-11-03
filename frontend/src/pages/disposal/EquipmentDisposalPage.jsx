@@ -59,6 +59,9 @@ export default function EquipmentDisposalPage() {
   const [branchLocked, setBranchLocked] = useState(false);
 
   const controller = useGlobalFilterController();
+  const [noteTouched, setNoteTouched] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   const [filters, setFilters] = useState({
     id: [],
     name: [],
@@ -236,33 +239,64 @@ export default function EquipmentDisposalPage() {
       return next;
     });
   };
-
-  const handleValueChange = (id, value) => {
-    setSelected((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], value_recovered: Number(value) || 0 },
-    }));
-  };
-
   const selectedItems = Object.values(selected);
   const totalValue = selectedItems.reduce(
     (sum, i) => sum + (i.value_recovered || 0),
     0
   );
 
+  const [inputErrors, setInputErrors] = useState({});
+
+  const handleValueChange = (id, value) => {
+    const num = Number(value) || 0;
+    setSelected((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], value_recovered: num },
+    }));
+
+    // 🚫 Kiểm tra giá trị ngay khi nhập
+    const target = units.find((u) => u.id === id);
+    if (target && target.cost && num > target.cost) {
+      setInputErrors((prev) => ({
+        ...prev,
+        [id]: "Giá thanh lý không được lớn hơn giá gốc",
+      }));
+    } else {
+      setInputErrors((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  // ===== Gửi yêu cầu tạo thanh lý =====
   // ===== Gửi yêu cầu tạo thanh lý =====
   const handleCreateDisposal = async () => {
+    // ⚠️ Kiểm tra: có chọn thiết bị chưa
     if (selectedItems.length === 0) {
       toast.info("Hãy chọn ít nhất một thiết bị để thanh lý.");
       return;
     }
+
+    // ⚠️ Kiểm tra: ghi chú bắt buộc
     if (!note.trim()) {
-      toast.info("Vui lòng nhập ghi chú cho đợt thanh lý.");
+      toast.warning("⚠️ Vui lòng nhập ghi chú cho đợt thanh lý.");
+      return;
+    }
+
+    // ⚠️ Kiểm tra: Giá thanh lý không được lớn hơn giá gốc
+    const invalidItems = selectedItems.filter(
+      (i) => i.value_recovered > (i.cost || 0)
+    );
+    if (invalidItems.length > 0) {
+      toast.error("❌ Giá thanh lý không được lớn hơn giá gốc.");
       return;
     }
 
     try {
       setCreating(true);
+
       const items = selectedItems.map((u) => ({
         equipment_unit_id: u.id,
         value_recovered: u.value_recovered || 0,
@@ -274,10 +308,14 @@ export default function EquipmentDisposalPage() {
         items,
       });
 
+      // ✅ Thông báo alert + toast sau khi thành công
+      setShowSuccessModal(true);
+
       toast.success("✅ Đã tạo đợt thanh lý thành công!");
       setSuccessMsg("✅ Đã tạo đợt thanh lý thành công!");
       setErrorMsg("");
 
+      // 🧹 Cập nhật danh sách
       const disposedIds = items.map((i) => i.equipment_unit_id);
       setUnits((prev) => prev.filter((u) => !disposedIds.includes(u.id)));
       setFiltered((prev) => prev.filter((u) => !disposedIds.includes(u.id)));
@@ -286,6 +324,7 @@ export default function EquipmentDisposalPage() {
 
       setTimeout(() => setSuccessMsg(""), 5000);
     } catch (err) {
+      console.error(err);
       toast.error(err?.error || "Không thể tạo đợt thanh lý.");
       setErrorMsg("❌ Không thể tạo đợt thanh lý, vui lòng thử lại!");
       setSuccessMsg("");
@@ -439,31 +478,39 @@ export default function EquipmentDisposalPage() {
                     {item.cost?.toLocaleString("vi-VN") || "—"}
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={
-                        item.value_recovered
-                          ? item.value_recovered.toLocaleString("vi-VN")
-                          : ""
-                      }
-                      onChange={(e) => {
-                        // Loại bỏ mọi ký tự không phải số
-                        const raw = e.target.value.replace(/\D/g, "");
-                        // Cập nhật state gốc bằng số thật
-                        handleValueChange(item.id, raw ? Number(raw) : 0);
-                      }}
-                      onBlur={(e) => {
-                        // Khi blur, tự format lại có dấu chấm
-                        const raw = e.target.value.replace(/\D/g, "");
-                        const formatted = raw
-                          ? Number(raw).toLocaleString("vi-VN")
-                          : "";
-                        e.target.value = formatted;
-                      }}
-                      className="w-36 h-8 text-right"
-                    />
+                    <div className="flex flex-col">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={
+                          item.value_recovered
+                            ? item.value_recovered.toLocaleString("vi-VN")
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          handleValueChange(item.id, raw ? Number(raw) : 0);
+                        }}
+                        onBlur={(e) => {
+                          const raw = e.target.value.replace(/\D/g, "");
+                          const formatted = raw
+                            ? Number(raw).toLocaleString("vi-VN")
+                            : "";
+                          e.target.value = formatted;
+                        }}
+                        className={`w-36 h-8 text-right ${
+                          inputErrors[item.id]
+                            ? "border-red-500 focus:ring-red-400"
+                            : ""
+                        }`}
+                      />
+                      {inputErrors[item.id] && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {inputErrors[item.id]}
+                        </p>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -475,22 +522,45 @@ export default function EquipmentDisposalPage() {
       {/* ===== Ghi chú + tạo đợt thanh lý ===== */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Input
-            placeholder="📝 Ghi chú đợt thanh lý (ví dụ: Thanh lý thiết bị hư 19/10)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className="flex-1 h-9 text-sm"
-          />
-          <div className="text-sm text-gray-600">
+          <div className="flex flex-col flex-1">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              📝 Ghi chú đợt thanh lý
+              <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              placeholder="Ví dụ: Thanh lý thiết bị hư 19/10"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              onBlur={() => setNoteTouched(true)}
+              className={`h-9 text-sm ${
+                !note.trim() && noteTouched
+                  ? "border-red-500 focus:ring-red-400"
+                  : ""
+              }`}
+            />
+            {!note.trim() && noteTouched && (
+              <p className="text-xs text-red-500 mt-1">Phải nhập ghi chú</p>
+            )}
+          </div>
+
+          <div className="text-sm text-gray-600 whitespace-nowrap">
             Tổng giá trị thu hồi:{" "}
             <b className="text-emerald-600">
               {totalValue.toLocaleString("vi-VN")}₫
             </b>
           </div>
+
           <Button
-            onClick={handleCreateDisposal}
-            disabled={creating}
-            className="bg-rose-500 hover:bg-rose-600 text-white flex items-center"
+            onClick={() => {
+              setNoteTouched(true); // ⚡ bật flag khi ấn nút
+              handleCreateDisposal();
+            }}
+            disabled={creating || Object.keys(inputErrors).length > 0}
+            className={`flex items-center text-white ${
+              Object.keys(inputErrors).length > 0 || !note.trim()
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-rose-500 hover:bg-rose-600"
+            }`}
           >
             {creating ? (
               <>
@@ -505,7 +575,6 @@ export default function EquipmentDisposalPage() {
           </Button>
         </div>
 
-        {/* 🧩 Thông báo (hiện ngay dưới nút, full width, không lệch flex) */}
         {(successMsg || errorMsg) && (
           <div className="mt-3">
             {successMsg && (
@@ -521,6 +590,21 @@ export default function EquipmentDisposalPage() {
           </div>
         )}
       </div>
+
+      {(successMsg || errorMsg) && (
+        <div className="mt-3">
+          {successMsg && (
+            <div className="px-4 py-2 text-sm rounded bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+              {successMsg}
+            </div>
+          )}
+          {errorMsg && (
+            <div className="px-4 py-2 text-sm rounded bg-red-50 text-red-600 border border-red-200 shadow-sm">
+              {errorMsg}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== Danh sách thiết bị ===== */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
@@ -693,6 +777,39 @@ export default function EquipmentDisposalPage() {
           </div>
         </div>
       </div>
+
+      {/* ===== Popup thông báo thành công (FitX Simple Style) ===== */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 w-[420px] text-center">
+            {/* 🎉 Icon đơn giản */}
+            <div className="text-5xl mb-3 animate-bounce">🎉</div>
+
+            <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+              Tạo đơn thanh lý thành công!
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
+              Các thiết bị đã được chuyển sang trạng thái{" "}
+              <b className="text-emerald-600 dark:text-emerald-400">
+                “Đã thanh lý”
+              </b>
+              . Hóa đơn thanh lý có thể được xem trong mục Danh sách hóa đơn
+            </p>
+
+            <div className="mt-6">
+              {/* 🌟 Button */}
+              <div className="mt-6 relative">
+                <Button
+                  onClick={() => setShowSuccessModal(false)}
+                  className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:from-emerald-600 hover:to-purple-600 text-white font-medium px-8 py-2.5 rounded-full shadow-md hover:shadow-lg transition-all"
+                >
+                  <span className="text-sm">Đồng ý</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
