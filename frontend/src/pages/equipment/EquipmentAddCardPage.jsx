@@ -230,7 +230,7 @@ const validateAll = () => {
   return (
     <div className="w-full overflow-hidden flex flex-col">
       <div className="flex flex-col h-full">
-        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2 max-h-[calc(100vh-130px)]">
+        <div className="flex-1 px-4 pt-4 pb-2 max-h-[calc(100vh-130px)]">
           <form id="equipment-add-form" onSubmit={handleSubmit} className="space-y-5">
             <AddCard1
               formData={formData}

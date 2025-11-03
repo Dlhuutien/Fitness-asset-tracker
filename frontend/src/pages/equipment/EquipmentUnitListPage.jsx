@@ -663,7 +663,7 @@ export default function EquipmentUnitListSection() {
           {/* Header cố định */}
           <AlertDialogHeader className="flex-shrink-0 sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b px-6 py-4">
             <AlertDialogTitle className="text-emerald-600 text-xl font-bold">
-              Nhập thiết bị vào kho
+              Nhập thiết bị vào chi nhánh
             </AlertDialogTitle>
             <p className="text-gray-500 dark:text-gray-400 text-sm">
               Chọn nhà cung cấp, loại thiết bị và xác nhận nhập hàng

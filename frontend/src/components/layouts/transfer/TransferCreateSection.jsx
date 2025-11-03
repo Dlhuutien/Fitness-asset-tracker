@@ -185,7 +185,7 @@ export default function TransferCreateSection() {
       const matchSearch =
         !q ||
         u.equipment?.name?.toLowerCase().includes(q) ||
-        u.equipment?.vendor_name?.toLowerCase().includes(q) ||
+        u.vendor_name?.toLowerCase().includes(q) ||
         u.equipment?.type_name?.toLowerCase().includes(q);
       const matchGroup =
         activeGroup === "all" || u.equipment?.main_name === activeGroup;
@@ -203,7 +203,7 @@ export default function TransferCreateSection() {
       name: getUniqueValues(filtered, (e) => e.equipment?.name),
       main_name: getUniqueValues(filtered, (e) => e.equipment?.main_name),
       type_name: getUniqueValues(filtered, (e) => e.equipment?.type_name),
-      vendor_name: getUniqueValues(filtered, (e) => e.equipment?.vendor_name),
+      vendor_name: getUniqueValues(filtered, (e) => e.vendor_name),
       branch_id: getUniqueValues(filtered, (e) => e.branch_id),
       status: getUniqueValues(
         filtered,
@@ -234,7 +234,7 @@ export default function TransferCreateSection() {
             v = e.equipment?.type_name;
             break;
           case "vendor_name":
-            v = e.equipment?.vendor_name;
+            v = e.vendor_name;
             break;
           case "branch_id":
             v = e.branch_id;
@@ -634,7 +634,7 @@ export default function TransferCreateSection() {
                       </TableCell>
                     )}
                     {visibleColumns.vendor_name && (
-                      <TableCell>{row.equipment?.vendor_name}</TableCell>
+                      <TableCell>{row.vendor_name}</TableCell>
                     )}
                     {visibleColumns.branch_id && (
                       <TableCell>{row.branch_id}</TableCell>
