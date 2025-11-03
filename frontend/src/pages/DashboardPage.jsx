@@ -68,6 +68,10 @@ import { Toaster, toast } from "sonner";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import Status from "@/components/common/Status";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
+
+import {CalendarDays } from "lucide-react";
+
+
 import {
   AlertDialog,
   AlertDialogContent,
@@ -771,179 +775,199 @@ export default function DashboardPage() {
       />
       <Toaster position="top-right" richColors expand />
 
-      {/* HERO + FILTER + NOTIF */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="relative overflow-hidden rounded-2xl p-6 mb-6 border border-white/10 dark:border-white/5"
-        style={{
-          background:
-            "linear-gradient(120deg, rgba(16,185,129,0.12), rgba(59,130,246,0.12), rgba(99,102,241,0.12))",
-        }}
+
+
+{/* HERO + FILTER + NOTIF */}
+<motion.div
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  className="relative overflow-hidden rounded-2xl p-6 mb-6 border border-white/10 dark:border-white/5"
+  style={{
+    background:
+      "linear-gradient(120deg, rgba(16,185,129,0.12), rgba(59,130,246,0.12), rgba(99,102,241,0.12))",
+  }}
+>
+  {/* ✅ UPGRADE: viền gradient mờ */}
+  <div
+    className="pointer-events-none absolute inset-0 rounded-2xl"
+    style={{
+      border: "1px solid transparent",
+      backgroundImage:
+        "linear-gradient(#ffffff10, #ffffff10), radial-gradient(circle at top left, #22c55e55, #06b6d455, #8b5cf655)",
+      backgroundOrigin: "border-box",
+      backgroundClip: "content-box, border-box",
+      opacity: 0.8,
+    }}
+  />
+
+  <div className="flex flex-wrap items-center justify-between gap-4 relative">
+    <div className="min-w-[240px]">
+      <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
+        Tổng quan{" "}
+        <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-cyan-400">
+          FitX Gym
+        </span>
+      </h1>
+      <p className="text-gray-600 dark:text-gray-300 mt-1">
+        Chọn chi nhánh bên dưới để tập trung nội dung.
+      </p>
+    </div>
+
+    {/* Tab pills */}
+    <div className="flex items-center flex-wrap gap-2">
+      <TabPill
+        icon={<LayoutGrid className="w-4 h-4" />}
+        active={tab === "overview"}
+        onClick={() => setTab("overview")}
       >
-        {/* ✅ UPGRADE: viền gradient mờ */}
-        <div
-          className="pointer-events-none absolute inset-0 rounded-2xl"
-          style={{
-            border: "1px solid transparent",
-            backgroundImage:
-              "linear-gradient(#ffffff10, #ffffff10), radial-gradient(circle at top left, #22c55e55, #06b6d455, #8b5cf655)",
-            backgroundOrigin: "border-box",
-            backgroundClip: "content-box, border-box",
-            opacity: 0.8,
-          }}
-        />
-        <div className="flex flex-wrap items-center justify-between gap-4 relative">
-          <div className="min-w-[240px]">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Tổng quan{" "}
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-emerald-500 to-cyan-400">
-                FitX Gym
-              </span>
-            </h1>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">
-              Chọn chi nhánh bên dưới để tập trung nội dung.
+        Tổng quan
+      </TabPill>
+
+      {/* 🚫 Ẩn tab Biểu đồ và Bảo trì với technician + operator */}
+      {!isTechnician && !isOperator && (
+        <>
+          <TabPill
+            icon={<BarChart2 className="w-4 h-4" />}
+            active={tab === "charts"}
+            onClick={() => setTab("charts")}
+          >
+            Biểu đồ
+          </TabPill>
+
+          <TabPill
+            icon={<Wrench className="w-4 h-4" />}
+            active={tab === "maintenance"}
+            onClick={() => setTab("maintenance")}
+          >
+            Bảo trì
+          </TabPill>
+        </>
+      )}
+    </div>
+
+    {/* Actions + Notifications */}
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* 🗓 Ngày hiện tại */}
+      <div
+        className="
+          flex items-center gap-2 px-3 py-1.5 rounded-lg
+          bg-gradient-to-r from-emerald-500/10 via-cyan-500/10 to-indigo-500/10
+          border border-emerald-400/40 dark:border-emerald-500/30
+          shadow-sm backdrop-blur-sm
+        "
+      >
+        <CalendarDays className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-100">
+          {new Date().toLocaleDateString("vi-VN", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </span>
+      </div>
+
+      {/* Bộ lọc thời gian */}
+      <div className="flex items-center rounded-xl bg-white/80 dark:bg-white/10 border border-white/30 px-2 py-1 backdrop-blur">
+        <button
+          onClick={() => setRange("month")}
+          className={`px-3 py-1 text-sm rounded-lg ${
+            range === "month"
+              ? "bg-emerald-500 text-white"
+              : "text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/5"
+          }`}
+        >
+          Tháng
+        </button>
+        <button
+          onClick={() => setRange("quarter")}
+          className={`px-3 py-1 text-sm rounded-lg ${
+            range === "quarter"
+              ? "bg-emerald-500 text-white"
+              : "text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/5"
+          }`}
+        >
+          Quý
+        </button>
+        <button
+          onClick={() => setRange("year")}
+          className={`px-3 py-1 text-sm rounded-lg ${
+            range === "year"
+              ? "bg-emerald-500 text-white"
+              : "text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/5"
+          }`}
+        >
+          Năm
+        </button>
+      </div>
+
+      {/* 🏢 Lọc theo chi nhánh (chỉ super-admin mới thấy) */}
+      {isSuperAdmin && (
+        <Select onValueChange={(v) => setActiveBranch(v)} defaultValue="all">
+          <SelectTrigger className="h-9 w-44 text-sm bg-white/70 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 shadow-sm">
+            <SelectValue placeholder="Chi nhánh" />
+          </SelectTrigger>
+          <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
+            <SelectItem value="all" className="text-sm">
+              Tất cả chi nhánh
+            </SelectItem>
+            {branches.map((b) => (
+              <SelectItem key={b.id} value={b.id} className="text-sm">
+                {b.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+
+      <Button
+        onClick={() => setOpenImport(true)}
+        className="flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium rounded-lg shadow hover:opacity-90 hover:-translate-y-[1px] transition-all"
+      >
+        📥 Nhập thiết bị
+      </Button>
+
+      <Button className="bg-sky-600 hover:bg-sky-700 text-white flex items-center gap-2">
+        <FileBarChart2 size={16} /> Xuất báo cáo
+      </Button>
+
+      {/* 🧩 Modal import */}
+      <AlertDialog open={openImport} onOpenChange={setOpenImport}>
+        <AlertDialogContent
+          className="
+            !max-w-none w-[85vw] max-w-[1200px] h-[90vh]
+            overflow-hidden flex flex-col
+            bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700
+            rounded-2xl shadow-2xl p-0 focus:outline-none
+          "
+        >
+          {/* Header cố định */}
+          <AlertDialogHeader className="flex-shrink-0 sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b px-6 py-4">
+            <AlertDialogTitle className="text-emerald-600 text-xl font-bold">
+              Nhập thiết bị vào kho
+            </AlertDialogTitle>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Chọn nhà cung cấp, loại thiết bị và xác nhận nhập hàng
             </p>
-            {/* <div className="mt-2 flex items-center gap-2">
-              <Badge color="emerald">
-                <CheckCircle2 className="w-3 h-3 mr-1" />
-                Target Q3 đạt 92%
-              </Badge>
-              <Badge color="indigo">Realtime</Badge>
-            </div> */}
+          </AlertDialogHeader>
+
+          {/* Body hiển thị nội dung import */}
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <EquipmentImportPage />
           </div>
 
-          {/* Tab pills */}
-          <div className="flex items-center flex-wrap gap-2">
-            <TabPill
-              icon={<LayoutGrid className="w-4 h-4" />}
-              active={tab === "overview"}
-              onClick={() => setTab("overview")}
-            >
-              Tổng quan
-            </TabPill>
+          {/* Footer */}
+          <AlertDialogFooter className="flex-shrink-0 sticky bottom-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-t px-6 py-4 flex justify-end gap-3">
+            <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
+              Đóng
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  </div>
+</motion.div>
 
-            {/* 🚫 Ẩn tab Biểu đồ và Bảo trì với technician + operator */}
-            {!isTechnician && !isOperator && (
-              <>
-                <TabPill
-                  icon={<BarChart2 className="w-4 h-4" />}
-                  active={tab === "charts"}
-                  onClick={() => setTab("charts")}
-                >
-                  Biểu đồ
-                </TabPill>
-
-                <TabPill
-                  icon={<Wrench className="w-4 h-4" />}
-                  active={tab === "maintenance"}
-                  onClick={() => setTab("maintenance")}
-                >
-                  Bảo trì
-                </TabPill>
-              </>
-            )}
-          </div>
-
-          {/* Actions + Notifications */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center rounded-xl bg-white/80 dark:bg-white/10 border border-white/30 px-2 py-1 backdrop-blur">
-              <button
-                onClick={() => setRange("month")}
-                className={`px-3 py-1 text-sm rounded-lg ${
-                  range === "month"
-                    ? "bg-emerald-500 text-white"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/5"
-                }`}
-              >
-                Tháng
-              </button>
-              <button
-                onClick={() => setRange("quarter")}
-                className={`px-3 py-1 text-sm rounded-lg ${
-                  range === "quarter"
-                    ? "bg-emerald-500 text-white"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/5"
-                }`}
-              >
-                Quý
-              </button>
-              <button
-                onClick={() => setRange("year")}
-                className={`px-3 py-1 text-sm rounded-lg ${
-                  range === "year"
-                    ? "bg-emerald-500 text-white"
-                    : "text-gray-700 dark:text-gray-300 hover:bg-white/60 dark:hover:bg-white/5"
-                }`}
-              >
-                Năm
-              </button>
-            </div>
-            {/* 🏢 Lọc theo chi nhánh (chỉ super-admin mới thấy) */}
-            {isSuperAdmin && (
-              <Select
-                onValueChange={(v) => setActiveBranch(v)}
-                defaultValue="all"
-              >
-                <SelectTrigger className="h-9 w-44 text-sm bg-white/70 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 shadow-sm">
-                  <SelectValue placeholder="Chi nhánh" />
-                </SelectTrigger>
-                <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md">
-                  <SelectItem value="all" className="text-sm">
-                    Tất cả chi nhánh
-                  </SelectItem>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id} className="text-sm">
-                      {b.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Button
-              onClick={() => setOpenImport(true)}
-              className="flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium rounded-lg shadow hover:opacity-90 hover:-translate-y-[1px] transition-all"
-            >
-              📥 Nhập thiết bị
-            </Button>
-            <Button className="bg-sky-600 hover:bg-sky-700 text-white flex items-center gap-2">
-              <FileBarChart2 size={16} /> Xuất báo cáo
-            </Button>
-            <AlertDialog open={openImport} onOpenChange={setOpenImport}>
-              <AlertDialogContent
-                className="
-      !max-w-none w-[85vw] max-w-[1200px] h-[90vh]
-      overflow-hidden flex flex-col
-      bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700
-      rounded-2xl shadow-2xl p-0 focus:outline-none
-    "
-              >
-                {/* Header cố định */}
-                <AlertDialogHeader className="flex-shrink-0 sticky top-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b px-6 py-4">
-                  <AlertDialogTitle className="text-emerald-600 text-xl font-bold">
-                    Nhập thiết bị vào kho
-                  </AlertDialogTitle>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">
-                    Chọn nhà cung cấp, loại thiết bị và xác nhận nhập hàng
-                  </p>
-                </AlertDialogHeader>
-
-                {/* Body hiển thị nội dung import */}
-                <div className="flex-1 overflow-y-auto px-6 py-4">
-                  <EquipmentImportPage />
-                </div>
-
-                {/* Footer */}
-                <AlertDialogFooter className="flex-shrink-0 sticky bottom-0 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur border-t px-6 py-4 flex justify-end gap-3">
-                  <AlertDialogCancel className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700">
-                    Đóng
-                  </AlertDialogCancel>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </div>
-      </motion.div>
 
       {/* WARNING BANNER */}
       {!isOperator && urgentCount > 0 && (
