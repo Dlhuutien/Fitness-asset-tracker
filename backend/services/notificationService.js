@@ -5,6 +5,7 @@ const equipmentRepository = require("../repositories/equipmentRepository");
 const branchRepository = require("../repositories/branchRepository");
 const userRepository = require("../repositories/userRepository");
 const { buildHeader, buildFooter } = require("../utils/emailTemplate");
+const { formatFrequencyLabel } = require("../utils/frequencyParser");
 
 const notificationService = {
   // =========================
@@ -571,6 +572,113 @@ Người phê duyệt: ${approverName}, Người nhận: ${receiverName}
       created_by: disposal.user_id,
     });
   },
+
+/**
+ * Nhắc lịch bảo trì định kỳ (theo dòng thiết bị)
+ * @param {Object} payload
+ * @param {string} payload.equipment_id   - ID dòng thiết bị
+ * @param {string} [payload.equipment_name] - Tên dòng thiết bị (nếu có)
+ * @param {string} [payload.next_maintenance_date] - Ngày bảo trì kế tiếp (ISO, optional)
+ * @param {string} [payload.frequency] - Tần suất (vd: "3_days", "1_week", "monthly")
+ * @param {Array<{id:string}>} [payload.units] - Danh sách unit để liệt kê (optional)
+ * @param {Array} admins - danh sách user { email, roles, sub } sẽ nhận mail
+ */
+async notifyMaintenanceReminder(payload, admins) {
+  const {
+    equipment_id,
+    equipment_name,
+    next_maintenance_date,
+    frequency,
+    units = [],
+  } = payload || {};
+
+  const recipients = (admins || []).map((u) => u.email).filter(Boolean);
+  if (!recipients.length) return;
+
+  const titleText = "Nhắc lịch bảo trì định kỳ";
+  const equipName = equipment_name || equipment_id || "Dòng thiết bị";
+  const nextDateText = next_maintenance_date
+    ? new Date(next_maintenance_date).toLocaleString("vi-VN")
+    : null;
+
+  // 🧠 Lấy label tần suất (ví dụ: "3 ngày/lần", "Hàng tuần", ...)
+  const freqText = formatFrequencyLabel(frequency);
+
+  // Bảng liệt kê nhanh (nếu có unit)
+  let itemsHtml = "";
+  if (Array.isArray(units) && units.length) {
+    const limited = units.slice(0, 10); // show tối đa 10 cái cho gọn mail
+    for (const u of limited) {
+      itemsHtml += `
+        <tr>
+          <td style="border:1px solid #ddd; padding:8px;">${u.id}</td>
+        </tr>`;
+    }
+  }
+
+  // 🧩 Tạo nội dung email
+  const subject = `${titleText} – ${equipName}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto; border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+      ${buildHeader(titleText)}
+      <div style="padding:20px; color:#000;">
+        <p style="color:#000;">Đã đến hạn kiểm tra định kỳ cho <b>${equipName}</b>.</p>
+        <p style="color:#000;"><b>Thời gian định kỳ:</b> ${freqText}</p>
+        ${
+          nextDateText
+            ? `<p style="color:#000;"><b>Thời điểm dự kiến:</b> ${nextDateText}</p>`
+            : ""
+        }
+        ${
+          itemsHtml
+            ? `<div style="overflow-x:auto; margin-top:10px;">
+                 <table style="border-collapse:collapse; width:100%; min-width:300px;">
+                   <thead>
+                     <tr>
+                       <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5; text-align:left;">Mã định danh thiết bị (Unit)</th>
+                     </tr>
+                   </thead>
+                   <tbody>${itemsHtml}</tbody>
+                 </table>
+                 ${
+                   units.length > 10
+                     ? `<p style="margin-top:8px; color:#555;">… và ${
+                         units.length - 10
+                       } thiết bị khác</p>`
+                     : ""
+                 }
+               </div>`
+            : ""
+        }
+        <p style="color:#000; margin-top:16px;">
+          Vui lòng vào hệ thống để <b>xem & lên lịch từng thiết bị</b>, sau đó xác nhận để gửi tới kỹ thuật viên.
+        </p>
+      </div>
+      ${buildFooter()}
+    </div>
+  `;
+
+  // 📧 Gửi mail
+  await sendNoReplyEmail(recipients, subject, html);
+
+  // 💾 Lưu notification vào DB (UI hiển thị)
+  const receiverRoles = [...new Set((admins || []).flatMap((u) => u.roles || []))];
+  const receiverIds = (admins || []).map((u) => u.sub).filter(Boolean);
+
+  return await notificationRepository.create({
+    type: "maintenance",
+    title: titleText,
+    message:
+      `Đã đến hạn kiểm tra định kỳ cho ${equipName}` +
+      (freqText ? ` (${freqText})` : "") +
+      (nextDateText ? ` – Dự kiến: ${nextDateText}` : ""),
+    equipment_id,
+    receiver_role: receiverRoles,
+    receiver_id: receiverIds,
+    created_by: null, // hệ thống
+  });
+},
+
 
   getNotifications: async () => {
     return await notificationRepository.findAll();
