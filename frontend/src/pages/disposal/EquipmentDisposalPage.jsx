@@ -143,7 +143,7 @@ export default function EquipmentDisposalPage() {
       const matchSearch =
         !q ||
         u.equipment?.name?.toLowerCase().includes(q) ||
-        u.equipment?.vendor_name?.toLowerCase().includes(q) ||
+        u.vendor_name?.toLowerCase().includes(q) ||
         u.equipment?.type_name?.toLowerCase().includes(q);
       const matchBranch = !activeBranch || u.branch_id === activeBranch;
       return matchSearch && matchBranch;
@@ -159,7 +159,7 @@ export default function EquipmentDisposalPage() {
       name: getUniqueValues(filtered, (e) => e.equipment?.name),
       main_name: getUniqueValues(filtered, (e) => e.equipment?.main_name),
       type_name: getUniqueValues(filtered, (e) => e.equipment?.type_name),
-      vendor_name: getUniqueValues(filtered, (e) => e.equipment?.vendor_name),
+      vendor_name: getUniqueValues(filtered, (e) => e.vendor_name),
       branch_id: getUniqueValues(filtered, (e) => e.branch_id),
       status: getUniqueValues(
         filtered,
@@ -190,7 +190,7 @@ export default function EquipmentDisposalPage() {
             v = e.equipment?.type_name;
             break;
           case "vendor_name":
-            v = e.equipment?.vendor_name;
+            v = e.vendor_name;
             break;
           case "branch_id":
             v = e.branch_id;
@@ -474,7 +474,7 @@ export default function EquipmentDisposalPage() {
                     />
                   </TableCell>
                   <TableCell>{item.branch_id}</TableCell>
-                  <TableCell className="text-right font-medium text-gray-700 dark:text-gray-200">
+                  <TableCell className="font-medium text-gray-700 dark:text-gray-200">
                     {item.cost?.toLocaleString("vi-VN") || "—"}
                   </TableCell>
                   <TableCell>
@@ -721,7 +721,7 @@ export default function EquipmentDisposalPage() {
                       </TableCell>
                     )}
                     {visibleColumns.vendor_name && (
-                      <TableCell>{row.equipment?.vendor_name}</TableCell>
+                      <TableCell>{row.vendor_name}</TableCell>
                     )}
                     {visibleColumns.branch_id && (
                       <TableCell>{row.branch_id}</TableCell>

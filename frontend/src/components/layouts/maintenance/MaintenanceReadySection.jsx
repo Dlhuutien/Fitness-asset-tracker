@@ -123,7 +123,7 @@ export default function MaintenanceReadySection() {
       const matchSearch =
         !q ||
         u.equipment?.name?.toLowerCase().includes(q) ||
-        u.equipment?.vendor_name?.toLowerCase().includes(q) ||
+        u.vendor_name?.toLowerCase().includes(q) ||
         u.equipment?.type_name?.toLowerCase().includes(q);
 
       const matchGroup =
@@ -146,7 +146,7 @@ export default function MaintenanceReadySection() {
       name: getUniqueValues(equipments, (e) => e.equipment?.name),
       main_name: getUniqueValues(equipments, (e) => e.equipment?.main_name),
       type_name: getUniqueValues(equipments, (e) => e.equipment?.type_name),
-      vendor_name: getUniqueValues(equipments, (e) => e.equipment?.vendor_name),
+      vendor_name: getUniqueValues(equipments, (e) => e.vendor_name),
       branch_id: getUniqueValues(equipments, (e) => e.branch_id),
       status: getUniqueValues(
         equipments,
@@ -175,7 +175,7 @@ export default function MaintenanceReadySection() {
             val = e.equipment?.type_name;
             break;
           case "vendor_name":
-            val = e.equipment?.vendor_name;
+            val = e.vendor_name;
             break;
           case "branch_id":
             val = e.branch_id;
@@ -516,7 +516,7 @@ export default function MaintenanceReadySection() {
                         </TableCell>
                       )}
                       {visibleColumns.vendor_name && (
-                        <TableCell>{row.equipment?.vendor_name}</TableCell>
+                        <TableCell>{row.vendor_name}</TableCell>
                       )}
                       {visibleColumns.branch_id && (
                         <TableCell>{row.branch_id}</TableCell>
@@ -575,7 +575,7 @@ export default function MaintenanceReadySection() {
         {selected && (
           <div
             className={`flex flex-col gap-6 border-t-4 rounded-xl shadow bg-white dark:bg-[#1e1e1e] p-6 transition-colors ${
-              selected.status === "ready"
+              selected.status === "Ready"
                 ? "border-green-500"
                 : "border-rose-500"
             }`}
@@ -595,7 +595,7 @@ export default function MaintenanceReadySection() {
                   </p>
                   <p>
                     <strong>Nhà cung cấp:</strong>{" "}
-                    {selected.equipment?.vendor_name}
+                    {selected.vendor_name}
                   </p>
                   <p>
                     <strong>Chi nhánh:</strong> {selected.branch_id}

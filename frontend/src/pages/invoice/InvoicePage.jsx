@@ -10,13 +10,13 @@ export default function InvoicePage() {
 
   return (
     <PageContainer>
-      <h1 className="text-xl font-bold mb-2">Danh sách hóa đơn</h1>
+      <h1 className="text-xl font-bold mb-2">Danh sách phiếu & hóa đơn</h1>
 
       {/* Tabs */}
       <div className="flex gap-4 border-b pb-2 dark:border-gray-700">
         {[
-          { key: "import", label: "📦 Hóa đơn nhập" },
-          { key: "maintenance", label: "🧰 Hóa đơn bảo trì" },
+          { key: "import", label: "📦 Phiếu đơn nhập" },
+          { key: "maintenance", label: "🧰Phiếu bảo trì" },
           { key: "disposal", label: "♻️ Hóa đơn thanh lý" },
         ].map((t) => (
           <button
