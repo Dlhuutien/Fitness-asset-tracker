@@ -3,7 +3,9 @@ const equipmentUnitRepository = require("../repositories/equipmentUnitRepository
 const branchRepository = require("../repositories/branchRepository");
 const userService = require("./userService");
 const notificationService = require("./notificationService");
-const maintenanceService = require("./maintenanceService");
+const equipmentRepository = require("../repositories/equipmentRepository");
+const vendorRepository = require("../repositories/vendorRepository");
+
 const {
   SchedulerClient,
   CreateScheduleCommand,
@@ -53,6 +55,59 @@ async function createOneTimeSchedule({ scheduleName, runAtIsoUtc, payload }) {
     console.error("❌ Failed to create schedule:", err);
     throw err;
   }
+}
+
+/**
+ * Lấy thêm thông tin cho 1 yêu cầu bảo trì
+ */
+async function enrichRequestData(request) {
+  if (!request || !request.equipment_unit_id) return request;
+
+  let unitIds = [];
+  try {
+    unitIds = Array.isArray(request.equipment_unit_id)
+      ? request.equipment_unit_id
+      : JSON.parse(request.equipment_unit_id || "[]");
+  } catch {
+    unitIds = [request.equipment_unit_id];
+  }
+
+  // ⚡ Lấy tất cả unit liên quan
+  const units = await equipmentUnitRepository.batchFindByIds(unitIds);
+  if (!units?.length) return { ...request, units: [] };
+
+  // Gom các ID cần join
+  const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
+  const vendorIds = [...new Set(units.map((u) => u.vendor_id).filter(Boolean))];
+  const branchIds = [...new Set(units.map((u) => u.branch_id))];
+
+  // Lấy toàn bộ thông tin join
+  const [equipments, vendors, branches] = await Promise.all([
+    equipmentRepository.batchFindByIds(equipmentIds),
+    Promise.all(vendorIds.map((id) => vendorRepository.findById(id))),
+    Promise.all(branchIds.map((id) => branchRepository.findById(id))),
+  ]);
+
+  const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+  const vendorMap = Object.fromEntries(
+    vendorIds.map((id, i) => [id, vendors[i]])
+  );
+  const branchMap = Object.fromEntries(
+    branchIds.map((id, i) => [id, branches[i]])
+  );
+
+  // Gộp chi tiết thiết bị vào từng unit
+  const enrichedUnits = units.map((u) => ({
+    ...u,
+    equipment_name: equipmentMap[u.equipment_id]?.name || null,
+    vendor_name: vendorMap[u.vendor_id]?.name || null,
+    branch_name: branchMap[u.branch_id]?.name || null,
+  }));
+
+  return {
+    ...request,
+    units: enrichedUnits,
+  };
 }
 
 const maintenanceRequestService = {
@@ -277,19 +332,24 @@ const maintenanceRequestService = {
   },
 
   getAll: async (branchFilter = null) => {
-    if (branchFilter)
-      return maintenanceRequestRepository.findByBranchId(branchFilter);
-    return maintenanceRequestRepository.findAll();
+    const list = branchFilter
+      ? await maintenanceRequestRepository.findByBranchId(branchFilter)
+      : await maintenanceRequestRepository.findAll();
+
+    if (!list?.length) return [];
+    return await Promise.all(list.map((r) => enrichRequestData(r)));
   },
 
   getById: async (id) => {
     const item = await maintenanceRequestRepository.findById(id);
     if (!item) throw new Error("Maintenance request not found");
-    return item;
+    return await enrichRequestData(item);
   },
 
   getByUnitId: async (unitId) => {
-    return maintenanceRequestRepository.findByUnitId(unitId);
+    const list = await maintenanceRequestRepository.findByUnitId(unitId);
+    if (!list?.length) return [];
+    return await Promise.all(list.map((r) => enrichRequestData(r)));
   },
 };
 module.exports = maintenanceRequestService;
