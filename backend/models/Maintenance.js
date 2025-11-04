@@ -22,6 +22,7 @@ const MaintenanceModel = {
       assigned_by: data.assigned_by,
       maintenance_reason: data.maintenance_reason,
       maintenance_detail: data.maintenance_detail || null,
+      maintenance_request_id: data.maintenance_request_id || null,
       start_date: new Date().toISOString(),
       end_date: null,
       warranty: data.warranty,
@@ -34,24 +35,6 @@ const MaintenanceModel = {
       })
     );
 
-    return item;
-  },
-
-  // 🕒 Tạo bảo trì được lên lịch (chỉ có scheduled_at)
-  createScheduledMaintenance: async (data) => {
-    const item = {
-      id: uuidv4(),
-      equipment_unit_id: data.equipment_unit_id,
-      branch_id: data.branch_id,
-      assigned_by: data.assigned_by,
-      maintenance_reason: data.maintenance_reason,
-      maintenance_detail: data.maintenance_detail || null,
-      scheduled_at: data.scheduled_at, // ✅ chỉ lưu thời gian
-      end_date: null,
-      warranty: data.warranty,
-    };
-
-    await dynamodb.send(new PutCommand({ TableName: tableName, Item: item }));
     return item;
   },
 

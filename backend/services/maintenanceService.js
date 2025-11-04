@@ -4,58 +4,6 @@ const equipmentUnitRepository = require("../repositories/equipmentUnitRepository
 const equipmentRepository = require("../repositories/equipmentRepository");
 const branchRepository = require("../repositories/branchRepository");
 const userRepository = require("../repositories/userRepository");
-const {
-  SchedulerClient,
-  CreateScheduleCommand,
-  DeleteScheduleCommand,
-} = require("@aws-sdk/client-scheduler");
-// 🧠 Thêm AWS scheduler helper ngay dưới phần import
-const scheduler = new SchedulerClient({ region: process.env.AWS_REGION });
-
-async function createOneTimeSchedule({ scheduleName, runAtIsoUtc, payload }) {
-  // 🧠 Nếu FE gửi giờ local (VD: "2025-10-31T11:35:00"), ta convert về UTC
-  let localTime = new Date(runAtIsoUtc);
-  // Convert sang UTC bằng cách trừ 7 tiếng (Asia/Bangkok = UTC+7)
-  const utcTime = new Date(localTime.getTime() - 7 * 60 * 60 * 1000);
-
-  // 🔹 Nếu thời gian đã qua thì cộng thêm 1 phút để tránh lỗi AWS
-  const now = new Date();
-  if (utcTime <= now) {
-    utcTime.setMinutes(utcTime.getMinutes() + 1);
-  }
-
-  // 🔹 Format cho Scheduler (UTC không có 'Z')
-  const finalTime = utcTime
-    .toISOString()
-    .replace(/\.\d{3}Z$/, "")
-    .replace("Z", "");
-
-  const input = {
-    Name: scheduleName,
-    ScheduleExpression: `at(${finalTime})`,
-    ScheduleExpressionTimezone: "Asia/Bangkok", // Giữ timezone hiển thị theo VN
-    FlexibleTimeWindow: { Mode: "OFF" },
-    Target: {
-      Arn: process.env.TARGET_LAMBDA_ARN,
-      RoleArn: process.env.SCHEDULER_ROLE_ARN,
-      Input: JSON.stringify(payload),
-    },
-  };
-
-  try {
-    const command = new CreateScheduleCommand(input);
-    const result = await scheduler.send(command);
-    console.log("✅ Created schedule:", input.ScheduleExpression, "(UTC)");
-    console.log(
-      "🕒 Will run at (VN):",
-      localTime.toLocaleString("vi-VN", { timeZone: "Asia/Bangkok" })
-    );
-    return result;
-  } catch (err) {
-    console.error("❌ Failed to create schedule:", err);
-    throw err;
-  }
-}
 
 const maintenanceService = {
   createMaintenance: async (data, role) => {
@@ -108,6 +56,7 @@ const maintenanceService = {
       ...data,
       branch_id,
       warranty,
+      maintenance_request_id: data.maintenance_request_id || null,
     });
 
     // Luôn update status Unit = Temporary Urgent
@@ -116,52 +65,6 @@ const maintenanceService = {
     });
 
     return m;
-  },
-
-  // =======================================================
-  // 🕒 Lên lịch bảo trì (chỉ lưu scheduled_at, không đổi status Unit)
-  // =======================================================
-  scheduleMaintenance: async (data, role) => {
-    const unit = await equipmentUnitRepository.findById(data.equipment_unit_id);
-    if (!unit)
-      throw new Error(`Equipment unit ${data.equipment_unit_id} not found`);
-
-    const branch_id = unit.branch_id;
-    const branch = await branchRepository.findById(branch_id);
-    if (!branch) throw new Error(`Branch ${branch_id} not found`);
-
-    let warranty = false;
-    if (unit.warranty_end_date) {
-      const now = new Date();
-      warranty = new Date(unit.warranty_end_date) >= now;
-    }
-
-    // 🧩 Tạo record trong bảng Maintenance có scheduled_at
-    const maintenance = await maintenanceRepository.createScheduled({
-      ...data,
-      branch_id,
-      warranty,
-    });
-
-    // ⏰ Gọi AWS Scheduler để hẹn chạy Lambda tự động
-    if (data.scheduled_at) {
-      const scheduleName = `maint-${maintenance.id}`;
-      const runAtIsoUtc = new Date(data.scheduled_at).toISOString();
-
-      await createOneTimeSchedule({
-        scheduleName,
-        runAtIsoUtc,
-        payload: {
-          type: "AUTO_MAINTENANCE",
-          maintenance_id: maintenance.id,
-          equipment_unit_id: maintenance.equipment_unit_id,
-        },
-      });
-
-      console.log("📅 Lịch bảo trì tự động đã được tạo:", runAtIsoUtc);
-    }
-
-    return maintenance;
   },
 
   progressMaintenance: async (id, data) => {
