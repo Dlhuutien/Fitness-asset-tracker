@@ -22,6 +22,7 @@ const equipmentUnitRoutes = require('./routes/equipmentUnitRoutes');
 
 const maintenanceRoutes = require('./routes/maintenanceRoutes');
 const maintenancePlanRoutes = require("./routes/maintenancePlanRoutes");
+const maintenanceRequestRoutes = require("./routes/maintenanceRequestRoutes");
 
 const equipmentTransferRoutes = require("./routes/equipmentTransferRoutes");
 const equipmentTransferHistoryRoutes = require("./routes/equipmentTransferHistoryRoutes");
@@ -60,6 +61,7 @@ app.use("/equipmentUnit", equipmentUnitRoutes);
 
 app.use("/maintenance", maintenanceRoutes);
 app.use("/maintenance-plan", maintenancePlanRoutes);
+app.use("/maintenance-requests", maintenanceRequestRoutes);
 
 app.use("/equipmentTransfer", equipmentTransferRoutes);
 app.use("/equipment-transfer-history", equipmentTransferHistoryRoutes);

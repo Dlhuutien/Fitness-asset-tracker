@@ -6,6 +6,7 @@ const equipmentUnitRepository = require("./repositories/equipmentUnitRepository"
 const maintenanceRepository = require("./repositories/maintenanceRepository");
 const equipmentRepository = require("./repositories/equipmentRepository");
 const maintenancePlanRepository = require("./repositories/maintenancePlanRepository");
+const maintenanceRequestRepository = require("./repositories/maintenanceRequestRepository");
 
 // 🧠 Services
 const { advanceAndReschedule } = require("./services/maintenancePlanService");
@@ -31,8 +32,8 @@ module.exports.handler = async (event, context) => {
     // 🧠 1️⃣ Nhận diện event từ EventBridge Scheduler
     const isSchedulerEvent =
       event?.source === "aws.scheduler" ||
-      event?.type === "AUTO_MAINTENANCE" ||
-      event?.type === "REMINDER_MAINTENANCE" ||
+      event?.type === "AUTO_MAINTENANCE_FROM_REQUEST";
+    event?.type === "REMINDER_MAINTENANCE" ||
       event?.Input ||
       (typeof event === "object" &&
         !event.version &&
@@ -51,35 +52,104 @@ module.exports.handler = async (event, context) => {
 
       console.log("📦 Parsed Payload:", data);
 
-      // ⚙️ 2️⃣ Xử lý AUTO_MAINTENANCE
-      if (data?.type === "AUTO_MAINTENANCE") {
+      // ⚙️ Xử lý AUTO_MAINTENANCE_FROM_REQUEST (tạo Maintenance thật từ Request)
+      if (data?.type === "AUTO_MAINTENANCE_FROM_REQUEST") {
         console.log(
-          `🛠️ Auto maintenance started for equipment unit: ${data.equipment_unit_id}`
+          "🕒 [FitXGym] Trigger AUTO_MAINTENANCE_FROM_REQUEST:",
+          data
         );
 
-        // 🔹 Cập nhật trạng thái thiết bị
-        await equipmentUnitRepository.update(data.equipment_unit_id, {
-          status: "In Progress",
+        const request = await maintenanceRequestRepository.findById(
+          data.request_id
+        );
+        if (!request) {
+          console.error("❌ Maintenance request not found:", data.request_id);
+          return {
+            statusCode: 404,
+            body: JSON.stringify({ error: "Maintenance request not found" }),
+          };
+        }
+
+        // ✅ Parse mảng thiết bị (do lưu JSON string)
+        let unitIds = [];
+        try {
+          unitIds = Array.isArray(request.equipment_unit_id)
+            ? request.equipment_unit_id
+            : JSON.parse(request.equipment_unit_id || "[]");
+        } catch {
+          unitIds = [request.equipment_unit_id];
+        }
+
+        console.log("🧩 Creating maintenance for units:", unitIds);
+
+        // ✅ Tạo Maintenance thật cho từng thiết bị
+        const createdMaintenances = [];
+        for (const uid of unitIds) {
+          const newItem = await maintenanceRepository.create({
+            equipment_unit_id: uid,
+            branch_id: request.branch_id,
+            user_id: request.confirmed_by,
+            assigned_by: request.assigned_by,
+            maintenance_reason: request.maintenance_reason,
+            maintenance_request_id: request.id,
+            start_date: new Date().toISOString(),
+          });
+
+          // Update trạng thái thiết bị
+          await equipmentUnitRepository.update(uid, { status: "In Progress" });
+
+          createdMaintenances.push(newItem);
+        }
+
+        // ✅ Cập nhật lại request thành "executed"
+        await maintenanceRequestRepository.update(request.id, {
+          status: "executed",
+          converted_maintenance_id: createdMaintenances.map((m) => m.id),
         });
 
-        // 🔹 Ghi start_date vào record maintenance tương ứng
-        await maintenanceRepository.update(data.maintenance_id, {
-          start_date: new Date().toISOString(),
-        });
+        // ✅ Gửi thông báo
+        try {
+          const admins = await userService.getUsersByRoles([
+            "admin",
+            "super-admin",
+          ]);
+          const technicians = await userService.getUsersByRoles(["technician"]);
+
+          const allRecipients = [
+            ...admins,
+            ...technicians.filter((t) => !admins.some((a) => a.sub === t.sub)),
+          ];
+
+          // 🟢 Thông báo thêm rằng thiết bị đã chuyển sang trạng thái bảo trì
+          await notificationService.notifyMaintenanceRequestStarted(
+            {
+              ...request,
+              message: `Các thiết bị trong yêu cầu này đã chuyển sang trạng thái bảo trì.`,
+            },
+            allRecipients,
+            request.confirmed_by
+          );
+        } catch (e) {
+          console.warn(
+            "⚠️ notify AUTO_MAINTENANCE_FROM_REQUEST failed:",
+            e?.message
+          );
+        }
 
         console.log(
-          `✅ Equipment ${data.equipment_unit_id} set to 'in progress'`
+          `✅ AUTO_MAINTENANCE_FROM_REQUEST completed: ${createdMaintenances.length} items created`
         );
         return {
           statusCode: 200,
           body: JSON.stringify({
             success: true,
-            message: "Maintenance auto-started successfully",
+            created_count: createdMaintenances.length,
+            request_id: request.id,
           }),
         };
       }
 
-      // ⚙️ 3️⃣ Xử lý REMINDER_MAINTENANCE
+      // ⚙️ Xử lý REMINDER_MAINTENANCE
       if (data?.type === "REMINDER_MAINTENANCE") {
         console.log("🔔 Reminder maintenance event received:", data);
 
@@ -95,7 +165,7 @@ module.exports.handler = async (event, context) => {
             equipment_id: data.equipment_id,
             equipment_name: equipment?.name,
             next_maintenance_date: data.next_maintenance_date,
-            frequency: data.frequency, 
+            frequency: data.frequency,
           },
           admins
         );
