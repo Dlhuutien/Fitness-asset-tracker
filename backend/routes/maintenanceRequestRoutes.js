@@ -16,6 +16,13 @@ router.post(
   maintenanceRequestController.create
 );
 
+router.put(
+  "/:id",
+  verifyAccessToken,
+  requireRole("admin", "super-admin"),
+  maintenanceRequestController.update
+);
+
 // Technician xác nhận nhận việc (lock 1 người) → tạo Maintenance + Scheduler
 router.put(
   "/:id/confirm",

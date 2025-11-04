@@ -141,13 +141,14 @@ const MaintenanceRequestModel = {
 
   update: async (id, data) => {
     const ALLOWED = new Set([
+      "equipment_unit_id",
       "scheduled_at",
       "maintenance_reason",
       "candidate_tech_ids",
       "confirmed_by",
       "status",
       "converted_maintenance_id",
-      "auto_start_schedule_arn", 
+      "auto_start_schedule_arn",
     ]);
 
     const safe = {};
@@ -166,10 +167,15 @@ const MaintenanceRequestModel = {
     const values = {};
 
     for (const [k, v] of Object.entries(safe)) {
+      let value = v;
+      if (k === "equipment_unit_id" && Array.isArray(v)) {
+        value = JSON.stringify(v);
+      }
       exp.push(`#${k} = :${k}`);
       names[`#${k}`] = k;
-      values[`:${k}`] = v;
+      values[`:${k}`] = value;
     }
+
     exp.push("#updated_at = :_u");
     names["#updated_at"] = "updated_at";
     values[":_u"] = new Date().toISOString();

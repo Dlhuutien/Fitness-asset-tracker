@@ -988,6 +988,187 @@ Người phê duyệt: ${approverName}, Người nhận: ${receiverName}
     });
   },
 
+  /**
+   * Gửi thông báo khi admin chỉnh sửa yêu cầu bảo trì
+   */
+  async notifyMaintenanceRequestUpdated(request, recipients, updatedBy) {
+    const updater = updatedBy && (await userRepository.getUserBySub(updatedBy));
+    const updaterName =
+      updater?.attributes?.name || updater?.username || "Người dùng";
+
+    const scheduledAt = request.scheduled_at
+      ? new Date(request.scheduled_at).toLocaleString("vi-VN")
+      : "Chưa có";
+    const reason = request.maintenance_reason || "Không ghi rõ";
+
+    // 🏢 Lấy chi nhánh
+    const branch = await branchRepository.findById(request.branch_id);
+    const branchName = branch?.name || "Không xác định";
+
+    // ✅ Parse danh sách thiết bị (vì có thể là JSON string)
+    let unitIds = [];
+    try {
+      unitIds = Array.isArray(request.equipment_unit_id)
+        ? request.equipment_unit_id
+        : JSON.parse(request.equipment_unit_id || "[]");
+    } catch {
+      unitIds = [request.equipment_unit_id];
+    }
+
+    // 📋 Tạo bảng HTML danh sách thiết bị
+    let itemsHtml = "";
+    for (const uid of unitIds) {
+      const unit = await equipmentUnitRepository.findById(uid);
+      const eq =
+        unit?.equipment_id &&
+        (await equipmentRepository.findById(unit.equipment_id));
+
+      itemsHtml += `
+    <tr>
+      <td style="border:1px solid #ddd; padding:8px;">${
+        eq?.name || "Thiết bị"
+      }</td>
+      <td style="border:1px solid #ddd; padding:8px;">${unit?.id || "-"}</td>
+      <td style="border:1px solid #ddd; padding:8px;">${branchName}</td>
+      <td style="border:1px solid #ddd; padding:8px;">${scheduledAt}</td>
+    </tr>`;
+    }
+
+    const subject = "Yêu cầu bảo trì đã được cập nhật";
+    const html = `
+  <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
+              border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+    ${buildHeader("Cập nhật yêu cầu bảo trì")}
+    <div style="padding:20px; color:#000;">
+      <p><b>${updaterName}</b> vừa chỉnh sửa yêu cầu bảo trì.</p>
+      <p><b>Nội dung cập nhật:</b> ${reason}</p>
+      <p><b>Thời gian dự kiến:</b> ${scheduledAt}</p>
+
+      <div style="overflow-x:auto; margin-top:10px;">
+        <table style="border-collapse:collapse; width:100%; min-width:500px;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã định danh</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Chi nhánh</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thời gian dự kiến</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+      </div>
+
+      <p style="color:#008080; margin-top:12px;">
+        Vui lòng kiểm tra lại thông tin yêu cầu trong hệ thống.
+      </p>
+    </div>
+    ${buildFooter()}
+  </div>`;
+
+    // 📧 Gửi mail
+    const emails = recipients.map((r) => r.email).filter(Boolean);
+    if (emails.length) await sendNoReplyEmail(emails, subject, html);
+
+    // 💾 Ghi Notification DB
+    return await notificationRepository.create({
+      type: "maintenance",
+      title: "Yêu cầu bảo trì đã được cập nhật",
+      message: `Yêu cầu bảo trì ${request.id} đã được chỉnh sửa (thời gian: ${scheduledAt}, nội dung: ${reason})`,
+      maintenance_request_id: request.id,
+      receiver_id: recipients.map((u) => u.sub),
+      receiver_role: [...new Set(recipients.flatMap((u) => u.roles || []))],
+      created_by: updatedBy,
+    });
+  },
+
+  /**
+   * Gửi thông báo khi một yêu cầu bảo trì bị hủy
+   */
+  async notifyMaintenanceRequestCancelled(request, recipients, cancelledBy) {
+    const canceller =
+      cancelledBy && (await userRepository.getUserBySub(cancelledBy));
+    const cancellerName =
+      canceller?.attributes?.name || canceller?.username || "Người dùng";
+
+    const branch = await branchRepository.findById(request.branch_id);
+    const branchName = branch?.name || "Không xác định";
+
+    const reason = request.maintenance_reason || "Không ghi rõ";
+
+    // ✅ Parse danh sách thiết bị (vì có thể là JSON string)
+    let unitIds = [];
+    try {
+      unitIds = Array.isArray(request.equipment_unit_id)
+        ? request.equipment_unit_id
+        : JSON.parse(request.equipment_unit_id || "[]");
+    } catch {
+      unitIds = [request.equipment_unit_id];
+    }
+
+    // 📋 Bảng thiết bị
+    let itemsHtml = "";
+    for (const uid of unitIds) {
+      const unit = await equipmentUnitRepository.findById(uid);
+      const eq =
+        unit?.equipment_id &&
+        (await equipmentRepository.findById(unit.equipment_id));
+
+      itemsHtml += `
+    <tr>
+      <td style="border:1px solid #ddd; padding:8px;">${
+        eq?.name || "Thiết bị"
+      }</td>
+      <td style="border:1px solid #ddd; padding:8px;">${unit?.id || "-"}</td>
+      <td style="border:1px solid #ddd; padding:8px;">${branchName}</td>
+    </tr>`;
+    }
+
+    const subject = "Yêu cầu bảo trì đã bị hủy";
+    const html = `
+  <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
+              border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+    ${buildHeader("Yêu cầu bảo trì bị hủy")}
+    <div style="padding:20px; color:#000;">
+      <p><b>${cancellerName}</b> vừa hủy một yêu cầu bảo trì.</p>
+      <p><b>Lý do:</b> ${reason}</p>
+      <p><b>Chi nhánh:</b> ${branchName}</p>
+
+      <div style="overflow-x:auto; margin-top:10px;">
+        <table style="border-collapse:collapse; width:100%; min-width:500px;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã định danh</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Chi nhánh</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+      </div>
+
+      <p style="color:#d32f2f; margin-top:12px;">
+        Yêu cầu này đã được đánh dấu là <b>ĐÃ HỦY</b> trong hệ thống.
+      </p>
+    </div>
+    ${buildFooter()}
+  </div>`;
+
+    // 📧 Gửi email
+    const emails = recipients.map((r) => r.email).filter(Boolean);
+    if (emails.length) await sendNoReplyEmail(emails, subject, html);
+
+    // 💾 Ghi Notification
+    return await notificationRepository.create({
+      type: "maintenance",
+      title: "Yêu cầu bảo trì đã bị hủy",
+      message: `Yêu cầu bảo trì ${request.id} đã bị hủy bởi ${cancellerName}.`,
+      maintenance_request_id: request.id,
+      receiver_id: recipients.map((u) => u.sub),
+      receiver_role: [...new Set(recipients.flatMap((u) => u.roles || []))],
+      created_by: cancelledBy,
+    });
+  },
+
   getNotifications: async () => {
     return await notificationRepository.findAll();
   },

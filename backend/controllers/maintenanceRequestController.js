@@ -12,7 +12,7 @@ const maintenanceRequestController = {
       console.error("❌ create maintenance request error:", err);
       res.status(400).json({ error: err.message });
     }
-    },
+  },
 
   confirm: async (req, res) => {
     try {
@@ -25,6 +25,25 @@ const maintenanceRequestController = {
       });
     } catch (err) {
       console.error("❌ confirm request error:", err);
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  update: async (req, res) => {
+    try {
+      const { sub, role } = req.user;
+      const isAdminOrSuperAdmin = ["admin", "super-admin"].includes(role);
+      const { id } = req.params;
+      const data = req.body;
+      const updated = await maintenanceRequestService.updateRequest(
+        id,
+        data,
+        sub,
+        isAdminOrSuperAdmin
+      );
+      res.json({ message: "Request updated successfully", request: updated });
+    } catch (err) {
+      console.error("❌ update request error:", err);
       res.status(400).json({ error: err.message });
     }
   },

@@ -173,6 +173,67 @@ const maintenanceRequestService = {
     return { request: updated };
   },
 
+  // Cập nhật lịch bảo trì đã tạo (chưa tới giờ chạy)
+  updateRequest: async (id, data, userSub, isAdminOrSuperAdmin) => {
+    const reqItem = await maintenanceRequestRepository.findById(id);
+    if (!reqItem) throw new Error("Maintenance request not found");
+    if (reqItem.status !== "pending" && reqItem.status !== "confirmed") {
+      throw new Error("Chỉ được chỉnh sửa khi yêu cầu chưa được thực hiện");
+    }
+
+    // 🧠 Kiểm tra quyền (admin hoặc người tạo)
+    if (!isAdminOrSuperAdmin && reqItem.assigned_by !== userSub) {
+      throw new Error("Bạn không có quyền chỉnh sửa yêu cầu này");
+    }
+
+    // ✅ Nếu có thay đổi thời gian — xóa schedule cũ và tạo mới
+    if (data.scheduled_at && reqItem.auto_start_schedule_arn) {
+      try {
+        const delCmd = new DeleteScheduleCommand({
+          Name: reqItem.auto_start_schedule_arn.split("/").pop(),
+        });
+        await scheduler.send(delCmd);
+        console.log(`🗑️ Deleted old schedule for ${id}`);
+      } catch (e) {
+        console.warn("⚠️ Failed to delete old schedule:", e?.message);
+      }
+    }
+
+    // ✅ Nếu có thời gian mới → tạo lại AWS schedule
+    if (data.scheduled_at) {
+      const scheduleName = `auto-maintenance-${id}`;
+      const result = await createOneTimeSchedule({
+        scheduleName,
+        runAtIsoUtc: data.scheduled_at,
+        payload: {
+          type: "AUTO_MAINTENANCE_FROM_REQUEST",
+          request_id: id,
+        },
+      });
+      data.auto_start_schedule_arn = result.ScheduleArn;
+    }
+
+    // ✅ Cập nhật vào DynamoDB
+    const updated = await maintenanceRequestRepository.update(id, data);
+
+    // ✅ Gửi thông báo
+    try {
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      await notificationService.notifyMaintenanceRequestUpdated(
+        updated,
+        admins,
+        userSub
+      );
+    } catch (e) {
+      console.warn("⚠️ notifyMaintenanceRequestUpdated failed:", e?.message);
+    }
+
+    return updated;
+  },
+
   // Hủy yêu cầu (chỉ khi pending)
   cancelRequest: async (id, userSub, isAdminOrSuperAdmin) => {
     const reqItem = await maintenanceRequestRepository.findById(id);
@@ -197,8 +258,9 @@ const maintenanceRequestService = {
         "admin",
         "super-admin",
       ]);
-      if (notificationService.notifyMaintenanceCompleted) {
-        await notificationService.notifyMaintenanceCompleted(
+
+      if (notificationService.notifyMaintenanceRequestCancelled) {
+        await notificationService.notifyMaintenanceRequestCancelled(
           {
             ...updated,
             message: "Yêu cầu bảo trì đã bị hủy.",
