@@ -137,13 +137,33 @@
     - `PUT /maintenance/:id/complete` — Hoàn tất bảo trì (Ready / Failed)
     - `DELETE /maintenance/:id` — Xóa yêu cầu bảo trì
 
-16. [Equipment Disposal APIs (`/disposal`)](#equipment-disposal-apis-disposal)
+16. [Maintenance Plan APIs (`/maintenance-plan`)](#maintenance-plan-apis-maintenance-plan)
+
+    - `POST /maintenance-plan` — Tạo kế hoạch bảo trì định kỳ
+    - `GET /maintenance-plan` — Lấy danh sách kế hoạch bảo trì
+    - `GET /maintenance-plan/:id` — Lấy chi tiết kế hoạch bảo trì
+    - `GET /maintenance-plan/equipment/:equipmentId` — Lấy kế hoạch theo thiết bị
+    - `PUT /maintenance-plan/:id` — Cập nhật kế hoạch bảo trì
+    - `DELETE /maintenance-plan/:id` — Xóa kế hoạch bảo trì
+
+17. [Maintenance Request APIs (`/maintenance-requests`)](#maintenance-request-apis-maintenance-requests)
+
+    - `POST /maintenance-requests` — Tạo yêu cầu bảo trì theo lô thiết bị
+    - `PUT /maintenance-requests/:id` — Cập nhật yêu cầu bảo trì
+    - `PUT /maintenance-requests/:id/confirm` — Kỹ thuật viên xác nhận nhận việc
+    - `PUT /maintenance-requests/:id/cancel` — Hủy yêu cầu bảo trì
+    - `GET /maintenance-requests` — Lấy danh sách yêu cầu bảo trì
+    - `GET /maintenance-requests/:id` — Lấy chi tiết yêu cầu bảo trì
+    - `GET /maintenance-requests/by-unit/:unitId` — Lấy yêu cầu bảo trì theo unit
+    - `DELETE /maintenance-requests/:id` — Xóa yêu cầu bảo trì
+
+18. [Equipment Disposal APIs (`/disposal`)](#equipment-disposal-apis-disposal)
 
     - `POST /disposal` — Tạo đợt thanh lý thiết bị
     - `GET /disposal` — Lấy danh sách đợt thanh lý (kèm chi tiết)
     - `GET /disposal/:id` — Lấy chi tiết một đợt thanh lý
 
-17. [Dashboard APIs (`/dashboard`)](#dashboard-apis-dashboard)
+19. [Dashboard APIs (`/dashboard`)](#dashboard-apis-dashboard)
 
     - `GET /dashboard/statistics` — Thống kê tổng hợp (theo tháng / quý / năm)
     - `GET /dashboard/equipment-hierarchy` — Cấu trúc phân cấp nhóm thiết bị
@@ -1363,7 +1383,9 @@ Xóa attribute (chỉ `admin`, `super-admin`).
 ## **Type Attribute APIs (`/type-attribute`)**
 
 > **Authentication**:
-> * Các API thêm / xóa yêu cầu header `Authorization: Bearer <accessToken>`
+>
+> - Các API thêm / xóa yêu cầu header `Authorization: Bearer <accessToken>`
+
 ---
 
 ### **GET `/type-attribute/:typeId`**
@@ -1391,8 +1413,8 @@ Lấy danh sách tất cả **attributes** đang gắn với một **Category Ty
 
 Thêm một attribute vào **Category Type**.
 
-* Nếu `attribute_id` chưa tồn tại → báo lỗi.
-* Nếu đã tồn tại trong type → báo lỗi trùng.
+- Nếu `attribute_id` chưa tồn tại → báo lỗi.
+- Nếu đã tồn tại trong type → báo lỗi trùng.
 
 **Request body (JSON):**
 
@@ -1406,7 +1428,10 @@ Thêm một attribute vào **Category Type**.
 {
   "category_type_id": "TM",
   "attribute_id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42",
-  "attribute": { "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42", "name": "Trọng lượng" }
+  "attribute": {
+    "id": "5fdf9e7a-2c4e-4d6c-bc3c-1c2d2e1a9f42",
+    "name": "Trọng lượng"
+  }
 }
 ```
 
@@ -1422,9 +1447,9 @@ Thêm một attribute vào **Category Type**.
 
 > **Bulk Add — Thêm nhiều attribute cùng lúc cho Category Type**
 
-* Tự động **tạo attribute mới** nếu chưa tồn tại trong bảng `Attribute`.
-* Tự động **bỏ qua các attribute đã được liên kết**.
-* Trả về danh sách attribute thực tế được thêm (mới + đã có).
+- Tự động **tạo attribute mới** nếu chưa tồn tại trong bảng `Attribute`.
+- Tự động **bỏ qua các attribute đã được liên kết**.
+- Trả về danh sách attribute thực tế được thêm (mới + đã có).
 
 **Request body (JSON):**
 
@@ -1444,12 +1469,18 @@ Thêm một attribute vào **Category Type**.
   {
     "category_type_id": "TM",
     "attribute_id": "91a2e7c2-99b0-45ff-8c9b-12fd32a0ff11",
-    "attribute": { "id": "91a2e7c2-99b0-45ff-8c9b-12fd32a0ff11", "name": "Chiều cao" }
+    "attribute": {
+      "id": "91a2e7c2-99b0-45ff-8c9b-12fd32a0ff11",
+      "name": "Chiều cao"
+    }
   },
   {
     "category_type_id": "TM",
     "attribute_id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11",
-    "attribute": { "id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11", "name": "Công suất" }
+    "attribute": {
+      "id": "77a3e6c2-1e5c-44cc-8b9b-32a2a6e98e11",
+      "name": "Công suất"
+    }
   }
 ]
 ```
@@ -2823,6 +2854,461 @@ Xóa một yêu cầu bảo trì.
 >   `Authorization: Bearer <accessToken>`
 > - Role cho phép: `admin`, `super-admin`, `operator`
 > - `technician` chỉ được **xem**, không được tạo/sửa/xóa.
+
+---
+
+# **Maintenance Plan APIs (`/maintenance-plan`)**
+
+> **Authentication**:
+>
+> - Tất cả request yêu cầu header `Authorization: Bearer <accessToken>`.
+> - Role cho phép:
+>
+>   - `admin`, `super-admin`: có thể **tạo / cập nhật / xóa** kế hoạch bảo trì.
+>   - `technician`, `operator`, `admin`, `super-admin`: có thể **xem danh sách / chi tiết**.
+
+---
+
+### POST `/maintenance-plan`
+
+Tạo **kế hoạch bảo trì định kỳ** cho 1 **dòng thiết bị (`equipment_id`)**.
+
+**Rule:**
+
+- Mỗi `equipment_id` chỉ có **1 plan duy nhất**.
+- `next_maintenance_date` phải **lớn hơn thời gian hiện tại**.
+- Khi tạo, hệ thống sẽ **tự động tạo AWS Scheduler (EventBridge)** nhắc nhở định kỳ theo `frequency`.
+
+**Request body (JSON):**
+
+```json
+{
+  "equipment_id": "CAOTMJS",
+  "frequency": "3_months",
+  "next_maintenance_date": "2025-12-01T08:00:00.000Z"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "message": "Maintenance plan created successfully",
+  "plan": {
+    "id": "3bfb7462-b04f-4418-bad2-09183a8a23b3",
+    "equipment_id": "CAOTMJS",
+    "frequency": "3_months",
+    "next_maintenance_date": "2025-12-01T08:00:00.000Z",
+    "reminder_schedule_arn": "remind-3bfb7462-b04f-...-1730768400000",
+    "active": true,
+    "created_at": "2025-11-05T07:31:45.000Z",
+    "updated_at": "2025-11-05T07:31:45.000Z"
+  }
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "next_maintenance_date must be in the future" }
+```
+
+**Lỗi (400 - trùng thiết bị):**
+
+```json
+{
+  "error": "Đã tồn tại lịch nhắc nhở bảo trì cho dòng thiết bị Treadmill Pro (CAOTMJS)"
+}
+```
+
+Rất hay — mình đã đọc xong file `frequencyParser.js` của bạn, và có thể tạo bảng tóm tắt toàn bộ **frequency** hợp lệ, kèm:
+
+* Chuỗi nhập (`frequency`),
+* Kết quả AWS `rate()` (theo `parseFrequencyToRate()`),
+* Thời gian lặp lại thực tế,
+* Nhãn tiếng Việt (theo `formatFrequencyLabel()`).
+
+---
+
+## **Bảng tần suất hỗ trợ (Frequency Table)**
+
+| Frequency (chuỗi) | Mô tả tiếng Việt           | Biểu thức AWS Scheduler | Khoảng thời gian thực tế           |
+| ----------------- | -------------------------- | ----------------------- | ---------------------------------- |
+| `3_minutes`       | 3 phút/lần *(chế độ test)* | `rate(3 minutes)`       | Mỗi 3 phút                         |
+| `5_minutes`       | 5 phút/lần                 | `rate(5 minutes)`       | Mỗi 5 phút                         |
+| `10_minutes`      | 10 phút/lần                | `rate(10 minutes)`      | Mỗi 10 phút                        |
+| `1_hour`          | 1 giờ/lần                  | `rate(1 hour)`          | Mỗi giờ                            |
+| `6_hours`         | 6 giờ/lần                  | `rate(6 hours)`         | Mỗi 6 giờ                          |
+| `12_hours`        | 12 giờ/lần                 | `rate(12 hours)`        | Mỗi 12 giờ                         |
+| `1_day`           | 1 ngày/lần *(hàng ngày)*   | `rate(1 day)`           | Mỗi 24 giờ                         |
+| `2_days`          | 2 ngày/lần                 | `rate(2 days)`          | Mỗi 48 giờ                         |
+| `3_days`          | 3 ngày/lần                 | `rate(3 days)`          | Mỗi 3 ngày                         |
+| `4_days`          | 4 ngày/lần                 | `rate(4 days)`          | Mỗi 4 ngày                         |
+| `5_days`          | 5 ngày/lần                 | `rate(5 days)`          | Mỗi 5 ngày                         |
+| `6_days`          | 6 ngày/lần                 | `rate(6 days)`          | Mỗi 6 ngày                         |
+| `1_week`          | 1 tuần/lần *(hàng tuần)*   | `rate(7 days)`          | Mỗi 7 ngày                         |
+| `2_weeks`         | 2 tuần/lần                 | `rate(14 days)`         | Mỗi 14 ngày                        |
+| `3_weeks`         | 3 tuần/lần                 | `rate(21 days)`         | Mỗi 21 ngày                        |
+| `1_month`         | 1 tháng/lần *(hàng tháng)* | `rate(30 days)`         | Khoảng 30 ngày                     |
+| `2_months`        | 2 tháng/lần                | `rate(60 days)`         | Khoảng 60 ngày                     |
+| `3_months`        | 3 tháng/lần                | `rate(90 days)`         | Khoảng 90 ngày                     |
+| `4_months`        | 4 tháng/lần                | `rate(120 days)`        | Khoảng 120 ngày                    |
+| `6_months`        | 6 tháng/lần                | `rate(180 days)`        | Khoảng 180 ngày                    |
+| `1_year`          | 1 năm/lần *(hàng năm)*     | `rate(365 days)`        | Khoảng 12 tháng                    |
+| `2_years`         | 2 năm/lần                  | `rate(730 days)`        | Khoảng 24 tháng                    |
+| `daily`           | Hàng ngày                  | `rate(1 day)`           | Mỗi ngày                           |
+| `weekly`          | Hàng tuần                  | `rate(7 days)`          | Mỗi tuần                           |
+| `monthly`         | Hàng tháng                 | `rate(30 days)`         | Mỗi tháng                          |
+| `yearly`          | Hàng năm                   | `rate(365 days)`        | Mỗi năm                            |
+| `3m`              | Mỗi 3 phút (test)          | `rate(3 minutes)`       | Mỗi 3 phút *(dùng test scheduler)* |
+
+
+---
+
+### GET `/maintenance-plan`
+
+Lấy danh sách tất cả kế hoạch bảo trì hiện có.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "3bfb7462-b04f-4418-bad2-09183a8a23b3",
+    "equipment_id": "CAOTMJS",
+    "frequency": "3_months",
+    "next_maintenance_date": "2025-12-01T08:00:00.000Z",
+    "reminder_schedule_arn": "remind-3bfb7462-b04f-...",
+    "active": true,
+    "created_at": "2025-11-05T07:31:45.000Z",
+    "updated_at": "2025-11-05T07:31:45.000Z"
+  }
+]
+```
+
+---
+
+### GET `/maintenance-plan/:id`
+
+Lấy chi tiết 1 kế hoạch bảo trì.
+
+**Response (200):**
+
+```json
+{
+  "id": "3bfb7462-b04f-4418-bad2-09183a8a23b3",
+  "equipment_id": "CAOTMJS",
+  "frequency": "3_months",
+  "next_maintenance_date": "2025-12-01T08:00:00.000Z",
+  "reminder_schedule_arn": "remind-3bfb7462-b04f-...",
+  "active": true
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Maintenance plan not found" }
+```
+
+---
+
+### GET `/maintenance-plan/equipment/:equipmentId`
+
+Lấy danh sách kế hoạch bảo trì theo `equipment_id`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "3bfb7462-b04f-4418-bad2-09183a8a23b3",
+    "equipment_id": "CAOTMJS",
+    "frequency": "3_months",
+    "next_maintenance_date": "2025-12-01T08:00:00.000Z"
+  }
+]
+```
+
+---
+
+### PUT `/maintenance-plan/:id`
+
+Cập nhật kế hoạch bảo trì.
+
+**Rule:**
+
+- Không thể thay đổi `equipment_id` của plan đã tồn tại.
+- Nếu thay đổi `frequency` hoặc `next_maintenance_date` → hệ thống **xóa schedule cũ** và **tạo lại schedule mới** trên AWS.
+
+**Request body (JSON):**
+
+```json
+{
+  "frequency": "6_months",
+  "next_maintenance_date": "2026-01-01T08:00:00.000Z"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "3bfb7462-b04f-4418-bad2-09183a8a23b3",
+  "equipment_id": "CAOTMJS",
+  "frequency": "6_months",
+  "next_maintenance_date": "2026-01-01T08:00:00.000Z",
+  "reminder_schedule_arn": "remind-3bfb7462-b04f-...-1735808400000",
+  "active": true
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "next_maintenance_date phải lớn hơn thời gian hiện tại" }
+```
+
+---
+
+### DELETE `/maintenance-plan/:id`
+
+Xóa kế hoạch bảo trì (và schedule AWS tương ứng).
+
+**Response (200):**
+
+```json
+{ "message": "Plan deleted successfully" }
+```
+
+---
+
+# **Maintenance Request APIs (`/maintenance-requests`)**
+
+> **Authentication**:
+>
+> - Tất cả request yêu cầu header `Authorization: Bearer <accessToken>`.
+>
+> **Roles:**
+>
+> - `admin`, `super-admin`: tạo, cập nhật, hủy yêu cầu.
+> - `technician`: xác nhận nhận việc.
+
+---
+
+### POST `/maintenance-requests`
+
+Admin hoặc super-admin tạo **yêu cầu bảo trì theo lô thiết bị**.
+
+**Rule:**
+
+- `equipment_unit_id` là **mảng** (ít nhất 1 phần tử).
+- Tự động gán `branch_id` theo unit đầu tiên.
+- Nếu có `candidate_tech_id` → status = `"confirmed"`, đồng thời tạo AWS schedule tự động bảo trì.
+- Nếu không có → status = `"pending"`, gửi thông báo cho toàn bộ kỹ thuật viên.
+
+**Request body (JSON):**
+
+```json
+{
+  "equipment_unit_id": ["CAOTMJS-1", "CAOTMJS-2"],
+  "maintenance_reason": "Máy chạy bị trượt băng",
+  "scheduled_at": "2025-11-10T09:00:00.000Z",
+  "candidate_tech_id": "tech-12345"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
+  "equipment_unit_id": ["CAOTMJS-1", "CAOTMJS-2"],
+  "branch_id": "GV",
+  "assigned_by": "admin-xyz",
+  "maintenance_reason": "Máy chạy bị trượt băng",
+  "scheduled_at": "2025-11-10T09:00:00.000Z",
+  "status": "confirmed",
+  "candidate_tech_id": "tech-12345",
+  "auto_start_schedule_arn": "arn:aws:scheduler:ap-southeast-1:....",
+  "created_at": "2025-11-05T07:35:00.000Z"
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "equipment_unit_id must be a non-empty array" }
+```
+
+---
+
+### PUT `/maintenance-requests/:id`
+
+Cập nhật thông tin yêu cầu bảo trì (khi chưa thực hiện).
+
+**Rule:**
+
+- Chỉ cho phép chỉnh sửa khi `status = pending` hoặc `confirmed`.
+- Nếu thay đổi `scheduled_at`, hệ thống sẽ **xóa schedule cũ và tạo lại mới**.
+- Nếu thêm mới `candidate_tech_id` → gửi thông báo “Assigned”.
+
+**Request body (JSON):**
+
+```json
+{
+  "scheduled_at": "2025-11-15T09:00:00.000Z",
+  "candidate_tech_id": "tech-002"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "message": "Request updated successfully",
+  "request": {
+    "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
+    "scheduled_at": "2025-11-15T09:00:00.000Z",
+    "candidate_tech_id": "tech-002",
+    "status": "confirmed"
+  }
+}
+```
+
+---
+
+### PUT `/maintenance-requests/:id/confirm`
+
+Kỹ thuật viên xác nhận **nhận việc**.
+
+**Response (200):**
+
+```json
+{
+  "message": "Request confirmed and Maintenance created",
+  "request": {
+    "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
+    "confirmed_by": "tech-002",
+    "status": "confirmed"
+  }
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Cannot confirm a request in status: cancelled" }
+```
+
+---
+
+### PUT `/maintenance-requests/:id/cancel`
+
+Admin hoặc người tạo hủy yêu cầu khi còn `pending`.
+
+**Response (200):**
+
+```json
+{
+  "message": "Request cancelled",
+  "request": {
+    "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
+    "status": "cancelled"
+  }
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Only pending request can be cancelled (current: confirmed)" }
+```
+
+---
+
+### GET `/maintenance-requests`
+
+Lấy danh sách tất cả yêu cầu bảo trì (có thể lọc theo branch tự động qua middleware).
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
+    "equipment_unit_id": ["CAOTMJS-1", "CAOTMJS-2"],
+    "branch_id": "GV",
+    "status": "confirmed",
+    "maintenance_reason": "Máy chạy bị trượt băng",
+    "scheduled_at": "2025-11-15T09:00:00.000Z",
+    "units": [
+      {
+        "id": "CAOTMJS-1",
+        "equipment_name": "Treadmill Pro",
+        "vendor_name": "Johnson Fitness",
+        "branch_name": "FitX Gym Gò Vấp"
+      }
+    ]
+  }
+]
+```
+
+---
+
+### GET `/maintenance-requests/:id`
+
+Lấy chi tiết 1 yêu cầu bảo trì (kèm thông tin thiết bị, chi nhánh, vendor).
+
+**Response (200):**
+
+```json
+{
+  "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
+  "branch_id": "GV",
+  "status": "confirmed",
+  "maintenance_reason": "Máy chạy bị trượt băng",
+  "units": [
+    {
+      "id": "CAOTMJS-1",
+      "equipment_name": "Treadmill Pro",
+      "vendor_name": "Johnson Fitness",
+      "branch_name": "FitX Gym Gò Vấp"
+    }
+  ]
+}
+```
+
+---
+
+### GET `/maintenance-requests/by-unit/:unitId`
+
+Lấy tất cả yêu cầu bảo trì theo `equipment_unit_id`.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "req-001",
+    "status": "pending",
+    "maintenance_reason": "Tiếng kêu lạ",
+    "scheduled_at": "2025-11-06T09:00:00.000Z"
+  }
+]
+```
+
+---
+
+### DELETE `/maintenance-requests/:id`
+
+Xóa yêu cầu (ít dùng — chỉ cho phép super-admin hoặc khi test).
+
+**Response (200):**
+
+```json
+{ "message": "Maintenance request deleted" }
+```
 
 ---
 

@@ -11,25 +11,10 @@ const { v4: uuidv4 } = require("uuid");
 
 const tableName = "Maintenance_request";
 
-/**
- * Schema gợi ý (DynamoDB):
- * - id (PK)
- * - equipment_unit_id (JSON string) ← ✅ giờ lưu dạng chuỗi JSON
- * - branch_id (GSI: branch_id-index)
- * - assigned_by (admin sub)
- * - scheduled_at (ISO string)
- * - maintenance_reason
- * - candidate_tech_ids (array of sub)  // optional
- * - confirmed_by (tech sub)
- * - status: "pending" | "confirmed" | "cancelled" | "expired"
- * - created_at, updated_at
- * - converted_maintenance_id (nếu đã đẩy sang Maintenance)
- */
 const MaintenanceRequestModel = {
   create: async (data) => {
     const item = {
       id: uuidv4(),
-      // ✅ Convert mảng sang chuỗi JSON để tương thích GSI
       equipment_unit_id: Array.isArray(data.equipment_unit_id)
         ? JSON.stringify(data.equipment_unit_id)
         : data.equipment_unit_id,
@@ -39,11 +24,9 @@ const MaintenanceRequestModel = {
       reminder_schedule_arn: data.reminder_schedule_arn || null,
       auto_start_schedule_arn: data.auto_start_schedule_arn || null,
       maintenance_reason: data.maintenance_reason || null,
-      candidate_tech_ids: Array.isArray(data.candidate_tech_ids)
-        ? data.candidate_tech_ids
-        : null,
-      confirmed_by: null,
-      status: "pending",
+      candidate_tech_id: data.candidate_tech_id || null,
+      confirmed_by: data.candidate_tech_id || null,
+      status: data.candidate_tech_id ? "confirmed" : "pending",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       converted_maintenance_id: null,
@@ -144,7 +127,7 @@ const MaintenanceRequestModel = {
       "equipment_unit_id",
       "scheduled_at",
       "maintenance_reason",
-      "candidate_tech_ids",
+      "candidate_tech_id",
       "confirmed_by",
       "status",
       "converted_maintenance_id",
