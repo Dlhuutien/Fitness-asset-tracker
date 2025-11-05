@@ -97,6 +97,14 @@ const maintenanceService = {
       status: data.status,
     });
 
+    // 🔓 Mở khóa thiết bị sau khi hoàn tất bảo trì
+    await equipmentUnitRepository.update(updated.equipment_unit_id, {
+      isScheduleLocked: false,
+    });
+    console.log(
+      `🔓 Unlocked unit ${updated.equipment_unit_id} after maintenance complete`
+    );
+
     if (success) {
       // tạo invoice với cost (nếu còn warranty thì 0)
       await maintenanceInvoiceRepository.create(

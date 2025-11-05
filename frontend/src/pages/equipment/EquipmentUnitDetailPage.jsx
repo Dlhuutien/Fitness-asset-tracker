@@ -460,11 +460,11 @@ export default function EquipmentProfilePage() {
               </FieldView>
 
               <FieldView icon={<CalendarDays />} label="Ngày bắt đầu bảo hành">
-                {new Date(data.warranty_start_date).toLocaleString("vi-VN")}
+                {new Date(data.warranty_start_date).toLocaleDateString("vi-VN")}
               </FieldView>
 
               <FieldView icon={<CalendarDays />} label="Ngày kết thúc bảo hành">
-                {new Date(data.warranty_end_date).toLocaleString("vi-VN")}
+                {new Date(data.warranty_end_date).toLocaleDateString("vi-VN")}
               </FieldView>
 
               <FieldEdit

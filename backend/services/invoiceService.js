@@ -37,6 +37,7 @@ const invoiceService = {
         cost,
         warranty_duration,
         vendor_id,
+        warranty_start_date,
       } = item;
 
       // Check branch tồn tại
@@ -73,6 +74,15 @@ const invoiceService = {
         // Sinh unitId mới theo count
         const unitId = `${equipment_id}-${updatedCount.count}`;
 
+        // Cho phép người dùng nhập ngày bắt đầu bảo hành
+        const startDate = warranty_start_date
+          ? new Date(warranty_start_date)
+          : new Date();
+
+        // Tính ngày kết thúc bảo hành dựa trên startDate
+        const endDate = new Date(startDate);
+        endDate.setFullYear(endDate.getFullYear() + duration);
+
         // 2.1 Tạo equipment_unit
         const unit = await equipmentUnitRepository.create({
           id: unitId,
@@ -81,14 +91,12 @@ const invoiceService = {
           cost,
           vendor_id: vendor_id,
           warranty_duration: duration,
-          description: "Imported via invoice",
+          description: "Nhập qua hóa đơn",
           status: "In Stock",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          warranty_start_date: new Date().toISOString(),
-          warranty_end_date: new Date(
-            new Date().setFullYear(new Date().getFullYear() + duration)
-          ).toISOString(),
+          warranty_start_date: startDate.toISOString(),
+          warranty_end_date: endDate.toISOString(),
         });
 
         // 2.2 Tạo invoice_detail
@@ -335,7 +343,11 @@ const invoiceService = {
             ...detail,
             equipment_name: equipmentName,
             equipment_unit: unit
-              ? { ...unit, equipment_name: equipmentName, vendor_name: vendorName, }
+              ? {
+                  ...unit,
+                  equipment_name: equipmentName,
+                  vendor_name: vendorName,
+                }
               : null,
           },
         };

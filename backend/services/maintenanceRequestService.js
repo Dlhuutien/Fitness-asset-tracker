@@ -130,6 +130,23 @@ const maintenanceRequestService = {
       assigned_by: userSub,
     });
 
+    // 🔒 Khóa các thiết bị trong request khi trạng thái là pending hoặc confirmed
+    try {
+      const unitIds = Array.isArray(data.equipment_unit_id)
+        ? data.equipment_unit_id
+        : [data.equipment_unit_id];
+      for (const unitId of unitIds) {
+        await equipmentUnitRepository.update(unitId, {
+          isScheduleLocked: true,
+        });
+      }
+      console.log(
+        `🔒 Locked ${unitIds.length} units for maintenance request ${reqItem.id}`
+      );
+    } catch (e) {
+      console.warn("⚠️ Failed to lock units:", e?.message || e);
+    }
+
     try {
       // 🧩 Lấy danh sách admin & technician ngay từ đầu
       const admins = await userService.getUsersByRoles([
@@ -340,6 +357,28 @@ const maintenanceRequestService = {
       data.auto_start_schedule_arn = result.ScheduleArn;
     }
 
+    // 🧮 So sánh danh sách unit cũ và mới để cập nhật lock
+    const oldIds = Array.isArray(reqItem.equipment_unit_id)
+      ? reqItem.equipment_unit_id
+      : JSON.parse(reqItem.equipment_unit_id || "[]");
+    const newIds = Array.isArray(data.equipment_unit_id)
+      ? data.equipment_unit_id
+      : oldIds;
+
+    // 🔓 Mở khóa những unit bị loại bỏ
+    const removed = oldIds.filter((id) => !newIds.includes(id));
+    for (const unitId of removed) {
+      await equipmentUnitRepository.update(unitId, { isScheduleLocked: false });
+      console.log(`🔓 Unlocked removed unit ${unitId} from request ${id}`);
+    }
+
+    // 🔒 Khóa những unit mới thêm
+    const added = newIds.filter((id) => !oldIds.includes(id));
+    for (const unitId of added) {
+      await equipmentUnitRepository.update(unitId, { isScheduleLocked: true });
+      console.log(`🔒 Locked added unit ${unitId} to request ${id}`);
+    }
+
     // ✅ Cập nhật vào DynamoDB
     const updated = await maintenanceRequestRepository.update(id, data);
 
@@ -421,6 +460,23 @@ const maintenanceRequestService = {
     const updated = await maintenanceRequestRepository.update(id, {
       status: "cancelled",
     });
+
+    // 🔓 Mở khóa tất cả thiết bị trong yêu cầu bị hủy
+    try {
+      const unitIds = Array.isArray(reqItem.equipment_unit_id)
+        ? reqItem.equipment_unit_id
+        : JSON.parse(reqItem.equipment_unit_id || "[]");
+      for (const unitId of unitIds) {
+        await equipmentUnitRepository.update(unitId, {
+          isScheduleLocked: false,
+        });
+      }
+      console.log(
+        `🔓 Unlocked ${unitIds.length} units after cancelling request ${id}`
+      );
+    } catch (e) {
+      console.warn("⚠️ Failed to unlock units after cancel:", e?.message || e);
+    }
 
     try {
       const admins = await userService.getUsersByRoles([
