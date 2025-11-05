@@ -3098,27 +3098,62 @@ Xóa kế hoạch bảo trì (và schedule AWS tương ứng).
 
 ### POST `/maintenance-requests`
 
-Admin hoặc super-admin tạo **yêu cầu bảo trì theo lô thiết bị**.
+* `equipment_unit_id` là **mảng** gồm ít nhất 1 phần tử.
+* Hệ thống **tự động gán `branch_id`** dựa trên thiết bị đầu tiên trong mảng.
+* Khi tạo request:
 
-**Rule:**
+  * Nếu **có `candidate_tech_id`** → hệ thống coi như **đã chỉ định kỹ thuật viên**,
+    → gán `status = "confirmed"`,
+    → đồng thời **tự động tạo AWS Schedule** (EventBridge) để đến thời điểm `scheduled_at` sẽ bắt đầu bảo trì.
+  * Nếu **không có `candidate_tech_id`** → gán `status = "pending"`,
+    → hệ thống **gửi thông báo** tới **toàn bộ kỹ thuật viên** để họ nhận việc.
 
-- `equipment_unit_id` là **mảng** (ít nhất 1 phần tử).
-- Tự động gán `branch_id` theo unit đầu tiên.
-- Nếu có `candidate_tech_id` → status = `"confirmed"`, đồng thời tạo AWS schedule tự động bảo trì.
-- Nếu không có → status = `"pending"`, gửi thông báo cho toàn bộ kỹ thuật viên.
+---
 
-**Request body (JSON):**
+### **Request body (JSON)**
+
+#### 🔹 **Trường hợp 1 — Có `candidate_tech_id` (Đã chỉ định kỹ thuật viên)**
+
+Thiết bị sẽ được gán cho kỹ thuật viên chỉ định và tạo lịch bảo trì tự động.
 
 ```json
 {
   "equipment_unit_id": ["CAOTMJS-1", "CAOTMJS-2"],
-  "maintenance_reason": "Máy chạy bị trượt băng",
-  "scheduled_at": "2025-11-10T09:00:00.000Z",
+  "maintenance_reason": "Lịch bảo trì quý IV",
+  "scheduled_at": "2025-11-05T15:50:00",
   "candidate_tech_id": "tech-12345"
 }
 ```
 
-**Response (201):**
+**Kết quả:**
+
+* `status`: `"confirmed"`
+* `auto_start_schedule_arn`: tạo trên AWS EventBridge
+* Gửi thông báo email đến quản lý và kỹ thuật viên
+* Các thiết bị trong `equipment_unit_id` được **đánh dấu khóa lịch (`isScheduleLocked = true`)** nhằm chặn không thực hiện điều chuyển và thanh lý
+
+---
+
+#### 🔹 **Trường hợp 2 — Không có `candidate_tech_id` (Chưa chỉ định kỹ thuật viên)**
+
+```json
+{
+  "equipment_unit_id": ["CAOTMJS-3"],
+  "maintenance_reason": "Lịch bảo trì quý IV",
+  "scheduled_at": "2025-11-05T15:50:00",
+}
+```
+
+**Kết quả:**
+
+* `status`: `"pending"`
+* Không tạo AWS Schedule
+* Gửi thông báo đến **tất cả kỹ thuật viên trong cùng chi nhánh** để họ xem và nhận việc
+* Các thiết bị trong `equipment_unit_id` cũng được **đánh dấu `isScheduleLocked = true`** để chặn chuyển/ thanh lý trước khi bảo trì
+
+---
+
+### **Response (201)**
 
 ```json
 {
@@ -3126,8 +3161,8 @@ Admin hoặc super-admin tạo **yêu cầu bảo trì theo lô thiết bị**.
   "equipment_unit_id": ["CAOTMJS-1", "CAOTMJS-2"],
   "branch_id": "GV",
   "assigned_by": "admin-xyz",
-  "maintenance_reason": "Máy chạy bị trượt băng",
-  "scheduled_at": "2025-11-10T09:00:00.000Z",
+  "maintenance_reason": "Lịch bảo trì quý IV",
+  "scheduled_at": "2025-11-05T15:50:00",
   "status": "confirmed",
   "candidate_tech_id": "tech-12345",
   "auto_start_schedule_arn": "arn:aws:scheduler:ap-southeast-1:....",
@@ -3135,11 +3170,31 @@ Admin hoặc super-admin tạo **yêu cầu bảo trì theo lô thiết bị**.
 }
 ```
 
-**Lỗi (400):**
+---
+
+### **Response lỗi**
 
 ```json
 { "error": "equipment_unit_id must be a non-empty array" }
 ```
+
+Hoặc nếu một trong các thiết bị không tồn tại / bị khóa lịch:
+
+```json
+{ "error": "Equipment unit CAOTMJS-1 is locked for scheduling" }
+```
+
+---
+
+### **Ghi chú thêm **
+
+| Trường                    | Ý nghĩa                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------- |
+| `auto_start_schedule_arn` | ARN của lịch tự động tạo trên AWS để bắt đầu bảo trì đúng giờ                                       |
+| `isScheduleLocked`        | Flag trong bảng `equipment_unit` — bị đặt `true` khi có lịch bảo trì, `false` khi hủy hoặc bảo trì hoàn tất (ready, failed) |
+| `candidate_tech_id`       | ID của kỹ thuật viên được giao việc (nếu có)                                                        |
+| `status`                  | `"pending"` hoặc `"confirmed"` tùy theo trường hợp                                                  |
+| `scheduled_at`            | Thời gian dự kiến bắt đầu bảo trì                                                                   |
 
 ---
 
@@ -3157,7 +3212,7 @@ Cập nhật thông tin yêu cầu bảo trì (khi chưa thực hiện).
 
 ```json
 {
-  "scheduled_at": "2025-11-15T09:00:00.000Z",
+  "scheduled_at": "2025-11-05T15:50:00",
   "candidate_tech_id": "tech-002"
 }
 ```
@@ -3169,7 +3224,7 @@ Cập nhật thông tin yêu cầu bảo trì (khi chưa thực hiện).
   "message": "Request updated successfully",
   "request": {
     "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
-    "scheduled_at": "2025-11-15T09:00:00.000Z",
+    "scheduled_at": "2025-11-05T15:50:00",
     "candidate_tech_id": "tech-002",
     "status": "confirmed"
   }
@@ -3240,8 +3295,8 @@ Lấy danh sách tất cả yêu cầu bảo trì (có thể lọc theo branch t
     "equipment_unit_id": ["CAOTMJS-1", "CAOTMJS-2"],
     "branch_id": "GV",
     "status": "confirmed",
-    "maintenance_reason": "Máy chạy bị trượt băng",
-    "scheduled_at": "2025-11-15T09:00:00.000Z",
+    "maintenance_reason": "Lịch bảo trì quý IV",
+    "scheduled_at": "2025-11-05T15:50:00",
     "units": [
       {
         "id": "CAOTMJS-1",
@@ -3267,7 +3322,7 @@ Lấy chi tiết 1 yêu cầu bảo trì (kèm thông tin thiết bị, chi nhá
   "id": "1f9b4c55-62d3-4b33-9ee9-02164cd1329e",
   "branch_id": "GV",
   "status": "confirmed",
-  "maintenance_reason": "Máy chạy bị trượt băng",
+  "maintenance_reason": "Lịch bảo trì quý IV",
   "units": [
     {
       "id": "CAOTMJS-1",
@@ -3292,8 +3347,8 @@ Lấy tất cả yêu cầu bảo trì theo `equipment_unit_id`.
   {
     "id": "req-001",
     "status": "pending",
-    "maintenance_reason": "Tiếng kêu lạ",
-    "scheduled_at": "2025-11-06T09:00:00.000Z"
+    "maintenance_reason": "Lịch bảo trì quý IV",
+    "scheduled_at": "2025-11-05T15:50:00",
   }
 ]
 ```
