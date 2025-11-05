@@ -2921,6 +2921,48 @@ Tạo **kế hoạch bảo trì định kỳ** cho 1 **dòng thiết bị (`equi
 }
 ```
 
+Rất hay — mình đã đọc xong file `frequencyParser.js` của bạn, và có thể tạo bảng tóm tắt toàn bộ **frequency** hợp lệ, kèm:
+
+* Chuỗi nhập (`frequency`),
+* Kết quả AWS `rate()` (theo `parseFrequencyToRate()`),
+* Thời gian lặp lại thực tế,
+* Nhãn tiếng Việt (theo `formatFrequencyLabel()`).
+
+---
+
+## **Bảng tần suất hỗ trợ (Frequency Table)**
+
+| Frequency (chuỗi) | Mô tả tiếng Việt           | Biểu thức AWS Scheduler | Khoảng thời gian thực tế           |
+| ----------------- | -------------------------- | ----------------------- | ---------------------------------- |
+| `3_minutes`       | 3 phút/lần *(chế độ test)* | `rate(3 minutes)`       | Mỗi 3 phút                         |
+| `5_minutes`       | 5 phút/lần                 | `rate(5 minutes)`       | Mỗi 5 phút                         |
+| `10_minutes`      | 10 phút/lần                | `rate(10 minutes)`      | Mỗi 10 phút                        |
+| `1_hour`          | 1 giờ/lần                  | `rate(1 hour)`          | Mỗi giờ                            |
+| `6_hours`         | 6 giờ/lần                  | `rate(6 hours)`         | Mỗi 6 giờ                          |
+| `12_hours`        | 12 giờ/lần                 | `rate(12 hours)`        | Mỗi 12 giờ                         |
+| `1_day`           | 1 ngày/lần *(hàng ngày)*   | `rate(1 day)`           | Mỗi 24 giờ                         |
+| `2_days`          | 2 ngày/lần                 | `rate(2 days)`          | Mỗi 48 giờ                         |
+| `3_days`          | 3 ngày/lần                 | `rate(3 days)`          | Mỗi 3 ngày                         |
+| `4_days`          | 4 ngày/lần                 | `rate(4 days)`          | Mỗi 4 ngày                         |
+| `5_days`          | 5 ngày/lần                 | `rate(5 days)`          | Mỗi 5 ngày                         |
+| `6_days`          | 6 ngày/lần                 | `rate(6 days)`          | Mỗi 6 ngày                         |
+| `1_week`          | 1 tuần/lần *(hàng tuần)*   | `rate(7 days)`          | Mỗi 7 ngày                         |
+| `2_weeks`         | 2 tuần/lần                 | `rate(14 days)`         | Mỗi 14 ngày                        |
+| `3_weeks`         | 3 tuần/lần                 | `rate(21 days)`         | Mỗi 21 ngày                        |
+| `1_month`         | 1 tháng/lần *(hàng tháng)* | `rate(30 days)`         | Khoảng 30 ngày                     |
+| `2_months`        | 2 tháng/lần                | `rate(60 days)`         | Khoảng 60 ngày                     |
+| `3_months`        | 3 tháng/lần                | `rate(90 days)`         | Khoảng 90 ngày                     |
+| `4_months`        | 4 tháng/lần                | `rate(120 days)`        | Khoảng 120 ngày                    |
+| `6_months`        | 6 tháng/lần                | `rate(180 days)`        | Khoảng 180 ngày                    |
+| `1_year`          | 1 năm/lần *(hàng năm)*     | `rate(365 days)`        | Khoảng 12 tháng                    |
+| `2_years`         | 2 năm/lần                  | `rate(730 days)`        | Khoảng 24 tháng                    |
+| `daily`           | Hàng ngày                  | `rate(1 day)`           | Mỗi ngày                           |
+| `weekly`          | Hàng tuần                  | `rate(7 days)`          | Mỗi tuần                           |
+| `monthly`         | Hàng tháng                 | `rate(30 days)`         | Mỗi tháng                          |
+| `yearly`          | Hàng năm                   | `rate(365 days)`        | Mỗi năm                            |
+| `3m`              | Mỗi 3 phút (test)          | `rate(3 minutes)`       | Mỗi 3 phút *(dùng test scheduler)* |
+
+
 ---
 
 ### GET `/maintenance-plan`
