@@ -881,7 +881,16 @@ Người phê duyệt: ${approverName}, Người nhận: ${receiverName}
   </div>`;
 
     // 📧 Gửi email
-    const recipients = recipientsList.map((t) => t.email).filter(Boolean);
+    const recipients = (recipientsList || [])
+      .map(
+        (t) =>
+          t.email ||
+          t?.attributes?.email ||
+          t?.userAttributes?.email ||
+          t?.Attributes?.email
+      )
+      .filter(Boolean);
+    console.log("📧 Sending email to:", recipients);
     if (recipients.length) await sendNoReplyEmail(recipients, subject, html);
 
     const receiverRoles = [
@@ -898,6 +907,116 @@ Người phê duyệt: ${approverName}, Người nhận: ${receiverName}
       receiver_id: receiverIds,
       created_by: confirmedBy,
     });
+  },
+
+  /**
+   * Gửi thông báo khi admin chỉ định kỹ thuật viên cụ thể
+   * → Gửi cho toàn bộ admin + toàn bộ kỹ thuật viên
+   * → Highlight kỹ thuật viên được giao
+   */
+  async notifyMaintenanceRequestAssigned(request, recipientsList, createdBy) {
+    if (!request) return;
+    const unitIds = Array.isArray(request.equipment_unit_id)
+      ? request.equipment_unit_id
+      : JSON.parse(request.equipment_unit_id || "[]");
+
+    // Lấy thông tin branch + người tạo
+    const branch = await branchRepository.findById(request.branch_id);
+    const branchName = branch?.name || "Không rõ chi nhánh";
+
+    const creator = createdBy && (await userRepository.getUserBySub(createdBy));
+    const creatorName =
+      creator?.attributes?.name || creator?.username || "Không rõ người tạo";
+
+    const scheduledAt = request.scheduled_at
+      ? new Date(request.scheduled_at).toLocaleString("vi-VN")
+      : "Chưa có thời gian";
+
+    const tech =
+      request.candidate_tech ||
+      (request.confirmed_by &&
+        (await userRepository.getUserBySub(request.confirmed_by)));
+    const techName =
+      tech?.attributes?.name || tech?.username || "Không rõ kỹ thuật viên";
+
+    // === 📋 Tạo danh sách thiết bị ===
+    let itemsHtml = "";
+    for (const unitId of unitIds) {
+      const unit = await equipmentUnitRepository.findById(unitId);
+      const eq =
+        unit?.equipment_id &&
+        (await equipmentRepository.findById(unit.equipment_id));
+      itemsHtml += `
+      <tr>
+        <td style="border:1px solid #ddd; padding:8px;">${
+          eq?.name || "Thiết bị"
+        }</td>
+        <td style="border:1px solid #ddd; padding:8px;">${unit?.id || "-"}</td>
+        <td style="border:1px solid #ddd; padding:8px;">${branchName}</td>
+      </tr>`;
+    }
+
+    // === 📧 Gửi email ===
+    const recipients = (recipientsList || [])
+      .map(
+        (u) =>
+          u.email ||
+          u?.attributes?.email ||
+          u?.userAttributes?.email ||
+          u?.Attributes?.email
+      )
+      .filter(Boolean);
+
+    const subject = `Yêu cầu bảo trì đã được chỉ định – ${techName}`;
+    const html = `
+  <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
+              border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+    ${buildHeader("Yêu cầu bảo trì được chỉ định")}
+    <div style="padding:20px; color:#000;">
+      <p><b>${creatorName}</b> vừa tạo yêu cầu bảo trì và chỉ định <b style="color:#008080;">${techName}</b> thực hiện.</p>
+      <p><b>Chi nhánh:</b> ${branchName}</p>
+      <p><b>Thời gian dự kiến:</b> ${scheduledAt}</p>
+      <div style="overflow-x:auto; margin-top:10px;">
+        <table style="border-collapse:collapse; width:100%; min-width:500px;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Thiết bị</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Mã định danh</th>
+              <th style="border:1px solid #ddd; padding:8px; background:#f5f5f5;">Chi nhánh</th>
+            </tr>
+          </thead>
+          <tbody>${itemsHtml}</tbody>
+        </table>
+      </div>
+      <p style="margin-top:12px; color:#008080;">Vui lòng đăng nhập hệ thống để xem chi tiết yêu cầu bảo trì này.</p>
+    </div>
+    ${buildFooter()}
+  </div>`;
+
+    if (recipients.length) {
+      console.log("📧 Sending maintenance assignment mail to:", recipients);
+      await sendNoReplyEmail(recipients, subject, html);
+    } else {
+      console.warn("⚠️ No valid email recipients found");
+    }
+
+    // === 💾 Ghi Notification DB ===
+    const receiverRoles = [
+      ...new Set(recipientsList.flatMap((u) => u.roles || [])),
+    ];
+    const receiverIds = recipientsList.map((u) => u.sub).filter(Boolean);
+
+    await notificationRepository.create({
+      type: "maintenance",
+      title: "Yêu cầu bảo trì được chỉ định",
+      message: `Kỹ thuật viên ${techName} được giao xử lý yêu cầu bảo trì tại ${branchName} – thời gian: ${scheduledAt}`,
+      maintenance_request_id: request.id,
+      receiver_role: receiverRoles,
+      receiver_id: receiverIds,
+      created_by: createdBy,
+    });
+
+    console.log(`📩 Notification assignment created for ${techName}`);
   },
 
   /**

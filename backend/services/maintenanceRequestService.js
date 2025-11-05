@@ -130,23 +130,95 @@ const maintenanceRequestService = {
       assigned_by: userSub,
     });
 
-    // ✅ Gửi thông báo cho technician
     try {
-      let technicians = [];
-      if (
-        Array.isArray(data.candidate_tech_ids) &&
-        data.candidate_tech_ids.length
-      ) {
-        technicians = await Promise.all(
-          data.candidate_tech_ids.map((sub) => userService.getUserBySub(sub))
+      // 🧩 Lấy danh sách admin & technician ngay từ đầu
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      const allTechs = await userService.getUsersByRoles(["technician"]);
+
+      // 🟢 Nếu admin đã chỉ định kỹ thuật viên cụ thể
+      if (data.candidate_tech_id) {
+        const assignedTech =
+          allTechs.find((t) => t.sub === data.candidate_tech_id) || null;
+
+        // ✅ Cập nhật trạng thái thành confirmed + confirmed_by
+        const updatedReq = await maintenanceRequestRepository.update(
+          reqItem.id,
+          {
+            confirmed_by: data.candidate_tech_id,
+            status: "confirmed",
+          }
         );
-      } else {
-        technicians = await userService.getUsersByRoles(["technician"]);
+
+        // ✅ Tạo AWS Schedule tự động (nếu có thời gian)
+        if (data.scheduled_at) {
+          try {
+            const scheduleName = `auto-maintenance-${updatedReq.id}`;
+            const result = await createOneTimeSchedule({
+              scheduleName,
+              runAtIsoUtc: data.scheduled_at,
+              payload: {
+                type: "AUTO_MAINTENANCE_FROM_REQUEST",
+                request_id: updatedReq.id,
+              },
+            });
+
+            await maintenanceRequestRepository.update(updatedReq.id, {
+              auto_start_schedule_arn: result.ScheduleArn,
+            });
+
+            console.log(
+              `🗓️ AWS schedule created for confirmed request ${updatedReq.id}`
+            );
+          } catch (err) {
+            console.warn(
+              "⚠️ Failed to create AWS schedule for confirmed request:",
+              err?.message || err
+            );
+          }
+        }
+
+        // 🟢 Gửi thông báo cho toàn bộ admin + tất cả kỹ thuật viên
+        try {
+          const recipients = [
+            ...admins,
+            ...allTechs.filter((t) => !admins.some((a) => a.sub === t.sub)),
+          ];
+
+          await notificationService.notifyMaintenanceRequestAssigned(
+            {
+              ...updatedReq,
+              candidate_tech: assignedTech, // truyền thêm để show trong email
+            },
+            recipients,
+            userSub
+          );
+
+          console.log(
+            `📩 Sent maintenance assignment notify to ${
+              recipients.length
+            } recipients (assigned to ${
+              assignedTech?.attributes?.name ||
+              assignedTech?.username ||
+              "Không rõ"
+            })`
+          );
+        } catch (e) {
+          console.warn(
+            "⚠️ notifyMaintenanceRequestAssigned failed:",
+            e?.message || e
+          );
+        }
+
+        return updatedReq;
       }
 
+      // 🟡 Nếu chưa chỉ định kỹ thuật viên, gửi cho tất cả tech như cũ
       await notificationService.notifyMaintenanceRequestCreated(
         [reqItem],
-        technicians,
+        allTechs,
         userSub
       );
     } catch (err) {
@@ -277,13 +349,55 @@ const maintenanceRequestService = {
         "admin",
         "super-admin",
       ]);
-      await notificationService.notifyMaintenanceRequestUpdated(
-        updated,
-        admins,
-        userSub
-      );
+      const allTechs = await userService.getUsersByRoles(["technician"]);
+
+      // 🔹 Nếu update có candidate_tech_id mới → Gửi thông báo Assigned
+      if (data.candidate_tech_id) {
+        const assignedTech =
+          allTechs.find((t) => t.sub === data.candidate_tech_id) || null;
+
+        if (!reqItem.confirmed_by) {
+          await maintenanceRequestRepository.update(id, {
+            confirmed_by: data.candidate_tech_id,
+            status: "confirmed",
+          });
+        }
+
+        const recipients = [
+          ...admins,
+          ...allTechs.filter((t) => !admins.some((a) => a.sub === t.sub)),
+        ];
+
+        await notificationService.notifyMaintenanceRequestAssigned(
+          {
+            ...updated,
+            candidate_tech: assignedTech,
+          },
+          recipients,
+          userSub
+        );
+
+        console.log(
+          `📩 Assigned notification sent to ${
+            recipients.length
+          } recipients (assigned to ${
+            assignedTech?.attributes?.name ||
+            assignedTech?.username ||
+            "Không rõ"
+          })`
+        );
+      } else {
+        await notificationService.notifyMaintenanceRequestUpdated(
+          updated,
+          admins,
+          userSub
+        );
+      }
     } catch (e) {
-      console.warn("⚠️ notifyMaintenanceRequestUpdated failed:", e?.message);
+      console.warn(
+        "⚠️ notifyMaintenanceRequestUpdated/Assigned failed:",
+        e?.message
+      );
     }
 
     return updated;

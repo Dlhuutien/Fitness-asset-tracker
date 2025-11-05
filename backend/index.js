@@ -85,10 +85,11 @@ module.exports.handler = async (event, context) => {
         // ✅ Tạo Maintenance thật cho từng thiết bị
         const createdMaintenances = [];
         for (const uid of unitIds) {
+          const userId = request.confirmed_by || request.candidate_tech_id || null;
           const newItem = await maintenanceRepository.create({
             equipment_unit_id: uid,
             branch_id: request.branch_id,
-            user_id: request.confirmed_by,
+            user_id: userId,
             assigned_by: request.assigned_by,
             maintenance_reason: request.maintenance_reason,
             maintenance_request_id: request.id,
