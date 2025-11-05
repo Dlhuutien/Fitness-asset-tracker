@@ -15,6 +15,7 @@ import EquipmentService from "@/services/equipmentService";
 import AttributeService from "@/services/attributeService";
 import { toast } from "sonner";
 import useAuthRole from "@/hooks/useAuthRole";
+import MaintenancePlanService from "@/services/MaintenancePlanService";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString("vi-VN") : "—");
 
@@ -46,6 +47,21 @@ export default function EquipmentProfilePage() {
   const [addingAttr, setAddingAttr] = useState(false);
   const [spinClearChecked, setSpinClearChecked] = useState(false);
   const [spinClearInputs, setSpinClearInputs] = useState(false);
+  // 🧩 Kế hoạch bảo trì hiện tại
+  const [currentPlan, setCurrentPlan] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await MaintenancePlanService.getByEquipmentId(id);
+        if (Array.isArray(res) && res.length > 0) setCurrentPlan(res[0]);
+        else setCurrentPlan(null);
+      } catch (err) {
+        console.warn("⚠️ Không thể tải kế hoạch bảo trì:", err);
+        setCurrentPlan(null);
+      }
+    })();
+  }, [id]);
 
   useEffect(() => {
     (async () => {
@@ -174,6 +190,46 @@ export default function EquipmentProfilePage() {
         periodic_frequency_interval:
           Number(formData.periodic_frequency_interval) || null,
       });
+
+      // 🧩 Đồng bộ kế hoạch bảo trì định kỳ (tạo hoặc cập nhật)
+      try {
+        if (
+          formData.periodic_maintenance_date &&
+          formData.periodic_frequency_type &&
+          formData.periodic_frequency_interval
+        ) {
+          const freqMap = {
+            week: `${formData.periodic_frequency_interval}_weeks`,
+            month: `${formData.periodic_frequency_interval}_months`,
+            year: `${formData.periodic_frequency_interval}_years`,
+          };
+
+          const payload = {
+            equipment_id: equipment.id,
+            frequency: freqMap[formData.periodic_frequency_type],
+            next_maintenance_date: new Date(
+              formData.periodic_maintenance_date
+            ).toISOString(),
+          };
+
+          const existing = await MaintenancePlanService.getByEquipmentId(
+            equipment.id
+          );
+          if (Array.isArray(existing) && existing.length > 0) {
+            await MaintenancePlanService.update(existing[0].id, {
+              frequency: payload.frequency,
+              next_maintenance_date: payload.next_maintenance_date,
+            });
+            toast.success("🔄 Đã cập nhật kế hoạch bảo trì!");
+          } else {
+            await MaintenancePlanService.create(payload);
+            toast.success("🛠️ Đã tạo kế hoạch bảo trì mới!");
+          }
+        }
+      } catch (e) {
+        console.error("❌ Lỗi khi đồng bộ kế hoạch bảo trì:", e);
+        toast.error("⚠️ Lỗi khi đồng bộ kế hoạch bảo trì!");
+      }
 
       clearTimeout(timeoutId);
       toast.success("✅ Lưu thay đổi thành công!");
@@ -415,9 +471,11 @@ export default function EquipmentProfilePage() {
                 />
               ) : (
                 <p className="font-semibold text-gray-900 dark:text-gray-100 text-lg">
-                  {formData.periodic_maintenance_date
+                  {formData.periodic_maintenance_date ||
+                  currentPlan?.next_maintenance_date
                     ? new Date(
-                        formData.periodic_maintenance_date
+                        formData.periodic_maintenance_date ||
+                          currentPlan.next_maintenance_date
                       ).toLocaleDateString("vi-VN")
                     : "—"}
                 </p>
@@ -426,7 +484,6 @@ export default function EquipmentProfilePage() {
 
             <div>
               <p className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500 text-base tracking-wide mb-1">
-                {" "}
                 Chu kỳ
               </p>
               {editing ? (
@@ -448,6 +505,12 @@ export default function EquipmentProfilePage() {
                     ? { week: "Tuần", month: "Tháng", year: "Năm" }[
                         formData.periodic_frequency_type
                       ]
+                    : currentPlan
+                    ? currentPlan.frequency.includes("week")
+                      ? "Tuần"
+                      : currentPlan.frequency.includes("month")
+                      ? "Tháng"
+                      : "Năm"
                     : "—"}
                 </p>
               )}
@@ -481,153 +544,185 @@ export default function EquipmentProfilePage() {
                           ? "tháng/lần"
                           : "năm/lần"
                       }`
+                    : currentPlan
+                    ? `${parseInt(currentPlan.frequency) || 1} ${
+                        currentPlan.frequency.includes("week")
+                          ? "tuần/lần"
+                          : currentPlan.frequency.includes("month")
+                          ? "tháng/lần"
+                          : "năm/lần"
+                      }`
                     : "—"}
                 </p>
               )}
             </div>
           </div>
-{/* === FITX Timeline v2: Label to, lắc nhún nhẹ, chú thích rõ === */}
-{formData.periodic_maintenance_date &&
- formData.periodic_frequency_type &&
- formData.periodic_frequency_interval && (() => {
-  const start = new Date(formData.periodic_maintenance_date);
-  const next = new Date(start);
-  const freq = Number(formData.periodic_frequency_interval || 1);
+          {/* === FITX Timeline v2: Label to, lắc nhún nhẹ, chú thích rõ === */}
+          {(formData.periodic_maintenance_date ||
+            currentPlan?.next_maintenance_date) &&
+            (formData.periodic_frequency_type || currentPlan?.frequency) &&
+            (formData.periodic_frequency_interval || currentPlan?.frequency) &&
+            (() => {
+              // ===== Dưới đây là logic timeline giữ nguyên =====
+              const start = new Date(
+                formData.periodic_maintenance_date ||
+                  currentPlan.next_maintenance_date
+              );
 
-  // Tính mốc kế tiếp
-  if (formData.periodic_frequency_type === "week") next.setDate(start.getDate() + freq * 7);
-  if (formData.periodic_frequency_type === "month") next.setMonth(start.getMonth() + freq);
-  if (formData.periodic_frequency_type === "year") next.setFullYear(start.getFullYear() + freq);
+              const type =
+                formData.periodic_frequency_type ||
+                (currentPlan.frequency.includes("week")
+                  ? "week"
+                  : currentPlan.frequency.includes("month")
+                  ? "month"
+                  : "year");
 
-  const remind = new Date(next);
-  remind.setDate(next.getDate() - 3);
-  const today = new Date();
+              const freq = Number(
+                formData.periodic_frequency_interval ||
+                  parseInt(currentPlan.frequency) ||
+                  1
+              );
 
-  // === Xác định mốc sắp tới ===
-  let nextMilestone = "done";
-  if (today < start) nextMilestone = "start";
-  else if (today < remind) nextMilestone = "remind";
-  else if (today < next) nextMilestone = "next";
+              const next = new Date(start);
+              if (type === "week") next.setDate(start.getDate() + freq * 7);
+              if (type === "month") next.setMonth(start.getMonth() + freq);
+              if (type === "year") next.setFullYear(start.getFullYear() + freq);
 
-  // Format ngày chuẩn DD/MM/YYYY
-  const fmt = (d) => {
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${dd}/${mm}/${yyyy}`;
-  };
+              const remind = new Date(next);
+              remind.setDate(next.getDate() - 3);
+              const today = new Date();
 
-  return (
-    <div className="relative bg-white/80 dark:bg-gray-800/60 rounded-2xl border border-emerald-100 dark:border-gray-700 shadow-inner p-10 overflow-hidden">
-      {/* ==== LINE ==== */}
-      <div className="relative h-[7px] w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-14">
-        <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-indigo-500 rounded-full w-full opacity-70"></div>
-      </div>
+              let nextMilestone = "done";
+              if (today < start) nextMilestone = "start";
+              else if (today < remind) nextMilestone = "remind";
+              else if (today < next) nextMilestone = "next";
 
-      {/* ==== 3 MỐC ==== */}
-      <div className="flex justify-between items-start text-center select-none">
-        {/* ==== BẮT ĐẦU ==== */}
-        <div className="flex flex-col items-center w-1/3 group relative">
-          <div
-            className={`text-6xl ${
-              nextMilestone === "start" ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]" : ""
-            } text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)] cursor-pointer`}
-          >
-            🗓️
-          </div>
-          <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
-            Bắt đầu
-          </p>
-          <p className="text-emerald-600 dark:text-emerald-400 font-bold text-xl mt-1">
-            {fmt(start)}
-          </p>
+              const fmt = (d) => {
+                const dd = String(d.getDate()).padStart(2, "0");
+                const mm = String(d.getMonth() + 1).padStart(2, "0");
+                const yyyy = d.getFullYear();
+                return `${dd}/${mm}/${yyyy}`;
+              };
 
-          {/* Tooltip */}
-          {nextMilestone === "start" && (
-            <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
-              <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-emerald-300 whitespace-nowrap">
-                ⚡ Sự kiện sắp xảy ra
-              </div>
-            </div>
-          )}
-        </div>
+              return (
+                <div className="relative bg-white/80 dark:bg-gray-800/60 rounded-2xl border border-emerald-100 dark:border-gray-700 shadow-inner p-10 overflow-hidden">
+                  {/* ==== LINE ==== */}
+                  <div className="relative h-[7px] w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-14">
+                    <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-indigo-500 rounded-full w-full opacity-70"></div>
+                  </div>
 
-        {/* ==== NHẮC NHỞ ==== */}
-        <div className="flex flex-col items-center w-1/3 group relative">
-          <div
-            className={`text-6xl ${
-              nextMilestone === "remind" ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]" : ""
-            } text-indigo-500 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)] cursor-pointer`}
-          >
-            ⏰
-          </div>
-          <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
-            Nhắc nhở
-          </p>
-          <p className="text-indigo-600 dark:text-indigo-400 font-bold text-xl mt-1">
-            {fmt(remind)}
-          </p>
+                  {/* ==== 3 MỐC ==== */}
+                  <div className="flex justify-between items-start text-center select-none">
+                    {/* ==== BẮT ĐẦU ==== */}
+                    <div className="flex flex-col items-center w-1/3 group relative">
+                      <div
+                        className={`text-6xl ${
+                          nextMilestone === "start"
+                            ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]"
+                            : ""
+                        } text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)] cursor-pointer`}
+                      >
+                        🗓️
+                      </div>
+                      <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
+                        Bắt đầu
+                      </p>
+                      <p className="text-emerald-600 dark:text-emerald-400 font-bold text-xl mt-1">
+                        {fmt(start)}
+                      </p>
 
-          {/* Tooltip */}
-          {nextMilestone === "remind" && (
-            <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
-              <div className="bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-indigo-300 whitespace-nowrap">
-                ⚡ Sự kiện sắp xảy ra
-              </div>
-            </div>
-          )}
-        </div>
+                      {/* Tooltip */}
+                      {nextMilestone === "start" && (
+                        <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-emerald-300 whitespace-nowrap">
+                            ⚡ Sự kiện sắp xảy ra
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-        {/* ==== BẢO TRÌ ==== */}
-        <div className="flex flex-col items-center w-1/3 group relative">
-          <div
-            className={`text-6xl ${
-              nextMilestone === "next" ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]" : ""
-            } text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.6)] cursor-pointer`}
-          >
-            🔔
-          </div>
-          <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
-            Bảo trì kế tiếp
-          </p>
-          <p className="text-emerald-600 dark:text-emerald-400 font-bold text-xl mt-1">
-            {fmt(next)}
-          </p>
+                    {/* ==== NHẮC NHỞ ==== */}
+                    <div className="flex flex-col items-center w-1/3 group relative">
+                      <div
+                        className={`text-6xl ${
+                          nextMilestone === "remind"
+                            ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]"
+                            : ""
+                        } text-indigo-500 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)] cursor-pointer`}
+                      >
+                        ⏰
+                      </div>
+                      <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
+                        Nhắc nhở
+                      </p>
+                      <p className="text-indigo-600 dark:text-indigo-400 font-bold text-xl mt-1">
+                        {fmt(remind)}
+                      </p>
 
-          {/* Tooltip */}
-          {nextMilestone === "next" && (
-            <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
-              <div className="bg-gradient-to-r from-amber-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-amber-300 whitespace-nowrap">
-                ⚡ Sự kiện sắp xảy ra
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+                      {/* Tooltip */}
+                      {nextMilestone === "remind" && (
+                        <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <div className="bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-indigo-300 whitespace-nowrap">
+                            ⚡ Sự kiện sắp xảy ra
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-      {/* ==== CHU KỲ ==== */}
-      <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-5 text-base text-center text-gray-700 dark:text-gray-300 font-medium">
-        <span className="inline-block bg-gradient-to-r from-emerald-500 to-cyan-500 text-transparent bg-clip-text font-semibold text-lg">
-          ⏳ Chu kỳ:
-        </span>{" "}
-        <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-          {formData.periodic_frequency_interval}{" "}
-          {formData.periodic_frequency_type === "week"
-            ? "tuần"
-            : formData.periodic_frequency_type === "month"
-            ? "tháng"
-            : "năm"}
-        </span>{" "}
-        kể từ ngày{" "}
-        <span className="font-bold text-indigo-600 dark:text-indigo-400">{fmt(start)}</span>
-      </div>
-    </div>
-  );
- })()}
+                    {/* ==== BẢO TRÌ ==== */}
+                    <div className="flex flex-col items-center w-1/3 group relative">
+                      <div
+                        className={`text-6xl ${
+                          nextMilestone === "next"
+                            ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]"
+                            : ""
+                        } text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.6)] cursor-pointer`}
+                      >
+                        🔔
+                      </div>
+                      <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
+                        Bảo trì kế tiếp
+                      </p>
+                      <p className="text-emerald-600 dark:text-emerald-400 font-bold text-xl mt-1">
+                        {fmt(next)}
+                      </p>
 
-{/* === Animation Shake Bounce (nhún nhẹ) === */}
-<style>
-{`
+                      {/* Tooltip */}
+                      {nextMilestone === "next" && (
+                        <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <div className="bg-gradient-to-r from-amber-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-amber-300 whitespace-nowrap">
+                            ⚡ Sự kiện sắp xảy ra
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ==== CHU KỲ ==== */}
+                  <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-5 text-base text-center text-gray-700 dark:text-gray-300 font-medium">
+                    <span className="inline-block bg-gradient-to-r from-emerald-500 to-cyan-500 text-transparent bg-clip-text font-semibold text-lg">
+                      ⏳ Chu kỳ:
+                    </span>{" "}
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {formData.periodic_frequency_interval}{" "}
+                      {formData.periodic_frequency_type === "week"
+                        ? "tuần"
+                        : formData.periodic_frequency_type === "month"
+                        ? "tháng"
+                        : "năm"}
+                    </span>{" "}
+                    kể từ ngày{" "}
+                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                      {fmt(start)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+          {/* === Animation Shake Bounce (nhún nhẹ) === */}
+          <style>
+            {`
 @keyframes shakeBounce {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   20% { transform: translateY(-5px) rotate(-2deg); }
@@ -636,8 +731,7 @@ export default function EquipmentProfilePage() {
   80% { transform: translateY(2px) rotate(1deg); }
 }
 `}
-</style>
-
+          </style>
         </div>
       </div>
       {/* </div> */}
