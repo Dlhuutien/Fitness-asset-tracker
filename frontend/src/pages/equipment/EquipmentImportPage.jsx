@@ -175,6 +175,7 @@ export default function EquipmentImportPage({
         cost: Number(item.price) || 0,
         quantity: Number(item.qty) || 0,
         warranty_duration: Number(item.warranty_duration) || 0,
+        warranty_start_date: item.warranty_start_date || null,
       }));
 
       if (items.length === 0) {
