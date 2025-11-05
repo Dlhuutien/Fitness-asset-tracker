@@ -226,6 +226,41 @@ body {
 .animate-slide-out {
   animation: slide-out-right 0.4s ease forwards;
 }
+@keyframes flow {
+  0% { transform: translateX(-100%); opacity: 0.3; }
+  50% { transform: translateX(0%); opacity: 0.9; }
+  100% { transform: translateX(100%); opacity: 0.3; }
+}
+.animate-flow {
+  animation: flow 3s linear infinite;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(-5deg) scale(1.05); }
+  50% { transform: rotate(5deg) scale(1.1); }
+  75% { transform: rotate(-3deg) scale(1.05); }
+}
+.animate-wiggle {
+  animation: wiggle 2.3s ease-in-out infinite;
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-bounce-slow {
+  animation: bounce-slow 2.8s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite 1s;
+}
+
 
 /* ========Ẩn thanh cuộn============== */
 /* Ẩn thanh cuộn nhưng vẫn cuộn được */
