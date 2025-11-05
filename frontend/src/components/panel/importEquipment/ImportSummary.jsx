@@ -15,18 +15,18 @@ export default function ImportSummary({
   isSuperAdmin,
   branchId,
 }) {
-  // Lấy danh sách thiết bị đã chọn để nhập
+  // 🧮 Danh sách thiết bị được chọn
   const rows = useMemo(
     () => Object.values(selectedItems || {}),
     [selectedItems]
   );
 
-  // ⚡ Update dữ liệu + kiểm tra không âm
+  // ⚙️ Hàm cập nhật field trong selectedItems
   const updateField = (id, field, value) => {
-    const num = Number(value);
-    if (isNaN(num)) return;
+    const parsed = field === "warranty_start_date" ? value : Number(value);
+    if (field !== "warranty_start_date" && isNaN(parsed)) return;
 
-    if (num < 0) {
+    if (typeof parsed === "number" && parsed < 0) {
       toast.warning("⚠️ Giá trị không được âm!");
       setSelectedItems((prev) => ({
         ...prev,
@@ -37,11 +37,11 @@ export default function ImportSummary({
 
     setSelectedItems((prev) => ({
       ...prev,
-      [id]: { ...prev[id], [field]: num },
+      [id]: { ...prev[id], [field]: parsed },
     }));
   };
 
-  // Tính tổng tiền
+  // 💰 Tính tổng
   const totalBeforeTax = rows.reduce((sum, r) => {
     const p = Number(r.price) || 0;
     const q = Number(r.qty) || 0;
@@ -56,30 +56,7 @@ export default function ImportSummary({
         📦 Tổng hợp & Xác nhận
       </h3>
 
-      {/* Thông tin vendor & thiết bị đang kiểm */}
-      <div className="grid md:grid-cols-3 gap-3 text-sm">
-        <div className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700">
-          <div className="text-gray-500">Thiết bị đang kiểm giá:</div>
-          <div className="font-semibold">{checkedEquipmentId || "—"}</div>
-        </div>
-        <div className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700">
-          <div className="text-gray-500">Vendor đang chọn:</div>
-          <div className="font-semibold">{selectedVendor || "—"}</div>
-        </div>
-        <div className="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700">
-          <div className="text-gray-500">Giá gần nhất (vendor đã chọn):</div>
-          <div className="font-semibold">
-            {selectedVendor &&
-            typeof vendorLatestPrices[selectedVendor] === "number"
-              ? `${vendorLatestPrices[selectedVendor].toLocaleString(
-                  "vi-VN"
-                )} đ`
-              : "—"}
-          </div>
-        </div>
-      </div>
-
-      {/* Danh sách dòng thiết bị được chọn */}
+      {/* === Danh sách thiết bị đã chọn === */}
       {rows.length > 0 ? (
         <div className="space-y-3">
           {rows.map((item) => {
@@ -95,7 +72,7 @@ export default function ImportSummary({
                   className="w-40 h-32 object-contain rounded border bg-white dark:bg-gray-900"
                 />
 
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <p className="font-semibold text-gray-900 dark:text-gray-100">
                       {item.name}
@@ -103,9 +80,12 @@ export default function ImportSummary({
                     <p className="text-xs text-gray-500 mb-2">Mã: {item.id}</p>
                   </div>
 
-                  <div className="grid sm:grid-cols-3 gap-3">
+                  {/* === Form nhập thông tin === */}
+                  <div className="grid sm:grid-cols-4 gap-3">
                     <div>
-                      <Label className="text-xs text-gray-400">Giá (VNĐ)</Label>
+                      <Label className="text-xs text-gray-400">
+                        Giá nhập (VNĐ)
+                      </Label>
                       <Input
                         type="number"
                         value={item.price || ""}
@@ -118,7 +98,9 @@ export default function ImportSummary({
                     </div>
 
                     <div>
-                      <Label className="text-xs text-gray-400">Số lượng</Label>
+                      <Label className="text-xs text-gray-400">
+                        Số lượng
+                      </Label>
                       <Input
                         type="number"
                         value={item.qty || ""}
@@ -132,10 +114,29 @@ export default function ImportSummary({
 
                     <div>
                       <Label className="text-xs text-gray-400">
-                        Bảo hành (năm)
+                        Ngày bắt đầu BH
+                      </Label>
+                      <Input
+                        type="date"
+                        value={item.warranty_start_date || ""}
+                        onChange={(e) =>
+                          updateField(
+                            item.id,
+                            "warranty_start_date",
+                            e.target.value
+                          )
+                        }
+                        className="h-8 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs text-gray-400">
+                        Số năm bảo hành
                       </Label>
                       <Input
                         type="number"
+                        min={0}
                         value={item.warranty_duration || ""}
                         onChange={(e) =>
                           updateField(
@@ -164,7 +165,7 @@ export default function ImportSummary({
         </div>
       )}
 
-      {/* Tổng cộng và xác nhận */}
+      {/* === Tổng kết và xác nhận === */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-lg border bg-gray-50 dark:bg-gray-700">
         <div className="space-y-1 text-sm">
           <div>
