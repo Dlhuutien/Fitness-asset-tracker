@@ -2637,9 +2637,6 @@ Tạo một yêu cầu bảo trì mới.
 - **warranty** sẽ được tự động tính theo `warranty_end_date` của unit (không nhập trong body).
 - **assigned_by** được set theo `req.user.sub`.
 - **branch_id** được set theo branch_id của equipment Unit
-- Nếu role = `operator` -> auto gán `user_id = sub`.
-- Nếu role = `technician` -> unit được set ngay sang **In Progress**.
-- Role khác -> unit được set sang **Temporary Urgent**.
 
 **Body (JSON):**
 
@@ -2920,13 +2917,6 @@ Tạo **kế hoạch bảo trì định kỳ** cho 1 **dòng thiết bị (`equi
   "error": "Đã tồn tại lịch nhắc nhở bảo trì cho dòng thiết bị Treadmill Pro (CAOTMJS)"
 }
 ```
-
-Rất hay — mình đã đọc xong file `frequencyParser.js` của bạn, và có thể tạo bảng tóm tắt toàn bộ **frequency** hợp lệ, kèm:
-
-* Chuỗi nhập (`frequency`),
-* Kết quả AWS `rate()` (theo `parseFrequencyToRate()`),
-* Thời gian lặp lại thực tế,
-* Nhãn tiếng Việt (theo `formatFrequencyLabel()`).
 
 ---
 
