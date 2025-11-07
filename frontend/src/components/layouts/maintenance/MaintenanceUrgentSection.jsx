@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
 import {
@@ -14,6 +14,10 @@ import Status from "@/components/common/Status";
 import { Loader2 } from "lucide-react";
 import EquipmentUnitService from "@/services/equipmentUnitService";
 import MaintainService from "@/services/MaintainService";
+// import MaintenanceMiniSection from "./MaintenanceMiniSection";
+import { X } from "lucide-react"; // icon đóng overlay
+import SetScheduleSection from "./SetScheduleSection";
+
 import { toast } from "sonner";
 import {
   HeaderFilter,
@@ -63,6 +67,12 @@ export default function MaintenanceUrgentSection() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const { isSuperAdmin } = useAuthRole();
+  const [showSchedule, setShowSchedule] = useState(false);
+  // 🚫 Ngăn scroll & nền trắng khi mở modal
+  useEffect(() => {
+    if (showSchedule) document.body.classList.add("modal-open");
+    else document.body.classList.remove("modal-open");
+  }, [showSchedule]);
 
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -299,7 +309,8 @@ export default function MaintenanceUrgentSection() {
               <SelectValue placeholder="Nhóm thiết bị" />
             </SelectTrigger>
             <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md rounded-md">
-              {[{ id: "all", name: "Tất cả nhóm" },
+              {[
+                { id: "all", name: "Tất cả nhóm" },
                 ...Array.from(
                   new Set(equipments.map((e) => e.equipment?.main_name))
                 ).map((n) => ({ id: n, name: n })),
@@ -339,6 +350,12 @@ export default function MaintenanceUrgentSection() {
             </Select>
           )}
         </div>
+        <Button
+          onClick={() => setShowSchedule(true)}
+          className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-sm"
+        >
+          🗓️ Xếp lịch bảo trì
+        </Button>
 
         <ColumnVisibilityButton
           visibleColumns={visibleColumns}
@@ -360,46 +377,47 @@ export default function MaintenanceUrgentSection() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-700">
- <TableHeader>
-  <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-    <TableHead>#</TableHead>
-    {Object.entries(visibleColumns).map(([key, visible]) => {
-      if (!visible) return null;
+            <TableHeader>
+              <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
+                <TableHead>#</TableHead>
+                {Object.entries(visibleColumns).map(([key, visible]) => {
+                  if (!visible) return null;
 
-      const COLUMN_LABELS = {
-        id: "Mã định danh thiết bị",
-        image: "Ảnh",
-        name: "Tên thiết bị",
-        main_name: "Nhóm thiết bị",
-        type_name: "Loại thiết bị",
-        status: "Trạng thái",
-        vendor_name: "Nhà cung cấp",
-        branch_id: "Chi nhánh",
-      };
+                  const COLUMN_LABELS = {
+                    id: "Mã định danh thiết bị",
+                    image: "Ảnh",
+                    name: "Tên thiết bị",
+                    main_name: "Nhóm thiết bị",
+                    type_name: "Loại thiết bị",
+                    status: "Trạng thái",
+                    vendor_name: "Nhà cung cấp",
+                    branch_id: "Chi nhánh",
+                  };
 
-      // 🧩 Bỏ filter cho cột "image"
-      const noFilterColumns = ["image"];
+                  // 🧩 Bỏ filter cho cột "image"
+                  const noFilterColumns = ["image"];
 
-      return (
-        <TableHead key={key}>
-          {noFilterColumns.includes(key) ? (
-            COLUMN_LABELS[key]
-          ) : (
-            <HeaderFilter
-              selfKey={key}
-              label={COLUMN_LABELS[key] || key}
-              values={uniqueValues[key]}
-              selected={filters[key]}
-              onChange={(v) => setFilters((p) => ({ ...p, [key]: v }))}
-              controller={controller}
-            />
-          )}
-        </TableHead>
-      );
-    })}
-  </TableRow>
-</TableHeader>
-
+                  return (
+                    <TableHead key={key}>
+                      {noFilterColumns.includes(key) ? (
+                        COLUMN_LABELS[key]
+                      ) : (
+                        <HeaderFilter
+                          selfKey={key}
+                          label={COLUMN_LABELS[key] || key}
+                          values={uniqueValues[key]}
+                          selected={filters[key]}
+                          onChange={(v) =>
+                            setFilters((p) => ({ ...p, [key]: v }))
+                          }
+                          controller={controller}
+                        />
+                      )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            </TableHeader>
 
             <TableBody>
               {currentData.map((row, idx) => {
@@ -489,7 +507,7 @@ export default function MaintenanceUrgentSection() {
         {/* Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700 text-sm">
           <div className="text-gray-700 dark:text-gray-300">
-            Tổng:{" "} {filteredByColumn.length} thiết bị
+            Tổng: {filteredByColumn.length} thiết bị
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -561,8 +579,7 @@ export default function MaintenanceUrgentSection() {
                 <strong>Tên:</strong> {selected.equipment?.name}
               </p>
               <p>
-                <strong>Nhà cung cấp:</strong>{" "}
-                {selected.vendor_name}
+                <strong>Nhà cung cấp:</strong> {selected.vendor_name}
               </p>
               <p>
                 <strong>Nhóm:</strong> {selected.equipment?.main_name}
@@ -581,9 +598,7 @@ export default function MaintenanceUrgentSection() {
                     ✅ Còn hạn
                   </span>
                 ) : (
-                  <span className="text-red-600 font-semibold">
-                    ❌ Hết hạn
-                  </span>
+                  <span className="text-red-600 font-semibold">❌ Hết hạn</span>
                 )}
               </p>
             </div>
@@ -692,6 +707,56 @@ export default function MaintenanceUrgentSection() {
           </div>
         </motion.div>
       )}
+
+    
+{/* === Overlay FitX Calendar (1 lớp, tối nền, nút X lộ góc ngoài) === */}
+{/* === Overlay FitX Calendar (1 lớp, nút X nổi ngoài góc) === */}
+{showSchedule && (
+  <AnimatePresence>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.25 }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center 
+                 bg-black/60 backdrop-blur-[6px]"
+    >
+      {/* 📅 Lịch chính */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        transition={{ type: 'spring', duration: 0.4 }}
+        className="relative w-[95vw] max-w-[1350px] max-h-[92vh]
+                   overflow-visible rounded-3xl bg-white 
+                   shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
+      >
+        {/* ✅ Lịch */}
+        <SetScheduleSection />
+
+        {/* ❌ Nút đóng – lộ ra ngoài góc phải trên */}
+        <motion.button
+          whileHover={{ rotate: [0, -8, 8, -8, 0], transition: { duration: 0.5 } }}
+          onClick={() => setShowSchedule(false)}
+          className="absolute -top-4 -right-4 w-12 h-12 rounded-full z-[10000]
+                     bg-gradient-to-r from-red-500 to-rose-500 text-white 
+                     flex items-center justify-center
+                     shadow-[0_6px_22px_rgba(244,63,94,0.55)]
+                     hover:shadow-[0_8px_30px_rgba(244,63,94,0.7)]
+                     hover:scale-110 active:scale-95
+                     border-[3px] border-white/90 ring-[3px] ring-white/70
+                     transition-all duration-300 ease-out"
+          style={{
+            transform: "translate(6px, -6px)", // 🔥 đẩy chéo ra ngoài mép
+          }}
+        >
+          <X className="w-5 h-5" />
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  </AnimatePresence>
+)}
+
     </div>
   );
 }
