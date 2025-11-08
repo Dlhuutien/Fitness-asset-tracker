@@ -231,6 +231,7 @@ const maintenancePlanService = {
     return plans.map((p) => ({
       ...p,
       equipment_name: equipmentMap[p.equipment_id]?.name || null,
+      equipment_img: equipmentMap[p.equipment_id]?.image || null,
     }));
   },
 
@@ -242,6 +243,7 @@ const maintenancePlanService = {
     return {
       ...plan,
       equipment_name: eq?.name || null,
+      equipment_img: eq?.image || null, 
     };
   },
 
@@ -253,6 +255,7 @@ const maintenancePlanService = {
     return plans.map((p) => ({
       ...p,
       equipment_name: eq?.name || null,
+      equipment_img: eq?.image || null, 
     }));
   },
 

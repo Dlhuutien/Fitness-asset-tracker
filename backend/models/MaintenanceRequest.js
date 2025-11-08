@@ -51,25 +51,38 @@ const MaintenanceRequestModel = {
       }
     }
 
+    // 🕓 Sắp xếp theo thời gian mới nhất (created_at giảm dần)
+    items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
     return items;
   },
 
-  findById: async (id) => {
+  findByBranchId: async (branch_id) => {
     const res = await dynamodb.send(
-      new GetCommand({ TableName: tableName, Key: { id } })
+      new QueryCommand({
+        TableName: tableName,
+        IndexName: "branch_id-index",
+        KeyConditionExpression: "branch_id = :b",
+        ExpressionAttributeValues: { ":b": branch_id },
+      })
     );
-    const item = res.Item;
+    const items = res.Items || [];
 
-    // ✅ Parse JSON string -> array khi đọc
-    if (item && typeof item.equipment_unit_id === "string") {
-      try {
-        item.equipment_unit_id = JSON.parse(item.equipment_unit_id);
-      } catch {
-        item.equipment_unit_id = [item.equipment_unit_id];
+    // ✅ Parse JSON -> array
+    for (const i of items) {
+      if (typeof i.equipment_unit_id === "string") {
+        try {
+          i.equipment_unit_id = JSON.parse(i.equipment_unit_id);
+        } catch {
+          i.equipment_unit_id = [i.equipment_unit_id];
+        }
       }
     }
 
-    return item;
+    // 🕓 Sắp xếp mới nhất trước
+    items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+    return items;
   },
 
   findByUnitId: async (equipment_unit_id) => {
@@ -93,6 +106,9 @@ const MaintenanceRequestModel = {
         }
       }
     }
+
+    // 🕓 Sắp xếp mới nhất trước
+    items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
     return items;
   },

@@ -24,12 +24,12 @@ import {
   Plus,
 } from "lucide-react";
 import MaintenancePlanService from "@/services/MaintenancePlanService";
-import ScheduleEvent from "./SetScheduleEvent";
 import { Button } from "@/components/ui/buttonn";
 import { toast } from "sonner";
 import EquipmentService from "@/services/equipmentService";
 import AddScheduleSection from "./AddScheduleSection";
 import { X } from "lucide-react";
+import MaintenanceRequestService from "@/services/MaintenanceRequestService";
 
 /* 🎨 Style mapping trạng thái */
 const STATUS = {
@@ -99,19 +99,65 @@ export default function SetScheduleSection() {
   const [view, setView] = useState("month"); // 'week' | 'month' | 'year'
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  // 🔹 Lưu ID của yêu cầu đang mở "Chi tiết thiết bị"
+  const [expandedRequest, setExpandedRequest] = useState(null);
 
   /* ====== Fetch plans ====== */
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      const res = await MaintenancePlanService.getAll();
-      const data = res?.data || res || [];
-      const mapped = await Promise.all(
-        (Array.isArray(data) ? data : []).map(mapEvent)
+
+      // 🔹 Gọi song song 2 API
+      const [plansRes, reqRes] = await Promise.all([
+        MaintenancePlanService.getAll(),
+        MaintenanceRequestService.getAll(),
+      ]);
+
+      const plans = Array.isArray(plansRes) ? plansRes : plansRes?.data || [];
+      const requests = Array.isArray(reqRes) ? reqRes : reqRes?.data || [];
+
+      // 🔸 Lịch định kỳ (plan)
+      const planEvents = plans.map((p) => ({
+        id: p.id,
+        type: "plan",
+        unitId: p.equipment_id,
+        unitGroup: p.equipment_name,
+        branch: "—",
+        start: new Date(p.next_maintenance_date),
+        status: "plan",
+        color: "bg-amber-400 text-white",
+        label: "🟠 Lịch đúng hẹn",
+      }));
+
+      // 🔹 Yêu cầu bảo trì (request)
+      const requestEvents = requests.flatMap((r) =>
+        (r.units || []).map((u) => ({
+          id: r.id,
+          type: "request",
+          unitId: u.id,
+          unitGroup: u.equipment_name || "—",
+          branch: u.branch_name || "—",
+          start: new Date(r.scheduled_at),
+          status: r.status,
+          color:
+            r.status === "confirmed"
+              ? "bg-emerald-500 text-white"
+              : "bg-cyan-500 text-white",
+          label:
+            r.status === "confirmed"
+              ? "🟩 Lịch bảo trì"
+              : "🟦 Lịch chờ đảm nhận",
+        }))
       );
-      setEvents(mapped);
-    } catch (e) {
-      console.error("❌ Lỗi tải lịch bảo trì:", e);
+
+      // 🔹 Gộp 2 loại event
+      const allEvents = [...planEvents, ...requestEvents].sort(
+        (a, b) => a.start - b.start
+      );
+
+      setEvents(allEvents);
+    } catch (err) {
+      console.error("❌ Lỗi khi tải dữ liệu lịch:", err);
       toast.error("Không thể tải lịch bảo trì!");
     } finally {
       setLoading(false);
@@ -159,6 +205,14 @@ export default function SetScheduleSection() {
     () => events.filter((e) => e.status === "pending" && inCurrentView(e)),
     [events, inCurrentView]
   );
+  // 🔹 Danh sách các thiết bị đã được đảm nhận (confirmed)
+  const confirmedInView = useMemo(
+    () => events.filter((e) => e.status === "confirmed" && inCurrentView(e)),
+    [events, inCurrentView]
+  );
+
+  // 🔹 Tab đang chọn ("pending" hoặc "confirmed")
+  const [activeTab, setActiveTab] = useState("pending");
 
   /* ====== Điều hướng thời gian ====== */
   const goPrev = () => {
@@ -328,7 +382,19 @@ export default function SetScheduleSection() {
       {/* ====== Body (2 cột): Lịch + Panel pending ====== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 max-h-[78vh] overflow-hidden">
         {/* ====== Left: Calendar View (scroll riêng) ====== */}
-        <div className="lg:col-span-8 min-h-[60vh] overflow-auto pr-1">
+        <div className="lg:col-span-8 min-h-[60vh] max-h-[74vh] overflow-y-auto pr-1">
+          {/* 🔹 Legend (chú thích màu) */}
+          <div className="flex justify-center gap-6 mt-4 text-sm pb-3">
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded bg-amber-400" /> Lịch theo chu kỳ
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded bg-cyan-500" /> Lịch chờ đảm nhận
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-4 rounded bg-emerald-500" /> Lịch bảo trì
+            </div>
+          </div>
           {/* WEEK VIEW */}
           <AnimatePresence mode="wait">
             {view === "week" && (
@@ -453,17 +519,28 @@ export default function SetScheduleSection() {
                         </div>
 
                         <div className="space-y-1">
-                          {dayEvents.slice(0, 3).map((ev) => (
-                            <div
-                              key={ev.id}
-                              className={`px-2 py-1 rounded-md text-[11px] truncate font-medium ${
-                                STATUS[ev.status]?.chip
-                              }`}
-                              title={`${ev.unitId} • ${ev.unitGroup || ""}`}
-                            >
-                              {ev.unitId}
-                            </div>
-                          ))}
+                          {dayEvents
+                            .sort((a, b) => {
+                              const priority = {
+                                plan: 1,
+                                pending: 2,
+                                confirmed: 3,
+                              };
+                              return (
+                                (priority[a.status] || 0) -
+                                (priority[b.status] || 0)
+                              );
+                            })
+                            .slice(0, 3)
+                            .map((ev) => (
+                              <div
+                                key={ev.id + ev.unitId}
+                                className={`px-2 py-1 rounded-md text-[11px] truncate font-medium ${ev.color}`}
+                                title={`${ev.label} • ${ev.unitGroup || ""}`}
+                              >
+                                {ev.unitId}
+                              </div>
+                            ))}
                           {dayEvents.length > 3 && (
                             <div className="text-[10px] text-slate-500">
                               +{dayEvents.length - 3} nữa…
@@ -547,82 +624,329 @@ export default function SetScheduleSection() {
           </AnimatePresence>
         </div>
 
-        {/* ====== Right: Panel “Thiết bị chờ xác nhận” (giao diện tối giản, 4 dòng) ====== */}
+        {/* ====== Right: Panel “Thiết bị chờ đảm nhận” (giao diện tối giản, 4 dòng) ====== */}
         <div className="lg:col-span-4">
           <div className="rounded-2xl bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] overflow-hidden border border-slate-200 sticky top-4 max-h-[74vh] flex flex-col">
             {/* Header */}
-            <div className="px-4 py-3 border-b bg-gradient-to-r from-emerald-50 to-cyan-50">
-              <div className="font-semibold text-slate-800">
-                Danh sách các thiết bị chờ Bảo trì (
-                {view === "week" ? "Tuần" : view === "month" ? "Tháng" : "Năm"})
-              </div>
-              <div className="text-sm text-slate-500">
-                {pendingInView.length} mục đang chờ
-              </div>
+            {/* 🔹 Tabs header: Chờ đảm nhận / Chờ bảo trì */}
+            <div className="flex border-b bg-gradient-to-r from-emerald-50 to-cyan-50">
+              <button
+                onClick={() => setActiveTab("pending")}
+                className={`flex-1 px-4 py-3 font-semibold text-sm transition-all ${
+                  activeTab === "pending"
+                    ? "text-emerald-700 border-b-2 border-emerald-500 bg-white"
+                    : "text-slate-600 hover:bg-white/50"
+                }`}
+              >
+                Danh sách các thiết bị chờ Đảm nhận ({pendingInView.length})
+              </button>
+
+              <button
+                onClick={() => setActiveTab("confirmed")}
+                className={`flex-1 px-4 py-3 font-semibold text-sm transition-all ${
+                  activeTab === "confirmed"
+                    ? "text-cyan-700 border-b-2 border-cyan-500 bg-white"
+                    : "text-slate-600 hover:bg-white/50"
+                }`}
+              >
+                Danh sách các thiết bị chờ đến ngày Bảo trì (
+                {confirmedInView.length})
+              </button>
             </div>
 
-            {/* Body */}
-            <div className="p-3 space-y-3 overflow-auto">
-              {pendingInView.length === 0 ? (
-                <div className="text-sm text-slate-400 italic text-center py-8">
-                  Không có mục nào đang chờ.
-                </div>
-              ) : (
-                pendingInView
-                  .sort((a, b) => a.start - b.start)
-                  .map((ev) => (
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      key={ev.id}
-                      onClick={() => {
-                        // setEditing(ev);
-                        // setShowForm(true);
-                      }}
-                      className={`relative p-3 rounded-xl border bg-white hover:bg-emerald-50/60 shadow-sm hover:shadow-md transition cursor-pointer ${
-                        STATUS[ev.status]?.border
-                      }`}
-                    >
-                      <div className="flex flex-col gap-1">
-                        {/* 🏷️ Mã thiết bị + trạng thái */}
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm text-slate-800">
-                            {ev.unitId}
-                          </span>
-                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
-                            ⏳ Chờ
-                          </span>
-                        </div>
+            <div className="p-3 space-y-3 overflow-y-auto max-h-[70vh]">
+              {/* ==== Gom nhóm dữ liệu ==== */}
+              {(() => {
+                // 🔹 Gom pending theo request.id
+                const groupedPending = Object.values(
+                  pendingInView.reduce((acc, ev) => {
+                    if (!acc[ev.id]) acc[ev.id] = { ...ev, units: [] };
 
-                        {/* ⚙️ Tên dòng thiết bị */}
-                        <div className="text-emerald-700 font-semibold text-sm truncate max-w-[220px]">
-                          {ev.unitGroup || "—"}
-                        </div>
+                    // Nếu ev có sẵn mảng units (từ API thật) thì map theo đó
+                    if (Array.isArray(ev.units) && ev.units.length > 0) {
+                      ev.units.forEach((u) => {
+                        acc[ev.id].units.push({
+                          id: u.id,
+                          status: u.status || "-",
+                          lastMaintenance: u.updated_at
+                            ? format(new Date(u.updated_at), "dd/MM/yyyy", {
+                                locale: vi,
+                              })
+                            : "-",
+                        });
+                      });
+                    } else {
+                      // fallback nếu ev.units chưa có
+                      acc[ev.id].units.push({
+                        id: ev.unitId,
+                        status: "-",
+                        lastMaintenance: "-",
+                      });
+                    }
 
-                        {/* 👷‍♂️ Người bảo trì */}
-                        <div className="text-[12px] text-slate-500">
-                          👨‍🔧 {ev.technician || "—"}
-                        </div>
+                    return acc;
+                  }, {})
+                );
 
-                        {/* ⏰ Thời gian bảo trì */}
-                        <div className="text-[12px] text-slate-500">
-                          🕒 {format(ev.start, "dd/MM/yyyy ", { locale: vi })}
+                // 🔹 Gom confirmed theo request.id
+                const groupedConfirmed = Object.values(
+                  confirmedInView.reduce((acc, ev) => {
+                    if (!acc[ev.id]) acc[ev.id] = { ...ev, units: [] };
+
+                    if (Array.isArray(ev.units) && ev.units.length > 0) {
+                      ev.units.forEach((u) => {
+                        acc[ev.id].units.push({
+                          id: u.id,
+                          status: u.status || "-",
+                          lastMaintenance: u.updated_at
+                            ? format(new Date(u.updated_at), "dd/MM/yyyy", {
+                                locale: vi,
+                              })
+                            : "-",
+                        });
+                      });
+                    } else {
+                      acc[ev.id].units.push({
+                        id: ev.unitId,
+                        status: "-",
+                        lastMaintenance: "-",
+                      });
+                    }
+
+                    return acc;
+                  }, {})
+                );
+
+                return (
+                  <>
+                    {/* === TAB: PENDING === */}
+                    {activeTab === "pending" &&
+                      (groupedPending.length === 0 ? (
+                        <div className="text-sm text-slate-400 italic text-center py-8">
+                          Không có mục nào đang chờ đảm nhận.
                         </div>
-                      </div>
-                    </motion.div>
-                  ))
-              )}
+                      ) : (
+                        groupedPending
+                          .sort((a, b) => a.start - b.start)
+                          .map((group) => (
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              key={group.id}
+                              className={`relative p-3 rounded-xl border bg-white hover:bg-emerald-50/60 shadow-sm hover:shadow-md transition ${
+                                STATUS[group.status]?.border
+                              }`}
+                            >
+                              <div className="flex flex-col gap-2">
+                                {/* ====== Header ====== */}
+                                <div className="flex items-center justify-between">
+                                  <div className="text-emerald-700 font-semibold text-sm truncate max-w-[220px]">
+                                    {group.unitGroup ||
+                                      group.units?.[0]?.id ||
+                                      "—"}{" "}
+                                    <span className="text-xs text-slate-500">
+                                      ({group.units?.length || 1} thiết bị)
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
+                                    ⏳ Chờ đảm nhận
+                                  </span>
+                                </div>
+
+                                {/* ====== Ngày ====== */}
+                                <div className="text-[12px] text-slate-500">
+                                  🕒{" "}
+                                  {format(group.start, "dd/MM/yyyy", {
+                                    locale: vi,
+                                  })}
+                                </div>
+
+                                {/* ====== Nút hành động ====== */}
+                                <div className="flex items-center justify-between mt-2">
+                                  <Button
+                                    size="sm"
+                                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium px-3 py-1"
+                                    onClick={async () => {
+                                      try {
+                                        await MaintenanceRequestService.confirm(
+                                          group.id
+                                        );
+                                        toast.success(
+                                          `✅ Đã đảm nhận yêu cầu ${group.id}`
+                                        );
+                                        fetchPlans();
+                                      } catch (err) {
+                                        toast.error(
+                                          "❌ Lỗi khi đảm nhận yêu cầu bảo trì"
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    🧰 Đảm nhận
+                                  </Button>
+
+                                  <button
+                                    onClick={() =>
+                                      setExpandedRequest((prev) =>
+                                        prev === group.id ? null : group.id
+                                      )
+                                    }
+                                    className="text-xs text-slate-600 hover:text-emerald-600 underline transition"
+                                  >
+                                    {expandedRequest === group.id
+                                      ? "Ẩn chi tiết thiết bị ▲"
+                                      : "Chi tiết các thiết bị ▼"}
+                                  </button>
+                                </div>
+
+                                {/* ====== Bảng chi tiết ====== */}
+                                {expandedRequest === group.id && (
+                                  <div className="mt-3 border border-emerald-200 rounded-lg overflow-hidden">
+                                    <table className="w-full text-xs border-collapse">
+                                      <thead className="bg-emerald-100/70 text-slate-700 font-semibold">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left">
+                                            Mã định danh
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Trạng thái
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Bảo trì gần nhất
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(group.units || []).map((u) => (
+                                          <tr
+                                            key={u.id}
+                                            className="border-t hover:bg-emerald-50 transition"
+                                          >
+                                            <td className="px-3 py-2 font-medium">
+                                              {u.id}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              {u.status || "—"}
+                                            </td>
+                                            <td className="px-3 py-2 text-slate-600">
+                                              {u.lastMaintenance || "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))
+                      ))}
+
+                    {/* === TAB: CONFIRMED === */}
+                    {activeTab === "confirmed" &&
+                      (groupedConfirmed.length === 0 ? (
+                        <div className="text-sm text-slate-400 italic text-center py-8">
+                          Không có mục nào đang chờ bảo trì.
+                        </div>
+                      ) : (
+                        groupedConfirmed
+                          .sort((a, b) => a.start - b.start)
+                          .map((group) => (
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              key={group.id}
+                              className="relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition border-cyan-300/50"
+                            >
+                              <div className="flex flex-col gap-2">
+                                {/* ====== Header ====== */}
+                                <div className="flex items-center justify-between">
+                                  <div className="text-emerald-700 font-semibold text-sm truncate max-w-[220px]">
+                                    {group.unitGroup ||
+                                      group.units?.[0]?.id ||
+                                      "—"}{" "}
+                                    <span className="text-xs text-slate-500">
+                                      ({group.units?.length || 1} thiết bị)
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-cyan-100 text-cyan-700 border border-cyan-200">
+                                    🔧 Chờ bảo trì
+                                  </span>
+                                </div>
+
+                                {/* ====== Thông tin ====== */}
+                                <div className="text-[12px] text-slate-500">
+                                  👨‍🔧 {group.technician || "—"}
+                                </div>
+                                <div className="text-[12px] text-slate-500">
+                                  🕒{" "}
+                                  {format(group.start, "dd/MM/yyyy", {
+                                    locale: vi,
+                                  })}
+                                </div>
+
+                                {/* ====== Chi tiết các thiết bị ====== */}
+                                <div className="flex items-center justify-end mt-2">
+                                  <button
+                                    onClick={() =>
+                                      setExpandedRequest((prev) =>
+                                        prev === group.id ? null : group.id
+                                      )
+                                    }
+                                    className="text-xs text-slate-600 hover:text-cyan-600 underline transition"
+                                  >
+                                    {expandedRequest === group.id
+                                      ? "Ẩn chi tiết thiết bị ▲"
+                                      : "Chi tiết các thiết bị ▼"}
+                                  </button>
+                                </div>
+
+                                {expandedRequest === group.id && (
+                                  <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
+                                    <table className="w-full text-xs border-collapse">
+                                      <thead className="bg-cyan-100/70 text-slate-700 font-semibold">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left">
+                                            Mã định danh
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Trạng thái
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Bảo trì gần nhất
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(group.units || []).map((u) => (
+                                          <tr
+                                            key={u.id}
+                                            className="border-t hover:bg-cyan-50 transition"
+                                          >
+                                            <td className="px-3 py-2 font-medium">
+                                              {u.id}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              {u.status || "—"}
+                                            </td>
+                                            <td className="px-3 py-2 text-slate-600">
+                                              {u.lastMaintenance || "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))
+                      ))}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
       </div>
-
-      {/* === FORM MODAL (chỉ mở khi click panel phải hoặc nút Tạo) === */}
-      {/* <ScheduleEvent
-        open={showForm}
-        onClose={() => setShowForm(false)}
-        editing={editing}
-        onSaved={fetchPlans}
-      /> */}
     </div>
   );
 }
