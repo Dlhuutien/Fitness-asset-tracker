@@ -12,7 +12,7 @@ export default function MaintenancePage() {
   const tabs = isTechnician
     ? [{ key: "urgent", label: "🚨 Ngừng tạm thời" }]
     : [
-        { key: "urgent", label: "🚨 Ngừng tạm thời" },
+        { key: "urgent", label: "🚨 Danh sách bảo trì" },
         { key: "ready", label: "🧾 Chờ phê duyệt" },
       ];
 
