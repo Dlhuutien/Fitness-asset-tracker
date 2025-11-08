@@ -5,6 +5,7 @@ const userService = require("./userService");
 const notificationService = require("./notificationService");
 const equipmentRepository = require("../repositories/equipmentRepository");
 const vendorRepository = require("../repositories/vendorRepository");
+const userRepository = require("../repositories/userRepository");
 
 const {
   SchedulerClient,
@@ -81,11 +82,19 @@ async function enrichRequestData(request) {
   const vendorIds = [...new Set(units.map((u) => u.vendor_id).filter(Boolean))];
   const branchIds = [...new Set(units.map((u) => u.branch_id))];
 
-  // Lấy toàn bộ thông tin join
-  const [equipments, vendors, branches] = await Promise.all([
+  // 🧩 Gom ID user cần lấy
+  const userIds = [
+    request.assigned_by,
+    request.confirmed_by,
+    request.candidate_tech_id,
+  ].filter(Boolean);
+
+  // Lấy toàn bộ thông tin join song song
+  const [equipments, vendors, branches, users] = await Promise.all([
     equipmentRepository.batchFindByIds(equipmentIds),
     Promise.all(vendorIds.map((id) => vendorRepository.findById(id))),
     Promise.all(branchIds.map((id) => branchRepository.findById(id))),
+    Promise.all(userIds.map((id) => userRepository.getUserBySub(id))),
   ]);
 
   const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
@@ -95,8 +104,9 @@ async function enrichRequestData(request) {
   const branchMap = Object.fromEntries(
     branchIds.map((id, i) => [id, branches[i]])
   );
+  const userMap = Object.fromEntries(userIds.map((id, i) => [id, users[i]]));
 
-  // Gộp chi tiết thiết bị vào từng unit
+  // Gộp chi tiết thiết bị
   const enrichedUnits = units.map((u) => ({
     ...u,
     equipment_name: equipmentMap[u.equipment_id]?.name || null,
@@ -104,9 +114,22 @@ async function enrichRequestData(request) {
     branch_name: branchMap[u.branch_id]?.name || null,
   }));
 
+  // 🧠 Helper lấy tên người dùng
+  const extractName = (u) =>
+    u?.attributes?.name ||
+    u?.UserAttributes?.find(
+      (a) => a.Name === "name" || a.Name === "custom:name"
+    )?.Value ||
+    u?.username ||
+    u?.Username ||
+    "Chưa có thông tin";
+
   return {
     ...request,
     units: enrichedUnits,
+    assigned_by_name: extractName(userMap[request.assigned_by]),
+    confirmed_by_name: extractName(userMap[request.confirmed_by]),
+    candidate_tech_name: extractName(userMap[request.candidate_tech_id]),
   };
 }
 
