@@ -26,16 +26,15 @@ export default function ScheduleEvent({ open, onClose, onSaved }) {
   const [nextDatePreview, setNextDatePreview] = useState("");
   const [success, setSuccess] = useState(false);
 
-useEffect(() => {
-  // Mỗi lần mở modal thì reset form về trống
-  setForm({
-    equipment_id: "",
-    frequency: "3_months",
-    next_maintenance_date: "",
-    note: "",
-  });
-}, [open]);
-
+  useEffect(() => {
+    // Mỗi lần mở modal thì reset form về trống
+    setForm({
+      equipment_id: "",
+      frequency: "3_months",
+      next_maintenance_date: "",
+      note: "",
+    });
+  }, [open]);
 
   // 🔁 Dự kiến ngày tiếp theo
   useEffect(() => {
@@ -52,8 +51,8 @@ useEffect(() => {
     e.preventDefault();
     try {
       setLoading(true);
-await MaintenancePlanService.create(form);
-toast.success("🎉 Đã tạo kế hoạch mới!");
+      await MaintenancePlanService.create(form);
+      toast.success("🎉 Đã tạo kế hoạch mới!");
 
       setSuccess(true);
       setTimeout(() => {
@@ -90,7 +89,6 @@ toast.success("🎉 Đã tạo kế hoạch mới!");
             {/* === Header Gradient FitX === */}
             <div className="bg-gradient-to-r from-emerald-500 via-cyan-500 to-teal-500 text-white px-6 py-4 font-semibold text-lg tracking-wide flex items-center justify-between shadow-inner">
               "🛠️ Lên lịch bảo trì mới"
-
             </div>
 
             {/* === Form Body === */}

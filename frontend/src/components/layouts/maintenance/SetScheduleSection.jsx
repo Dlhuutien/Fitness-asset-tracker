@@ -28,6 +28,8 @@ import ScheduleEvent from "./SetScheduleEvent";
 import { Button } from "@/components/ui/buttonn";
 import { toast } from "sonner";
 import EquipmentService from "@/services/equipmentService";
+import AddScheduleSection from "./AddScheduleSection";
+import { X } from "lucide-react";
 
 /* 🎨 Style mapping trạng thái */
 const STATUS = {
@@ -60,7 +62,6 @@ const STATUS = {
 const normStatus = (s) => (s ? String(s).toLowerCase() : "pending");
 const fmtDayKey = (d) => format(d, "yyyy-MM-dd");
 
-
 /* 🧩 Map dữ liệu từ API -> event chuẩn (lấy thêm tên dòng thiết bị) */
 const mapEvent = async (item) => {
   const start = item.next_maintenance_date
@@ -89,7 +90,6 @@ const mapEvent = async (item) => {
   };
 };
 
-
 export default function SetScheduleSection() {
   const [events, setEvents] = useState([]);
   const [cursor, setCursor] = useState(() => new Date()); // mốc hiển thị
@@ -106,9 +106,10 @@ export default function SetScheduleSection() {
       setLoading(true);
       const res = await MaintenancePlanService.getAll();
       const data = res?.data || res || [];
-      const mapped = await Promise.all((Array.isArray(data) ? data : []).map(mapEvent));
-setEvents(mapped);
-
+      const mapped = await Promise.all(
+        (Array.isArray(data) ? data : []).map(mapEvent)
+      );
+      setEvents(mapped);
     } catch (e) {
       console.error("❌ Lỗi tải lịch bảo trì:", e);
       toast.error("Không thể tải lịch bảo trì!");
@@ -285,12 +286,42 @@ setEvents(mapped);
           </div>
 
           <Button
-  onClick={() => {}} // ❌ không mở form nữa
-  className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold shadow-md flex items-center gap-1"
->
-  <Plus className="w-4 h-4" /> Tạo kế hoạch
-</Button>
+            onClick={() => setShowForm(true)}
+            className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold shadow-md flex items-center gap-1"
+          >
+            <Plus className="w-4 h-4" /> Tạo kế hoạch
+          </Button>
 
+          <AnimatePresence>
+            {showForm && (
+              <>
+                {/* Overlay + Form */}
+                <AddScheduleSection
+                  onClose={() => setShowForm(false)}
+                  onSaved={fetchPlans}
+                />
+
+                {/* Dấu X nổi góc ngoài — kiểu MaintenanceUrgentSection */}
+                <motion.button
+                  whileHover={{
+                    rotate: [0, -8, 8, -8, 0],
+                    transition: { duration: 0.5 },
+                  }}
+                  onClick={() => setShowForm(false)}
+                  className="fixed top-5 right-[calc(50%-615px)] w-12 h-12 rounded-full z-[10002]
+    bg-gradient-to-r from-red-500 to-rose-500 text-white 
+    flex items-center justify-center
+    shadow-[0_6px_22px_rgba(244,63,94,0.55)]
+    hover:shadow-[0_8px_30px_rgba(244,63,94,0.7)]
+    hover:scale-110 active:scale-95
+    border-[3px] border-white/90 ring-[3px] ring-white/70
+    transition-all duration-300 ease-out"
+                >
+                  <X className="w-5 h-5" />
+                </motion.button>
+              </>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -353,7 +384,6 @@ setEvents(mapped);
                               title={`${ev.unitId} • ${ev.unitName}`}
                             >
                               {ev.unitId}
-
                             </div>
                           ))}
                           {dayEvents.length > 4 && (
@@ -430,7 +460,6 @@ setEvents(mapped);
                                 STATUS[ev.status]?.chip
                               }`}
                               title={`${ev.unitId} • ${ev.unitGroup || ""}`}
-
                             >
                               {ev.unitId}
                             </div>
@@ -540,47 +569,47 @@ setEvents(mapped);
                 </div>
               ) : (
                 pendingInView
-  .sort((a, b) => a.start - b.start)
-  .map((ev) => (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      key={ev.id}
-      onClick={() => {
-        // setEditing(ev);
-        // setShowForm(true);
-      }}
-      className={`relative p-3 rounded-xl border bg-white hover:bg-emerald-50/60 shadow-sm hover:shadow-md transition cursor-pointer ${
-        STATUS[ev.status]?.border
-      }`}
-    >
-      <div className="flex flex-col gap-1">
-        {/* 🏷️ Mã thiết bị + trạng thái */}
-        <div className="flex items-center justify-between">
-          <span className="font-semibold text-sm text-slate-800">
-            {ev.unitId}
-          </span>
-          <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
-            ⏳ Chờ
-          </span>
-        </div>
+                  .sort((a, b) => a.start - b.start)
+                  .map((ev) => (
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      key={ev.id}
+                      onClick={() => {
+                        // setEditing(ev);
+                        // setShowForm(true);
+                      }}
+                      className={`relative p-3 rounded-xl border bg-white hover:bg-emerald-50/60 shadow-sm hover:shadow-md transition cursor-pointer ${
+                        STATUS[ev.status]?.border
+                      }`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        {/* 🏷️ Mã thiết bị + trạng thái */}
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-sm text-slate-800">
+                            {ev.unitId}
+                          </span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
+                            ⏳ Chờ
+                          </span>
+                        </div>
 
-        {/* ⚙️ Tên dòng thiết bị */}
-        <div className="text-emerald-700 font-semibold text-sm truncate max-w-[220px]">
-          {ev.unitGroup || "—"}
-        </div>
+                        {/* ⚙️ Tên dòng thiết bị */}
+                        <div className="text-emerald-700 font-semibold text-sm truncate max-w-[220px]">
+                          {ev.unitGroup || "—"}
+                        </div>
 
-        {/* 👷‍♂️ Người bảo trì */}
-        <div className="text-[12px] text-slate-500">
-          👨‍🔧 {ev.technician || "—"}
-        </div>
+                        {/* 👷‍♂️ Người bảo trì */}
+                        <div className="text-[12px] text-slate-500">
+                          👨‍🔧 {ev.technician || "—"}
+                        </div>
 
-        {/* ⏰ Thời gian bảo trì */}
-        <div className="text-[12px] text-slate-500">
-          🕒 {format(ev.start, "dd/MM/yyyy ", { locale: vi })}
-        </div>
-      </div>
-    </motion.div>
-  ))
+                        {/* ⏰ Thời gian bảo trì */}
+                        <div className="text-[12px] text-slate-500">
+                          🕒 {format(ev.start, "dd/MM/yyyy ", { locale: vi })}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))
               )}
             </div>
           </div>
