@@ -217,16 +217,44 @@ const maintenancePlanService = {
     return { ...plan, reminder_schedule_arn: arn };
   },
 
-  getAll: async () => maintenancePlanRepository.findAll(),
+  getAll: async () => {
+    const plans = await maintenancePlanRepository.findAll();
+    if (!plans?.length) return [];
+
+    // Lấy danh sách thiết bị tương ứng
+    const equipmentIds = [...new Set(plans.map((p) => p.equipment_id))];
+    const equipments = await equipmentRepository.batchFindByIds(equipmentIds);
+    const equipmentMap = Object.fromEntries(
+      equipments.map((eq) => [eq.id, eq])
+    );
+
+    return plans.map((p) => ({
+      ...p,
+      equipment_name: equipmentMap[p.equipment_id]?.name || null,
+    }));
+  },
 
   getById: async (id) => {
     const plan = await maintenancePlanRepository.findById(id);
     if (!plan) throw new Error("Maintenance plan not found");
-    return plan;
+
+    const eq = await equipmentRepository.findById(plan.equipment_id);
+    return {
+      ...plan,
+      equipment_name: eq?.name || null,
+    };
   },
 
-  getByEquipmentId: async (eid) =>
-    maintenancePlanRepository.findByEquipmentId(eid),
+  getByEquipmentId: async (eid) => {
+    const plans = await maintenancePlanRepository.findByEquipmentId(eid);
+    if (!plans?.length) return [];
+
+    const eq = await equipmentRepository.findById(eid);
+    return plans.map((p) => ({
+      ...p,
+      equipment_name: eq?.name || null,
+    }));
+  },
 
   updatePlan: async (id, data) => {
     // 🔍 Tìm plan hiện có
