@@ -17,6 +17,8 @@ import {
   startOfDay,
 } from "date-fns";
 import { vi } from "date-fns/locale";
+import MaintenancePlanService from "@/services/MaintenancePlanService";
+import EquipmentUnitService from "@/services/equipmentUnitService";
 
 export default function AddScheduleSection({ onClose, onSaved }) {
   const [maintenancePlans, setMaintenancePlans] = useState([]);
@@ -29,64 +31,30 @@ export default function AddScheduleSection({ onClose, onSaved }) {
   const [time, setTime] = useState("");
   const [cursor, setCursor] = useState(new Date());
   const [selectedDateObj, setSelectedDateObj] = useState(new Date());
+  const [equipmentUnits, setEquipmentUnits] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6;
 
   const daysInView = eachDayOfInterval({
     start: startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 }),
   });
 
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await MaintenancePlanService.getAll();
+        setMaintenancePlans(data);
+      } catch (err) {
+        console.error("❌ Lỗi khi tải kế hoạch bảo trì:", err);
+        toast.error("Không thể tải danh sách kế hoạch bảo trì");
+      }
+    };
+    fetchData();
+  }, []);
+
   // ===== MOCK DATA =====
   useEffect(() => {
-    const mockPlans = [
-      {
-        id: "ccbfda65-d830-4c8e-bdd2-c2331303c03f",
-        equipment_id: "CAOTM-ET",
-        equipment_name: "Endurance Treadmill",
-        frequency: "1_months",
-        cycle: "Tháng",
-        next_maintenance_date: "2025-11-13T00:00:00.000Z",
-        units: [
-          {
-            id: "CAOTM-ET-01",
-            image:
-              "https://gymbuket.s3.ap-southeast-1.amazonaws.com/9xy9-1761538020242-multiPurpose.png",
-            name: "Endurance Treadmill",
-            vendor: "Endurance",
-            lastMaintenance: "2025-10-10",
-            status: "Active",
-          },
-          {
-            id: "CAOTM-ET-02",
-            image:
-              "https://gymbuket.s3.ap-southeast-1.amazonaws.com/9xy9-1761538020242-multiPurpose.png",
-            name: "Endurance Treadmill",
-            vendor: "Endurance",
-            lastMaintenance: "2025-10-14",
-            status: "In stock",
-          },
-        ],
-      },
-      {
-        id: "e070a0ff-8685-49b9-95ca-c983d71c6b68",
-        equipment_id: "BENGTL-GLH",
-        equipment_name: "Ghế Linh Hoạt",
-        frequency: "3_months",
-        cycle: "Quý",
-        next_maintenance_date: "2025-11-20T00:00:00.000Z",
-        units: [
-          {
-            id: "BENGTL-GLH-13",
-            image:
-              "https://gymbuket.s3.ap-southeast-1.amazonaws.com/9xy9-1761538020242-multiPurpose.png",
-            name: "Ghế Linh Hoạt #13",
-            vendor: "Johnson Fitness",
-            lastMaintenance: "2025-08-15",
-            status: "Active",
-          },
-        ],
-      },
-    ];
-
     const mockUsers = [
       {
         username: "khanh",
@@ -147,7 +115,6 @@ export default function AddScheduleSection({ onClose, onSaved }) {
       },
     ];
 
-    setMaintenancePlans(mockPlans);
     setUsers(mockUsers);
     setRequests(mockRequests);
   }, []);
@@ -235,8 +202,41 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                   return (
                     <tr
                       key={plan.equipment_id}
-                      onClick={() => {
-                        if (!isLocked) setExpandedEquipment(plan.equipment_id);
+                      onClick={async () => {
+                        if (isLocked) return;
+                        setExpandedEquipment(plan.equipment_id);
+                        setCurrentPage(1); // 🔹 reset về trang 1 khi chọn thiết bị khác
+
+                        // 🔹 Nếu đã tải unit của dòng này rồi, bỏ qua
+                        if (equipmentUnits[plan.equipment_id]) return;
+
+                        try {
+                          const res =
+                            await EquipmentUnitService.getByStatusGroup([
+                              "Active",
+                              "In Stock",
+                            ]);
+
+                          // 🔹 Lọc theo dòng thiết bị
+                          const filtered = res.filter(
+                            (u) => u.equipment_id === plan.equipment_id
+                          );
+
+                          // 🔹 Sắp xếp lại — unit nào đã lên lịch (isScheduleLocked = true) sẽ nằm cuối
+                          const sorted = filtered.sort((a, b) => {
+                            if (a.isScheduleLocked === b.isScheduleLocked)
+                              return 0;
+                            return a.isScheduleLocked ? 1 : -1;
+                          });
+
+                          setEquipmentUnits((prev) => ({
+                            ...prev,
+                            [plan.equipment_id]: sorted,
+                          }));
+                        } catch (err) {
+                          console.error("❌ Lỗi khi tải equipment units:", err);
+                          toast.error("Không thể tải danh sách thiết bị con.");
+                        }
                       }}
                       className={`border-t transition cursor-pointer ${
                         isActive ? "bg-emerald-100/60" : "hover:bg-emerald-50"
@@ -291,61 +291,146 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                 Chọn một thiết bị ở bảng trên để xem danh sách unit.
               </p>
             ) : (
-              <table className="w-full text-sm border border-emerald-200 rounded-lg overflow-hidden bg-white">
-                <thead className="bg-emerald-100/60">
-                  <tr className="text-slate-900 font-medium">
-                    <th className="px-3 py-2 text-left">Chọn</th>
-                    <th className="px-3 py-2 text-left">Hình</th>
-                    <th className="px-3 py-2 text-left">
-                      Mã định danh thiết bị
-                    </th>
-                    <th className="px-3 py-2 text-left">Tên thiết bị</th>
-                    <th className="px-3 py-2 text-left">Trạng thái</th>
-                    <th className="px-3 py-2 text-left">Bảo trì gần nhất</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {maintenancePlans
-                    .find((p) => p.equipment_id === expandedEquipment)
-                    ?.units.map((unit) => {
-                      const checked = selectedUnits[
-                        expandedEquipment
-                      ]?.includes(unit.id);
-                      return (
-                        <tr
-                          key={unit.id}
-                          className={`border-t hover:bg-emerald-50 transition ${
-                            checked ? "bg-emerald-100/40" : ""
-                          }`}
-                        >
-                          <td className="px-2 py-2 text-center">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() =>
-                                toggleUnit(expandedEquipment, unit.id)
+              <>
+                {(() => {
+                  const allUnits = equipmentUnits[expandedEquipment] || [];
+                  const totalPages = Math.max(
+                    1,
+                    Math.ceil(allUnits.length / ITEMS_PER_PAGE)
+                  );
+                  const paginatedUnits = allUnits.slice(
+                    (currentPage - 1) * ITEMS_PER_PAGE,
+                    currentPage * ITEMS_PER_PAGE
+                  );
+
+                  return (
+                    <>
+                      <table className="w-full text-sm border border-emerald-200 rounded-lg overflow-hidden bg-white">
+                        <thead className="bg-emerald-100/60">
+                          <tr className="text-slate-900 font-medium">
+                            <th className="px-3 py-2 text-left">Chọn</th>
+                            <th className="px-3 py-2 text-left">Hình</th>
+                            <th className="px-3 py-2 text-left">
+                              Mã định danh thiết bị
+                            </th>
+                            <th className="px-3 py-2 text-left">
+                              Tên thiết bị
+                            </th>
+                            <th className="px-3 py-2 text-left">Trạng thái</th>
+                            <th className="px-3 py-2 text-left">
+                              Bảo trì gần nhất
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedUnits.map((unit) => {
+                            const checked = selectedUnits[
+                              expandedEquipment
+                            ]?.includes(unit.id);
+                            const locked = unit.isScheduleLocked;
+
+                            return (
+                              <tr
+                                key={unit.id}
+                                className={`border-t transition ${
+                                  locked
+                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    : "hover:bg-emerald-50"
+                                } ${checked ? "bg-emerald-100/40" : ""}`}
+                              >
+                                <td className="px-2 py-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={locked}
+                                    onChange={() =>
+                                      !locked &&
+                                      toggleUnit(expandedEquipment, unit.id)
+                                    }
+                                    className="w-4 h-4 accent-emerald-600 disabled:opacity-40"
+                                  />
+                                </td>
+                                <td className="px-2 py-2 relative">
+                                  <img
+                                    src={unit.equipment?.image}
+                                    alt={unit.name}
+                                    className="w-10 h-10 object-cover rounded border"
+                                  />
+                                  {locked && (
+                                    <span className="absolute top-0 right-0 text-[10px] bg-amber-200 text-amber-800 px-1 rounded-sm font-medium">
+                                      Đã lên lịch
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-2">{unit.id}</td>
+                                <td className="px-3 py-2">
+                                  {unit.equipment?.name}
+                                </td>
+                                <td className="px-3 py-2">{unit.status}</td>
+                                <td className="px-3 py-2 text-slate-600">
+                                  {unit.lastMaintenance}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+
+                      {/* === Thanh phân trang nhỏ === */}
+                      {allUnits.length > ITEMS_PER_PAGE && (
+                        <div className="flex justify-between items-center mt-3 text-sm text-slate-600">
+                          <span>
+                            Trang {currentPage} / {totalPages}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={currentPage === 1}
+                              onClick={() =>
+                                setCurrentPage((p) => Math.max(1, p - 1))
                               }
-                              className="w-4 h-4 accent-emerald-600"
-                            />
-                          </td>
-                          <td className="px-2 py-2">
-                            <img
-                              src={unit.image}
-                              alt={unit.name}
-                              className="w-10 h-10 object-cover rounded border"
-                            />
-                          </td>
-                          <td className="px-3 py-2">{unit.id}</td>
-                          <td className="px-3 py-2">{unit.name}</td>
-                          <td className="px-3 py-2">{unit.status}</td>
-                          <td className="px-3 py-2 text-slate-600">
-                            {unit.lastMaintenance}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
+                              className="h-7 text-xs border-slate-300"
+                            >
+                              «
+                            </Button>
+                            {Array.from({ length: totalPages }).map((_, i) => (
+                              <Button
+                                key={i}
+                                size="sm"
+                                variant={
+                                  currentPage === i + 1 ? "default" : "outline"
+                                }
+                                onClick={() => setCurrentPage(i + 1)}
+                                className={`h-7 w-7 text-xs ${
+                                  currentPage === i + 1
+                                    ? "bg-emerald-500 text-white"
+                                    : "border-slate-300"
+                                }`}
+                              >
+                                {i + 1}
+                              </Button>
+                            ))}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={currentPage === totalPages}
+                              onClick={() =>
+                                setCurrentPage((p) =>
+                                  Math.min(totalPages, p + 1)
+                                )
+                              }
+                              className="h-7 text-xs border-slate-300"
+                            >
+                              »
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </>
             )}
           </div>
         </div>

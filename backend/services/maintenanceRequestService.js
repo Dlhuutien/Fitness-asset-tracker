@@ -112,6 +112,8 @@ async function enrichRequestData(request) {
     equipment_name: equipmentMap[u.equipment_id]?.name || null,
     vendor_name: vendorMap[u.vendor_id]?.name || null,
     branch_name: branchMap[u.branch_id]?.name || null,
+    isScheduleLocked: u.isScheduleLocked ?? false,
+    status: u.status || "Chưa xác định",
   }));
 
   // 🧠 Helper lấy tên người dùng
