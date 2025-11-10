@@ -70,7 +70,7 @@ module.exports.handler = async (event, context) => {
           };
         }
 
-        // ✅ Parse mảng thiết bị (do lưu JSON string)
+        // ✅ Parse mảng thiết bị
         let unitIds = [];
         try {
           unitIds = Array.isArray(request.equipment_unit_id)
@@ -82,10 +82,33 @@ module.exports.handler = async (event, context) => {
 
         console.log("🧩 Creating maintenance for units:", unitIds);
 
-        // ✅ Tạo Maintenance thật cho từng thiết bị
+        const blockedStatuses = [
+          "Temporary Urgent",
+          "In Progress",
+          "Ready",
+          "Failed",
+        ];
         const createdMaintenances = [];
         for (const uid of unitIds) {
-          const userId = request.confirmed_by || request.candidate_tech_id || null;
+          // 🔍 Lấy thông tin thiết bị
+          const unit = await equipmentUnitRepository.findById(uid);
+          if (!unit) {
+            console.warn(`⚠️ Unit ${uid} not found, skipping`);
+            continue;
+          }
+
+          // 🚫 Nếu thiết bị đang ở trạng thái không hợp lệ → bỏ qua
+          if (blockedStatuses.includes(unit.status)) {
+            console.warn(
+              `⏩ Skipping unit ${uid} - current status "${unit.status}" (already handled manually)`
+            );
+            continue;
+          }
+
+          const userId =
+            request.confirmed_by || request.candidate_tech_id || null;
+
+          // Tạo maintenance thật
           const newItem = await maintenanceRepository.create({
             equipment_unit_id: uid,
             branch_id: request.branch_id,
@@ -96,36 +119,49 @@ module.exports.handler = async (event, context) => {
             start_date: new Date().toISOString(),
           });
 
-          // Update trạng thái thiết bị
+          // Cập nhật trạng thái thiết bị
           await equipmentUnitRepository.update(uid, { status: "In Progress" });
 
           createdMaintenances.push(newItem);
         }
 
-        // ✅ Cập nhật lại request thành "executed"
+        // Nếu không có thiết bị nào được tạo → không chuyển request sang executed
+        if (createdMaintenances.length === 0) {
+          console.warn(
+            `⚠️ AUTO_MAINTENANCE_FROM_REQUEST skipped all units (no eligible equipment)`
+          );
+          return {
+            statusCode: 200,
+            body: JSON.stringify({
+              message:
+                "No eligible equipment for AUTO_MAINTENANCE_FROM_REQUEST (all were handled already)",
+              request_id: request.id,
+            }),
+          };
+        }
+
+        // Cập nhật lại request thành executed
         await maintenanceRequestRepository.update(request.id, {
           status: "executed",
           converted_maintenance_id: createdMaintenances.map((m) => m.id),
         });
 
-        // ✅ Gửi thông báo
+        // Gửi thông báo
         try {
           const admins = await userService.getUsersByRoles([
             "admin",
             "super-admin",
           ]);
           const technicians = await userService.getUsersByRoles(["technician"]);
-
           const allRecipients = [
             ...admins,
             ...technicians.filter((t) => !admins.some((a) => a.sub === t.sub)),
           ];
 
-          // 🟢 Thông báo thêm rằng thiết bị đã chuyển sang trạng thái bảo trì
           await notificationService.notifyMaintenanceRequestStarted(
             {
               ...request,
-              message: `Các thiết bị trong yêu cầu này đã chuyển sang trạng thái bảo trì.`,
+              message: `Các thiết bị hợp lệ trong yêu cầu này đã chuyển sang trạng thái bảo trì.`,
             },
             allRecipients,
             request.confirmed_by
@@ -140,6 +176,7 @@ module.exports.handler = async (event, context) => {
         console.log(
           `✅ AUTO_MAINTENANCE_FROM_REQUEST completed: ${createdMaintenances.length} items created`
         );
+
         return {
           statusCode: 200,
           body: JSON.stringify({
