@@ -59,8 +59,14 @@ async function createOneTimeSchedule({ scheduleName, runAtIsoUtc, payload }) {
 }
 
 /**
- * Lấy thêm thông tin cho 1 yêu cầu bảo trì
+ * Lấy thêm thông tin cho 1 yêu cầu bảo trì — bản tối ưu có cache tạm
  */
+// 🧠 Cache tạm tại runtime (Map để tránh query trùng)
+const vendorCache = new Map();
+const branchCache = new Map();
+const userCache = new Map();
+const equipmentCache = new Map();
+
 async function enrichRequestData(request) {
   if (!request || !request.equipment_unit_id) return request;
 
@@ -81,32 +87,65 @@ async function enrichRequestData(request) {
   const equipmentIds = [...new Set(units.map((u) => u.equipment_id))];
   const vendorIds = [...new Set(units.map((u) => u.vendor_id).filter(Boolean))];
   const branchIds = [...new Set(units.map((u) => u.branch_id))];
-
-  // 🧩 Gom ID user cần lấy
   const userIds = [
     request.assigned_by,
     request.confirmed_by,
     request.candidate_tech_id,
   ].filter(Boolean);
 
-  // Lấy toàn bộ thông tin join song song
+  // =========================
+  // ⚡ Helper: lấy cache hoặc query mới
+  // =========================
+  async function getCached(repo, cache, ids, findByIdFn = "findById") {
+    const results = [];
+    const toFetch = [];
+
+    for (const id of ids) {
+      if (cache.has(id)) results.push(cache.get(id));
+      else toFetch.push(id);
+    }
+
+    if (toFetch.length) {
+      const fetched = await Promise.all(
+        toFetch.map((id) => repo[findByIdFn](id))
+      );
+      for (let i = 0; i < toFetch.length; i++) {
+        const id = toFetch[i];
+        cache.set(id, fetched[i]);
+        results.push(fetched[i]);
+      }
+    }
+
+    return results;
+  }
+
+  // =========================
+  // ⚡ Chạy song song với cache
+  // =========================
   const [equipments, vendors, branches, users] = await Promise.all([
-    equipmentRepository.batchFindByIds(equipmentIds),
-    Promise.all(vendorIds.map((id) => vendorRepository.findById(id))),
-    Promise.all(branchIds.map((id) => branchRepository.findById(id))),
-    Promise.all(userIds.map((id) => userRepository.getUserBySub(id))),
+    getCached(equipmentRepository, equipmentCache, equipmentIds, "findById"),
+    getCached(vendorRepository, vendorCache, vendorIds, "findById"),
+    getCached(branchRepository, branchCache, branchIds, "findById"),
+    getCached(userRepository, userCache, userIds, "getUserBySub"),
   ]);
 
-  const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+  // =========================
+  // ⚙️ Map hóa để join nhanh
+  // =========================
+  const equipmentMap = Object.fromEntries(
+    equipments.filter(Boolean).map((e) => [e.id, e])
+  );
   const vendorMap = Object.fromEntries(
-    vendorIds.map((id, i) => [id, vendors[i]])
+    vendors.filter(Boolean).map((v) => [v.id, v])
   );
   const branchMap = Object.fromEntries(
-    branchIds.map((id, i) => [id, branches[i]])
+    branches.filter(Boolean).map((b) => [b.id, b])
   );
   const userMap = Object.fromEntries(userIds.map((id, i) => [id, users[i]]));
 
-  // Gộp chi tiết thiết bị
+  // =========================
+  // 🧩 Gộp dữ liệu thiết bị
+  // =========================
   const enrichedUnits = units.map((u) => ({
     ...u,
     equipment_name: equipmentMap[u.equipment_id]?.name || null,
@@ -527,12 +566,94 @@ const maintenanceRequestService = {
   },
 
   getAll: async (branchFilter = null) => {
+    console.time("⚡ getAll Maintenance Requests");
+
     const list = branchFilter
       ? await maintenanceRequestRepository.findByBranchId(branchFilter)
       : await maintenanceRequestRepository.findAll();
 
     if (!list?.length) return [];
-    return await Promise.all(list.map((r) => enrichRequestData(r)));
+
+    // 1️⃣ Gom tất cả unitIds
+    const allUnitIds = [
+      ...new Set(list.flatMap((r) => r.equipment_unit_id || [])),
+    ];
+
+    // 2️⃣ Lấy toàn bộ unit một lượt
+    const allUnits = await equipmentUnitRepository.batchFindByIds(allUnitIds);
+
+    // Map nhanh
+    const unitMap = Object.fromEntries(allUnits.map((u) => [u.id, u]));
+
+    // 3️⃣ Gom tất cả ID cần join
+    const equipmentIds = [...new Set(allUnits.map((u) => u.equipment_id))];
+    const vendorIds = [
+      ...new Set(allUnits.map((u) => u.vendor_id).filter(Boolean)),
+    ];
+    const branchIds = [...new Set(allUnits.map((u) => u.branch_id))];
+    const userIds = [
+      ...new Set(
+        list.flatMap((r) =>
+          [r.assigned_by, r.confirmed_by, r.candidate_tech_id].filter(Boolean)
+        )
+      ),
+    ];
+
+    // 4️⃣ Query song song
+    const [equipments, vendors, branches, users] = await Promise.all([
+      equipmentRepository.batchFindByIds(equipmentIds),
+      Promise.all(vendorIds.map((id) => vendorRepository.findById(id))),
+      Promise.all(branchIds.map((id) => branchRepository.findById(id))),
+      Promise.all(userIds.map((id) => userRepository.getUserBySub(id))),
+    ]);
+
+    // Tạo map lookup
+    const equipmentMap = Object.fromEntries(equipments.map((e) => [e.id, e]));
+    const vendorMap = Object.fromEntries(
+      vendorIds.map((id, i) => [id, vendors[i]])
+    );
+    const branchMap = Object.fromEntries(
+      branchIds.map((id, i) => [id, branches[i]])
+    );
+    const userMap = Object.fromEntries(userIds.map((id, i) => [id, users[i]]));
+
+    // 5️⃣ Gộp nhanh
+    const extractName = (u) =>
+      u?.attributes?.name ||
+      u?.UserAttributes?.find(
+        (a) => a.Name === "name" || a.Name === "custom:name"
+      )?.Value ||
+      u?.username ||
+      u?.Username ||
+      "Chưa có thông tin";
+
+    const result = list.map((r) => {
+      const units = (r.equipment_unit_id || [])
+        .map((id) => {
+          const u = unitMap[id];
+          if (!u) return null;
+          return {
+            ...u,
+            equipment_name: equipmentMap[u.equipment_id]?.name || null,
+            vendor_name: vendorMap[u.vendor_id]?.name || null,
+            branch_name: branchMap[u.branch_id]?.name || null,
+            isScheduleLocked: u.isScheduleLocked ?? false,
+            status: u.status || "Chưa xác định",
+          };
+        })
+        .filter(Boolean);
+
+      return {
+        ...r,
+        units,
+        assigned_by_name: extractName(userMap[r.assigned_by]),
+        confirmed_by_name: extractName(userMap[r.confirmed_by]),
+        candidate_tech_name: extractName(userMap[r.candidate_tech_id]),
+      };
+    });
+
+    console.timeEnd("⚡ getAll Maintenance Requests");
+    return result;
   },
 
   getById: async (id) => {

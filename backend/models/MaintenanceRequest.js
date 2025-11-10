@@ -113,29 +113,21 @@ const MaintenanceRequestModel = {
     return items;
   },
 
-  findByBranchId: async (branch_id) => {
+  findById: async (id) => {
     const res = await dynamodb.send(
-      new QueryCommand({
-        TableName: tableName,
-        IndexName: "branch_id-index",
-        KeyConditionExpression: "branch_id = :b",
-        ExpressionAttributeValues: { ":b": branch_id },
-      })
+      new GetCommand({ TableName: tableName, Key: { id } })
     );
-    const items = res.Items || [];
+    const item = res.Item;
 
-    // ✅ Parse JSON -> array
-    for (const i of items) {
-      if (typeof i.equipment_unit_id === "string") {
-        try {
-          i.equipment_unit_id = JSON.parse(i.equipment_unit_id);
-        } catch {
-          i.equipment_unit_id = [i.equipment_unit_id];
-        }
+    if (item && typeof item.equipment_unit_id === "string") {
+      try {
+        item.equipment_unit_id = JSON.parse(item.equipment_unit_id);
+      } catch {
+        item.equipment_unit_id = [item.equipment_unit_id];
       }
     }
 
-    return items;
+    return item;
   },
 
   update: async (id, data) => {
