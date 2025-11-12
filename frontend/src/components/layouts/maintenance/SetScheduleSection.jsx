@@ -101,6 +101,8 @@ export default function SetScheduleSection() {
   const [editing, setEditing] = useState(null);
   // 🔹 Lưu ID của yêu cầu đang mở "Chi tiết thiết bị"
   const [expandedRequest, setExpandedRequest] = useState(null);
+// 🟢 Bộ lọc loại lịch
+const [eventFilter, setEventFilter] = useState("all"); // all | plan | pending | confirmed
 
   /* ====== Fetch plans ====== */
   const fetchPlans = async () => {
@@ -182,12 +184,22 @@ export default function SetScheduleSection() {
     const end = endOfWeek(cursor, { weekStartsOn: 1 });
     return eachDayOfInterval({ start, end });
   }, [cursor]);
+// 🧮 Lọc sự kiện theo loại lịch được chọn
+const filteredEvents = useMemo(() => {
+  if (eventFilter === "all") return events;
+  if (eventFilter === "plan") return events.filter((e) => e.type === "plan");
+  if (eventFilter === "pending")
+    return events.filter((e) => e.status === "pending");
+  if (eventFilter === "confirmed")
+    return events.filter((e) => e.status === "confirmed");
+  return events;
+}, [events, eventFilter]);
 
   /* Sự kiện trong ngày */
   const eventsOfDay = (day) =>
-    events
-      .filter((e) => isSameDay(e.start, day))
-      .sort((a, b) => a.start - b.start);
+  filteredEvents
+    .filter((e) => isSameDay(e.start, day))
+    .sort((a, b) => a.start - b.start);
 
   /* Lọc sự kiện trong phạm vi view + trạng thái pending cho panel phải */
   const inCurrentView = useMemo(() => {
@@ -201,15 +213,27 @@ export default function SetScheduleSection() {
     return (ev) => format(ev.start, "yyyy") === format(cursor, "yyyy");
   }, [view, cursor]);
 
-  const pendingInView = useMemo(
-    () => events.filter((e) => e.status === "pending" && inCurrentView(e)),
-    [events, inCurrentView]
-  );
-  // 🔹 Danh sách các thiết bị đã được đảm nhận (confirmed)
-  const confirmedInView = useMemo(
-    () => events.filter((e) => e.status === "confirmed" && inCurrentView(e)),
-    [events, inCurrentView]
-  );
+// 🔹 Danh sách pending/confirmed theo view + eventFilter
+const pendingInView = useMemo(() => {
+  let base = events.filter((e) => e.status === "pending" && inCurrentView(e));
+  if (eventFilter === "plan") base = []; // ẩn khi chỉ xem lịch chu kỳ
+  if (eventFilter === "confirmed")
+    base = base.filter((e) => e.status === "confirmed");
+  if (eventFilter === "pending")
+    base = base.filter((e) => e.status === "pending");
+  return base;
+}, [events, inCurrentView, eventFilter]);
+
+const confirmedInView = useMemo(() => {
+  let base = events.filter((e) => e.status === "confirmed" && inCurrentView(e));
+  if (eventFilter === "plan") base = []; // ẩn khi chỉ xem lịch chu kỳ
+  if (eventFilter === "pending")
+    base = base.filter((e) => e.status === "pending");
+  if (eventFilter === "confirmed")
+    base = base.filter((e) => e.status === "confirmed");
+  return base;
+}, [events, inCurrentView, eventFilter]);
+
 
   // 🔹 Tab đang chọn ("pending" hoặc "confirmed")
   const [activeTab, setActiveTab] = useState("pending");
@@ -383,18 +407,37 @@ export default function SetScheduleSection() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 max-h-[78vh] overflow-hidden">
         {/* ====== Left: Calendar View (scroll riêng) ====== */}
         <div className="lg:col-span-8 min-h-[60vh] max-h-[74vh] overflow-y-auto pr-1">
-          {/* 🔹 Legend (chú thích màu) */}
-          <div className="flex justify-center gap-6 mt-4 text-sm pb-3">
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-amber-400" /> Lịch theo chu kỳ
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-cyan-500" /> Lịch chờ đảm nhận
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 rounded bg-emerald-500" /> Lịch bảo trì
-            </div>
-          </div>
+          
+{/* 🔹 Bộ lọc loại lịch (có thêm nút “Tất cả”) */}
+<div className="flex justify-center flex-wrap gap-3 mt-3 mb-3 text-sm">
+  {[
+    { key: "all", color: "bg-emerald-100", label: "Tất cả" },
+    { key: "plan", color: "bg-amber-400", label: "Lịch định kì dòng" },
+    { key: "pending", color: "bg-cyan-500", label: "Lịch chờ đảm nhận" },
+    { key: "confirmed", color: "bg-emerald-500", label: "Lịch đã đảm nhận" },
+  ].map((item) => (
+    <button
+      key={item.key}
+      onClick={() => setEventFilter(item.key)}
+      className={`flex items-center gap-2 px-4 py-1.5 rounded-lg border text-sm font-medium transition-all duration-200 active:scale-95
+        ${
+          eventFilter === item.key
+            ? item.key === "all"
+              ? "bg-emerald-200 text-black border-emerald-300 shadow-md scale-[1.05]"
+              : `${item.color} text-white shadow-md scale-[1.05]`
+            : item.key === "all"
+            ? "bg-emerald-50 text-black border border-emerald-200 hover:bg-emerald-100 hover:shadow-md hover:scale-[1.03]"
+            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:shadow-md hover:scale-[1.03]"
+        }`}
+    >
+      {item.key !== "all" && (
+        <span className={`w-3 h-3 rounded ${item.color}`}></span>
+      )}
+      {item.label}
+    </button>
+  ))}
+</div>
+
           {/* WEEK VIEW */}
           <AnimatePresence mode="wait">
             {view === "week" && (
