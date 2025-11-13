@@ -7,14 +7,13 @@ const {
   QueryCommand,
 } = require("@aws-sdk/lib-dynamodb");
 const { dynamodb } = require("../utils/aws-helper");
-const { v4: uuidv4 } = require("uuid");
 
 const tableName = "Maintenance_request";
 
 const MaintenanceRequestModel = {
   create: async (data) => {
     const item = {
-      id: uuidv4(),
+      id: data.id,
       equipment_unit_id: Array.isArray(data.equipment_unit_id)
         ? JSON.stringify(data.equipment_unit_id)
         : data.equipment_unit_id,

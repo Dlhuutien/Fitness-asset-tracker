@@ -149,6 +149,7 @@ async function enrichRequestData(request) {
   const enrichedUnits = units.map((u) => ({
     ...u,
     equipment_name: equipmentMap[u.equipment_id]?.name || null,
+    equipment_image: equipmentMap[u.equipment_id]?.image || null,
     vendor_name: vendorMap[u.vendor_id]?.name || null,
     branch_name: branchMap[u.branch_id]?.name || null,
     isScheduleLocked: u.isScheduleLocked ?? false,
@@ -174,6 +175,23 @@ async function enrichRequestData(request) {
   };
 }
 
+function generateScheduleRequestId(equipmentId) {
+  const now = new Date();
+
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  const ms = String(now.getMilliseconds()).padStart(3, "0");
+
+  const timestamp = `${yyyy}${mm}${dd}${hh}${min}${ss}${ms}`;
+
+  return `${equipmentId}-SCH-${timestamp}`;
+}
+
+
 const maintenanceRequestService = {
   createRequest: async (data, userSub) => {
     // ✅ Mặc định equipment_unit_id là mảng
@@ -188,8 +206,14 @@ const maintenanceRequestService = {
     if (!branch) throw new Error(`Branch ${firstUnit.branch_id} not found`);
 
     // ✅ Tạo duy nhất 1 record request (equipment_unit_id là mảng)
+    const realEquipmentId = firstUnit.equipment_id;
+
+    // Generate ID dạng <equipmentId>-SCH-...
+    const newRequestId = generateScheduleRequestId(realEquipmentId);
+
     const reqItem = await maintenanceRequestRepository.create({
       ...data,
+      id: newRequestId,
       branch_id: firstUnit.branch_id,
       assigned_by: userSub,
     });
@@ -635,6 +659,7 @@ const maintenanceRequestService = {
           return {
             ...u,
             equipment_name: equipmentMap[u.equipment_id]?.name || null,
+            equipment_image: equipmentMap[u.equipment_id]?.image || null,
             vendor_name: vendorMap[u.vendor_id]?.name || null,
             branch_name: branchMap[u.branch_id]?.name || null,
             isScheduleLocked: u.isScheduleLocked ?? false,
