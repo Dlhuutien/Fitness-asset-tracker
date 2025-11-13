@@ -83,10 +83,12 @@ module.exports.handler = async (event, context) => {
         console.log("🧩 Creating maintenance for units:", unitIds);
 
         const blockedStatuses = [
-          "Temporary Urgent",
+          "Inactive",
           "In Progress",
           "Ready",
           "Failed",
+          "Disposed",
+          "Moving",
         ];
         const createdMaintenances = [];
         for (const uid of unitIds) {
