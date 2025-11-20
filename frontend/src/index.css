@@ -337,3 +337,7 @@ body {
 .fc-theme-standard th {
   border-color: rgba(75,85,99,0.4) !important;
 }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

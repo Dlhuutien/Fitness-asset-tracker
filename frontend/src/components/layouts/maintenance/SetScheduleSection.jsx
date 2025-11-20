@@ -132,31 +132,24 @@ export default function SetScheduleSection() {
       }));
 
       // 🔹 Yêu cầu bảo trì (request)
-      const requestEvents = requests.flatMap((r) =>
-        (r.units || []).map((u) => ({
-          id: r.id,
-          type: "request",
-          unitId: u.id,
-          unitGroup: u.equipment_name || "—",
-          image: u.equipment_image,
-          maintenance_reason: r.maintenance_reason,
-          branch: u.branch_name || "—",
-          start: new Date(r.scheduled_at),
-          status: r.status,
-          confirmed_by_name: r.confirmed_by_name,
-          candidate_tech_name: r.candidate_tech_name,
-          requestStatus: r.status,
-          statusRaw: u.status,
-          color:
-            r.status === "confirmed"
-              ? "bg-emerald-500 text-white"
-              : "bg-cyan-500 text-white",
-          label:
-            r.status === "confirmed"
-              ? "🟩 Lịch bảo trì"
-              : "🟦 Lịch chờ đảm nhận",
-        }))
-      );
+      const requestEvents = requests.map((r) => ({
+        id: r.id, // ID chung của request
+        type: "request",
+        units: r.units || [], // danh sách thiết bị
+        image: r.units?.[0]?.equipment_image, // thumbnail lấy thiết bị đầu tiên
+        unitGroup: r.units?.[0]?.equipment_name,
+        maintenance_reason: r.maintenance_reason,
+        branch: r.units?.[0]?.branch_name || "—",
+        start: new Date(r.scheduled_at),
+        status: r.status, // pending / confirmed
+        requestStatus: r.status,
+        color:
+          r.status === "confirmed"
+            ? "bg-emerald-500 text-white"
+            : "bg-cyan-500 text-white",
+        label:
+          r.status === "confirmed" ? "🟩 Lịch bảo trì" : "🟦 Lịch chờ đảm nhận",
+      }));
 
       // 🔹 Gộp 2 loại event
       const allEvents = [...planEvents, ...requestEvents].sort(
@@ -512,15 +505,16 @@ export default function SetScheduleSection() {
                         <div className="space-y-1">
                           {dayEvents.slice(0, 4).map((ev) => (
                             <div
-                              key={ev.id}
-                              className={`px-2 py-1 rounded-md text-[11px] truncate ${
-                                STATUS[ev.status]?.chip
-                              }`}
-                              title={`${ev.unitId} • ${ev.unitName}`}
+                              key={ev.id + ev.unitId}
+                              className={`px-2 py-1 rounded-md text-[11px] truncate ${ev.color}`}
+                              title={
+                                ev.type === "plan" ? ev.unitGroup : ev.unitId
+                              }
                             >
-                              {ev.unitId}
+                              {ev.type === "plan" ? ev.unitGroup : ev.id}
                             </div>
                           ))}
+
                           {dayEvents.length > 4 && (
                             <div className="text-[10px] text-slate-500">
                               +{dayEvents.length - 4} nữa…
@@ -605,9 +599,11 @@ export default function SetScheduleSection() {
                               <div
                                 key={ev.id + ev.unitId}
                                 className={`px-2 py-1 rounded-md text-[11px] truncate font-medium ${ev.color}`}
-                                title={`${ev.label} • ${ev.unitGroup || ""}`}
+                                title={
+                                  ev.type === "plan" ? ev.unitGroup : ev.unitId
+                                }
                               >
-                                {ev.unitId}
+                                {ev.type === "plan" ? ev.unitGroup : ev.id}
                               </div>
                             ))}
                           {dayEvents.length > 3 && (
@@ -732,29 +728,32 @@ export default function SetScheduleSection() {
                     if (!acc[ev.id])
                       acc[ev.id] = { ...ev, units: [], image: ev.image };
 
-                    acc[ev.id].units.push({
-                      id: ev.unitId,
-                      status: ev.statusRaw || "-",
-                      lastMaintenance: ev.lastMaintenance || "-",
-                    });
+                    ev.units.forEach((u) =>
+                      acc[ev.id].units.push({
+                        id: u.id,
+                        status: u.status || "-",
+                        lastMaintenance: u.lastMaintenance || "-",
+                      })
+                    );
 
-                    return acc;
+                    return acc; // ✅ BẮT BUỘC
                   }, {})
                 );
 
-                // 🔹 Gom confirmed theo request.id
                 const groupedConfirmed = Object.values(
                   confirmedInView.reduce((acc, ev) => {
                     if (!acc[ev.id])
                       acc[ev.id] = { ...ev, units: [], image: ev.image };
 
-                    acc[ev.id].units.push({
-                      id: ev.unitId,
-                      status: ev.statusRaw || "-",
-                      lastMaintenance: ev.lastMaintenance || "-",
-                    });
+                    ev.units.forEach((u) =>
+                      acc[ev.id].units.push({
+                        id: u.id,
+                        status: u.status || "-",
+                        lastMaintenance: u.lastMaintenance || "-",
+                      })
+                    );
 
-                    return acc;
+                    return acc; // ✅ BẮT BUỘC
                   }, {})
                 );
 
