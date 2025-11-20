@@ -660,23 +660,36 @@ export default function EquipmentDisposalPage() {
                 return (
                   <TableRow
                     key={row.id}
-                    className={`transition ${
-                      isChecked
-                        ? "bg-rose-50 dark:bg-rose-900/30"
-                        : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                    }`}
+                    className={`transition
+    ${
+      row.isScheduleLocked
+        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+        : ""
+    }
+    ${
+      isChecked
+        ? "bg-rose-50 dark:bg-rose-900/30"
+        : "hover:bg-gray-50 dark:hover:bg-gray-700"
+    }
+  `}
                   >
                     <TableCell className="text-center">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                     </TableCell>
                     {visibleColumns.select && (
                       <TableCell className="text-center">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleSelect(row)}
-                          className="w-5 h-5 accent-rose-500 hover:scale-110 transition-transform"
-                        />
+                        {row.isScheduleLocked ? (
+                          <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-medium">
+                            Đã lên lịch bảo trì
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSelect(row)}
+                            className="w-5 h-5 accent-rose-500 hover:scale-110 transition-transform"
+                          />
+                        )}
                       </TableCell>
                     )}
                     {visibleColumns.id && <TableCell>{row.id}</TableCell>}

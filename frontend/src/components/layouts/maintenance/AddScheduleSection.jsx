@@ -198,6 +198,7 @@ export default function AddScheduleSection({ onClose, onSaved }) {
       const res = await EquipmentUnitService.getByStatusGroup([
         "Active",
         "In Stock",
+        "Temporary Urgent",
       ]);
 
       // Lọc theo dòng + chi nhánh
@@ -306,21 +307,6 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                 <h3 className="font-semibold text-emerald-700">
                   Danh sách thiết bị đến hạn
                 </h3>
-
-                {/* Nút bỏ chọn tất cả */}
-                {Object.keys(selectedUnits).length > 0 && (
-                  <Button
-                    onClick={() => {
-                      setSelectedUnits({});
-                      setExpandedEquipment(null);
-                      toast.info("🔄 Đã bỏ chọn tất cả thiết bị.");
-                    }}
-                    variant="outline"
-                    className="text-sm border-emerald-300 text-amber-600 hover:bg-emerald-50"
-                  >
-                    Bỏ chọn tất cả
-                  </Button>
-                )}
               </div>
 
               <table className="min-w-full text-sm border border-emerald-200 rounded-lg overflow-hidden bg-white text-slate-900">
@@ -482,6 +468,21 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                 <h3 className="font-semibold text-emerald-700">
                   Chi tiết thiết bị
                 </h3>
+
+                {/* Nút bỏ chọn tất cả */}
+                {Object.keys(selectedUnits).length > 0 && (
+                  <Button
+                    onClick={() => {
+                      setSelectedUnits({});
+                      setExpandedEquipment(null);
+                      toast.info("🔄 Đã bỏ chọn tất cả thiết bị.");
+                    }}
+                    variant="outline"
+                    className="text-sm border-emerald-300 text-amber-600 hover:bg-emerald-50"
+                  >
+                    Bỏ chọn tất cả
+                  </Button>
+                )}
               </div>
 
               {!expandedEquipment ? (
