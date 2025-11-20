@@ -30,6 +30,16 @@ import EquipmentService from "@/services/equipmentService";
 import AddScheduleSection from "./AddScheduleSection";
 import { X } from "lucide-react";
 import MaintenanceRequestService from "@/services/MaintenanceRequestService";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 
 /* 🎨 Style mapping trạng thái */
 const STATUS = {
@@ -95,10 +105,52 @@ export default function SetScheduleSection() {
   const [cursor, setCursor] = useState(() => new Date()); // mốc hiển thị
   const [selectedDate, setSelectedDate] = useState(new Date()); // ngày được chọn
   const [loading, setLoading] = useState(true);
+  // ====== Dialog states ======
+  const [reloadLoading, setReloadLoading] = useState(false);
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignMode, setAssignMode] = useState("confirm"); // confirm | loading | success
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const handleAssign = async () => {
+    try {
+      // popup vẫn mở
+      setAssignMode("loading");
+
+      const requestId = selectedRequest.id;
+
+      // update màu UI ngay
+      setEvents((prev) =>
+        prev.map((e) =>
+          e.id === requestId
+            ? {
+                ...e,
+                requestStatus: "confirmed",
+                status: "confirmed",
+                color: "bg-emerald-500 text-white",
+              }
+            : e
+        )
+      );
+
+      await MaintenanceRequestService.confirm(requestId);
+      await fetchPlans();
+
+      setAssignMode("success"); // lúc này popup hiển thị success
+    } catch (err) {
+      toast.error("Không thể đảm nhận thiết bị!");
+      setAssignOpen(false);
+    }
+  };
 
   const [view, setView] = useState("month"); // 'week' | 'month' | 'year'
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [isHoveringPopup, setIsHoveringPopup] = useState(false);
+
+  const [hoverDay, setHoverDay] = useState(null);
+  const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
+  const [keepPopup, setKeepPopup] = useState(false);
+
   // 🔹 Lưu ID của yêu cầu đang mở "Chi tiết thiết bị"
   const [expandedRequest, setExpandedRequest] = useState(null);
   // 🟢 Bộ lọc loại lịch
@@ -107,7 +159,7 @@ export default function SetScheduleSection() {
   /* ====== Fetch plans ====== */
   const fetchPlans = async () => {
     try {
-      setLoading(true);
+      setReloadLoading(true);
 
       // 🔹 Gọi song song 2 API
       const [plansRes, reqRes] = await Promise.all([
@@ -161,7 +213,7 @@ export default function SetScheduleSection() {
       console.error("❌ Lỗi khi tải dữ liệu lịch:", err);
       toast.error("Không thể tải lịch bảo trì!");
     } finally {
-      setLoading(false);
+      setReloadLoading(false);
     }
   };
 
@@ -199,6 +251,18 @@ export default function SetScheduleSection() {
     filteredEvents
       .filter((e) => isSameDay(e.start, day))
       .sort((a, b) => a.start - b.start);
+  // 🟢 Events hiển thị trong popup hover theo ngày
+  const popupEvents = useMemo(() => {
+    if (!hoverDay) return { confirmed: [], pending: [], plan: [] };
+
+    const eventsToday = eventsOfDay(hoverDay);
+
+    return {
+      confirmed: eventsToday.filter((e) => e.status === "confirmed"),
+      pending: eventsToday.filter((e) => e.status === "pending"),
+      plan: eventsToday.filter((e) => e.type === "plan"),
+    };
+  }, [hoverDay, events, eventFilter]);
 
   /* Lọc sự kiện trong phạm vi view + trạng thái pending cho panel phải */
   const inCurrentView = useMemo(() => {
@@ -486,41 +550,27 @@ export default function SetScheduleSection() {
                       <div
                         key={fmtDayKey(day)}
                         onClick={() => setSelectedDate(day)}
+                        onMouseEnter={(e) => {
+                          if (dayEvents.length === 0) return;
+                          setHoverDay(day);
+                          setPopupPos({ x: e.clientX, y: e.clientY });
+                        }}
+                        onMouseMove={(e) => {
+                          if (!hoverDay) return;
+                          setPopupPos({ x: e.clientX, y: e.clientY });
+                        }}
+                        onMouseLeave={() => {
+                          if (!isHoveringPopup) {
+                            setHoverDay(null);
+                          }
+                        }}
                         className={`p-3 rounded-xl border min-h-[120px] cursor-pointer transition ${
                           selected
                             ? "border-emerald-400 bg-emerald-50"
                             : "border-slate-200 hover:bg-slate-50"
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-[12px] font-medium text-slate-700">
-                            {format(day, "EEE dd/MM", { locale: vi })}
-                          </span>
-                          {isToday(day) && (
-                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
-                              Hôm nay
-                            </span>
-                          )}
-                        </div>
-                        <div className="space-y-1">
-                          {dayEvents.slice(0, 4).map((ev) => (
-                            <div
-                              key={ev.id + ev.unitId}
-                              className={`px-2 py-1 rounded-md text-[11px] truncate ${ev.color}`}
-                              title={
-                                ev.type === "plan" ? ev.unitGroup : ev.unitId
-                              }
-                            >
-                              {ev.type === "plan" ? ev.unitGroup : ev.id}
-                            </div>
-                          ))}
-
-                          {dayEvents.length > 4 && (
-                            <div className="text-[10px] text-slate-500">
-                              +{dayEvents.length - 4} nữa…
-                            </div>
-                          )}
-                        </div>
+                        ...
                       </div>
                     );
                   })}
@@ -548,16 +598,32 @@ export default function SetScheduleSection() {
                     </div>
                   ))}
                 </div>
+
                 <div className="grid grid-cols-7 gap-2 p-3">
                   {rangeForMonth.map((day) => {
                     const inMonth = isSameMonth(day, cursor);
                     const dayEvents = eventsOfDay(day);
                     const selected = isSameDay(day, selectedDate);
+
                     return (
                       <motion.div
                         key={fmtDayKey(day)}
                         whileHover={{ scale: 1.02 }}
                         onClick={() => setSelectedDate(day)}
+                        onMouseEnter={(e) => {
+                          if (dayEvents.length === 0) return;
+                          setHoverDay(day);
+                          setPopupPos({ x: e.clientX, y: e.clientY });
+                        }}
+                        onMouseMove={(e) => {
+                          if (!hoverDay) return;
+                          setPopupPos({ x: e.clientX, y: e.clientY });
+                        }}
+                        onMouseLeave={() => {
+                          if (!isHoveringPopup) {
+                            setHoverDay(null);
+                          }
+                        }}
                         className={`p-2 rounded-xl border cursor-pointer min-h-[110px] transition-all ${
                           selected
                             ? "border-emerald-400 bg-gradient-to-br from-emerald-50 to-white shadow-sm"
@@ -566,6 +632,7 @@ export default function SetScheduleSection() {
                             : "border-slate-100 bg-slate-50/60"
                         }`}
                       >
+                        {/* ==== Header ngày ==== */}
                         <div className="flex justify-between mb-1 text-[11px] font-medium">
                           <span
                             className={
@@ -574,6 +641,7 @@ export default function SetScheduleSection() {
                           >
                             {format(day, "d", { locale: vi })}
                           </span>
+
                           {isToday(day) && (
                             <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
                               Hôm nay
@@ -581,6 +649,7 @@ export default function SetScheduleSection() {
                           )}
                         </div>
 
+                        {/* ==== Events trong ngày ==== */}
                         <div className="space-y-1">
                           {dayEvents
                             .sort((a, b) => {
@@ -599,13 +668,11 @@ export default function SetScheduleSection() {
                               <div
                                 key={ev.id + ev.unitId}
                                 className={`px-2 py-1 rounded-md text-[11px] truncate font-medium ${ev.color}`}
-                                title={
-                                  ev.type === "plan" ? ev.unitGroup : ev.unitId
-                                }
                               >
                                 {ev.type === "plan" ? ev.unitGroup : ev.id}
                               </div>
                             ))}
+
                           {dayEvents.length > 3 && (
                             <div className="text-[10px] text-slate-500">
                               +{dayEvents.length - 3} nữa…
@@ -772,191 +839,64 @@ export default function SetScheduleSection() {
                             <motion.div
                               whileHover={{ scale: 1.02 }}
                               key={group.id}
-                              className={`relative p-3 rounded-xl border bg-white hover:bg-emerald-50/60 shadow-sm hover:shadow-md transition ${
-                                STATUS[group.status]?.border
+                              className={`relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition ${
+                                group.requestStatus === "pending"
+                                  ? "border-cyan-300"
+                                  : "border-emerald-300"
                               }`}
                             >
                               <div className="flex flex-col gap-2">
-                                {/* ====== Header ====== */}
+                                {/* ==== DÒNG 1: ID ==== */}
+                                <div className="text-cyan-700 font-semibold text-sm">
+                                  {group.id}
+                                </div>
+
+                                {/* ==== DÒNG 2: Số lượng + trạng thái ==== */}
                                 <div className="flex items-center justify-between">
-                                  <div className="text-emerald-700 font-semibold text-sm truncate max-w-[220px]">
-                                    {group.id}{" "}
-                                    <span className="text-xs text-slate-500">
-                                      ({group.units?.length || 1} thiết bị)
-                                    </span>
+                                  <div className="text-xs text-slate-600">
+                                    ({group.units?.length || 1} thiết bị)
                                   </div>
+
                                   <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
                                     ⏳ Chờ đảm nhận
                                   </span>
                                 </div>
 
-                                {/* ====== Ngày ====== */}
-                                <div className="flex items-start gap-3">
+                                {/* Ảnh + thông tin */}
+                                <div className="flex items-start gap-3 mt-1">
                                   <img
                                     src={group.image}
-                                    alt={group.unitGroup}
-                                    className="w-12 h-12 rounded-lg object-cover border"
+                                    className="w-12 h-12 rounded-lg border object-cover"
                                   />
 
-                                  <div className="flex flex-col gap-1">
-                                    <div className="text-[12px] text-slate-500">
+                                  <div className="text-[12px] flex flex-col gap-1 text-slate-600">
+                                    <div>
                                       🕒{" "}
                                       {format(group.start, "dd/MM/yyyy HH:mm", {
                                         locale: vi,
                                       })}
                                     </div>
-
-                                    <div className="text-[12px] text-slate-500">
+                                    <div>
                                       📌 {group.maintenance_reason || "—"}
                                     </div>
                                   </div>
                                 </div>
 
-                                {/* ====== Nút hành động ====== */}
+                                {/* Nút → Chi tiết */}
+                                {/* Nút → Chi tiết */}
                                 <div className="flex items-center justify-between mt-2">
                                   <Button
                                     size="sm"
-                                    className="bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium px-3 py-1"
-                                    onClick={async () => {
-                                      try {
-                                        await MaintenanceRequestService.confirm(
-                                          group.id
-                                        );
-                                        toast.success(
-                                          `✅ Đã đảm nhận yêu cầu ${group.id}`
-                                        );
-                                        fetchPlans();
-                                      } catch (err) {
-                                        toast.error(
-                                          "❌ Lỗi khi đảm nhận yêu cầu bảo trì"
-                                        );
-                                      }
+                                    onClick={() => {
+                                      setSelectedRequest(group);
+                                      setAssignMode("confirm");
+                                      setAssignOpen(true);
                                     }}
+                                    className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium px-3 py-1"
                                   >
                                     🧰 Đảm nhận
                                   </Button>
 
-                                  <button
-                                    onClick={() =>
-                                      setExpandedRequest((prev) =>
-                                        prev === group.id ? null : group.id
-                                      )
-                                    }
-                                    className="text-xs text-slate-600 hover:text-emerald-600 underline transition"
-                                  >
-                                    {expandedRequest === group.id
-                                      ? "Ẩn chi tiết thiết bị ▲"
-                                      : "Chi tiết các thiết bị ▼"}
-                                  </button>
-                                </div>
-
-                                {/* ====== Bảng chi tiết ====== */}
-                                {expandedRequest === group.id && (
-                                  <div className="mt-3 border border-emerald-200 rounded-lg overflow-hidden">
-                                    <table className="w-full text-xs border-collapse">
-                                      <thead className="bg-emerald-100/70 text-slate-700 font-semibold">
-                                        <tr>
-                                          <th className="px-3 py-2 text-left">
-                                            Mã định danh
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Trạng thái
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Bảo trì gần nhất
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {(group.units || []).map((u) => (
-                                          <tr
-                                            key={u.id}
-                                            className="border-t hover:bg-emerald-50 transition"
-                                          >
-                                            <td className="px-3 py-2 font-medium">
-                                              {u.id}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                              {u.status || "—"}
-                                            </td>
-                                            <td className="px-3 py-2 text-slate-600">
-                                              {u.lastMaintenance || "—"}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </div>
-                            </motion.div>
-                          ))
-                      ))}
-
-                    {/* === TAB: CONFIRMED === */}
-                    {activeTab === "confirmed" &&
-                      (groupedConfirmed.length === 0 ? (
-                        <div className="text-sm text-slate-400 italic text-center py-8">
-                          Không có mục nào đang chờ bảo trì.
-                        </div>
-                      ) : (
-                        groupedConfirmed
-                          .sort((a, b) => a.start - b.start)
-                          .map((group) => (
-                            <motion.div
-                              whileHover={{ scale: 1.02 }}
-                              key={group.id}
-                              className="relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition border-cyan-300/50"
-                            >
-                              <div className="flex flex-col gap-2">
-                                {/* ====== Header ====== */}
-                                <div className="flex items-center justify-between">
-                                  <div className="text-emerald-700 font-semibold text-sm truncate max-w-[220px]">
-                                    {group.id}{" "}
-                                    <span className="text-xs text-slate-500">
-                                      ({group.units?.length || 1} thiết bị)
-                                    </span>
-                                  </div>
-                                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-cyan-100 text-cyan-700 border border-cyan-200">
-                                    🔧 Chờ bảo trì
-                                  </span>
-                                </div>
-
-                                {/* ====== Thông tin ====== */}
-                                <div className="flex items-start gap-3">
-                                  <img
-                                    src={group.image}
-                                    alt={group.unitGroup}
-                                    className="w-12 h-12 rounded-lg object-cover border"
-                                  />
-                                  <div className="flex flex-col gap-1">
-                                    <div className="text-[12px] text-slate-500">
-                                      👨‍🔧{" "}
-                                      {group.confirmed_by_name &&
-                                      group.confirmed_by_name !==
-                                        "Chưa có thông tin"
-                                        ? group.confirmed_by_name
-                                        : group.candidate_tech_name &&
-                                          group.candidate_tech_name !==
-                                            "Chưa có thông tin"
-                                        ? group.candidate_tech_name
-                                        : "—"}
-                                    </div>
-                                    <div className="text-[12px] text-slate-500">
-                                      🕒{" "}
-                                      {format(group.start, "dd/MM/yyyy HH:mm", {
-                                        locale: vi,
-                                      })}
-                                    </div>
-
-                                    <div className="text-[12px] text-slate-500">
-                                      📌 {group.maintenance_reason || "—"}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* ====== Chi tiết các thiết bị ====== */}
-                                <div className="flex items-center justify-end mt-2">
                                   <button
                                     onClick={() =>
                                       setExpandedRequest((prev) =>
@@ -971,6 +911,7 @@ export default function SetScheduleSection() {
                                   </button>
                                 </div>
 
+                                {/* ====== Bảng chi tiết ====== */}
                                 {expandedRequest === group.id && (
                                   <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
                                     <table className="w-full text-xs border-collapse">
@@ -1012,13 +953,309 @@ export default function SetScheduleSection() {
                             </motion.div>
                           ))
                       ))}
+
+                    {/* === TAB: CONFIRMED === */}
+                    {activeTab === "confirmed" &&
+                      (groupedConfirmed.length === 0 ? (
+                        <div className="text-sm text-slate-400 italic text-center py-8">
+                          Không có mục nào đang chờ bảo trì.
+                        </div>
+                      ) : (
+                        groupedConfirmed
+                          .sort((a, b) => a.start - b.start)
+                          .map((group) => (
+                            <motion.div
+                              whileHover={{ scale: 1.02 }}
+                              key={group.id}
+                              className="relative p-3 rounded-xl border bg-white 
+                     hover:bg-emerald-50/60 
+                     shadow-sm hover:shadow-md 
+                     transition border-emerald-300"
+                            >
+                              <div className="flex flex-col gap-2">
+                                {/* ==== DÒNG 1: ID ==== */}
+                                <div className="text-emerald-700 font-semibold text-sm">
+                                  {group.id}
+                                </div>
+
+                                {/* ==== DÒNG 2: Số lượng + trạng thái ==== */}
+                                <div className="flex items-center justify-between">
+                                  <div className="text-xs text-slate-600">
+                                    ({group.units?.length || 1} thiết bị)
+                                  </div>
+
+                                  <span
+                                    className="text-[11px] px-2 py-0.5 rounded-md 
+                               bg-emerald-100 text-emerald-700 
+                               border border-emerald-200"
+                                  >
+                                    🔧 Chờ bảo trì
+                                  </span>
+                                </div>
+
+                                {/* ==== Ảnh + thông tin ==== */}
+                                <div className="flex items-start gap-3 mt-1">
+                                  <img
+                                    src={group.image}
+                                    alt={group.unitGroup}
+                                    className="w-12 h-12 rounded-lg object-cover border"
+                                  />
+
+                                  <div className="flex flex-col gap-1 text-[12px] text-slate-600">
+                                    <div>
+                                      👨‍🔧{" "}
+                                      {group.confirmed_by_name &&
+                                      group.confirmed_by_name !==
+                                        "Chưa có thông tin"
+                                        ? group.confirmed_by_name
+                                        : group.candidate_tech_name &&
+                                          group.candidate_tech_name !==
+                                            "Chưa có thông tin"
+                                        ? group.candidate_tech_name
+                                        : "—"}
+                                    </div>
+
+                                    <div>
+                                      🕒{" "}
+                                      {format(group.start, "dd/MM/yyyy HH:mm", {
+                                        locale: vi,
+                                      })}
+                                    </div>
+
+                                    <div>
+                                      📌 {group.maintenance_reason || "—"}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* ==== Nút Chi tiết ==== */}
+                                <div className="flex items-center justify-end mt-2">
+                                  <button
+                                    onClick={() =>
+                                      setExpandedRequest((prev) =>
+                                        prev === group.id ? null : group.id
+                                      )
+                                    }
+                                    className="text-xs text-slate-600 hover:text-emerald-600 underline transition"
+                                  >
+                                    {expandedRequest === group.id
+                                      ? "Ẩn chi tiết thiết bị ▲"
+                                      : "Chi tiết các thiết bị ▼"}
+                                  </button>
+                                </div>
+
+                                {/* ==== Bảng chi tiết thiết bị ==== */}
+                                {expandedRequest === group.id && (
+                                  <div className="mt-3 border border-emerald-200 rounded-lg overflow-hidden">
+                                    <table className="w-full text-xs border-collapse">
+                                      <thead className="bg-emerald-100/70 text-slate-700 font-semibold">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left">
+                                            Mã định danh
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Trạng thái
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Bảo trì gần nhất
+                                          </th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(group.units || []).map((u) => (
+                                          <tr
+                                            key={u.id}
+                                            className="border-t hover:bg-emerald-50 transition"
+                                          >
+                                            <td className="px-3 py-2 font-medium">
+                                              {u.id}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              {u.status || "—"}
+                                            </td>
+                                            <td className="px-3 py-2 text-slate-600">
+                                              {u.lastMaintenance || "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))
+                      ))}
                   </>
                 );
               })()}
             </div>
           </div>
         </div>
+        {/* ====== POPUP ĐẢM NHẬN ====== */}
+        <AlertDialog open={assignOpen} onOpenChange={setAssignOpen}>
+          <AlertDialogContent className="max-w-md z-[300000]">
+            {assignMode === "confirm" && (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Xác nhận đảm nhận</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Bạn có chắc muốn đảm nhận yêu cầu bảo trì <br />
+                    <strong>{selectedRequest?.units?.length || 1}</strong> thiết
+                    bị?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Hủy</AlertDialogCancel>
+                  <button
+                    onClick={handleAssign}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md"
+                  >
+                    Xác nhận
+                  </button>
+                </AlertDialogFooter>
+              </>
+            )}
+
+            {assignMode === "loading" && (
+              <div className="py-6 flex flex-col items-center">
+                <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-slate-700 font-medium">
+                  Đang xử lý yêu cầu...
+                </p>
+              </div>
+            )}
+
+            {assignMode === "success" && (
+              <div className="py-6 flex flex-col items-center">
+                <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xl mb-3">
+                  ✓
+                </div>
+                <p className="text-emerald-700 font-semibold">
+                  Đảm nhận thành công!
+                </p>
+
+                <div className="mt-4">
+                  <AlertDialogAction
+                    onClick={() => setAssignOpen(false)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md"
+                  >
+                    Đóng
+                  </AlertDialogAction>
+                </div>
+              </div>
+            )}
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
+
+      {/* ====== POPUP LỊCH THEO NGÀY ====== */}
+      <AnimatePresence>
+        {hoverDay && (
+          <motion.div
+            onMouseEnter={() => {
+              setIsHoveringPopup(true);
+            }}
+            onMouseLeave={() => {
+              setIsHoveringPopup(false);
+              setHoverDay(null); // chỉ tắt khi rời popup
+            }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed z-[999999] p-4 rounded-xl border bg-white shadow-xl w-72 text-xs"
+            style={{
+              top: popupPos.y + 12,
+              left: popupPos.x + 12,
+            }}
+          >
+            {/* Đã đảm nhận */}
+            {popupEvents.confirmed.length > 0 && (
+              <div className="mb-3">
+                <div className="text-emerald-600 font-semibold text-sm mb-1">
+                  Lịch đã đảm nhận
+                </div>
+
+                <div className="space-y-2">
+                  {popupEvents.confirmed.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="
+                  px-3 py-1.5 rounded-lg border 
+                  border-emerald-400 
+                  text-emerald-700 
+                  font-medium bg-white
+                "
+                    >
+                      {ev.id}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lịch chưa đảm nhận */}
+            {popupEvents.pending.length > 0 && (
+              <div className="mb-3">
+                <div className="text-cyan-600 font-semibold text-sm mb-1">
+                  Lịch chưa đảm nhận
+                </div>
+
+                <div className="space-y-2">
+                  {popupEvents.pending.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="
+                  px-3 py-1.5 rounded-lg border 
+                  border-cyan-400 
+                  text-cyan-700 
+                  font-medium bg-white
+                "
+                    >
+                      {ev.id}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lịch định kỳ */}
+            {popupEvents.plan.length > 0 && (
+              <div>
+                <div className="text-amber-600 font-semibold text-sm mb-1">
+                  Lịch bảo trì định kỳ
+                </div>
+
+                <div className="space-y-2">
+                  {popupEvents.plan.map((ev) => (
+                    <div
+                      key={ev.id}
+                      className="
+                  px-3 py-1.5 rounded-lg border 
+                  border-amber-400 
+                  text-amber-700 
+                  font-medium bg-white
+                "
+                    >
+                      {ev.unitGroup}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Nếu không có gì */}
+            {popupEvents.confirmed.length === 0 &&
+              popupEvents.pending.length === 0 &&
+              popupEvents.plan.length === 0 && (
+                <div className="text-slate-400 italic text-[11px]">
+                  Không có lịch phù hợp bộ lọc.
+                </div>
+              )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
