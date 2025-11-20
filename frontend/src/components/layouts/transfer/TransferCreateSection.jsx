@@ -561,29 +561,36 @@ export default function TransferCreateSection() {
                 return (
                   <TableRow
                     key={row.id}
-                    className={`transition ${
-                      isChecked
-                        ? "bg-emerald-50 dark:bg-emerald-900/30"
-                        : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                    }`}
+                    className={`transition
+    ${
+      row.isScheduleLocked
+        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+        : isChecked
+        ? "bg-emerald-50 dark:bg-emerald-900/30"
+        : "hover:bg-gray-50 dark:hover:bg-gray-700"
+    }
+  `}
                   >
                     <TableCell className="text-center">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                     </TableCell>
                     {visibleColumns.select && (
                       <TableCell className="text-center">
-                        <input
-                          type="checkbox"
-                          disabled={disabled}
-                          checked={isChecked}
-                          onChange={() => toggleSelect(row)}
-                          className={`w-5 h-5 cursor-pointer accent-emerald-500 transition-transform duration-150 
-                          ${
-                            disabled
-                              ? "opacity-40 cursor-not-allowed"
-                              : "hover:scale-110"
-                          }`}
-                        />
+                        {row.isScheduleLocked ? (
+                          <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-medium">
+                            Đã lên lịch bảo trì
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            disabled={disabled}
+                            checked={isChecked}
+                            onChange={() => toggleSelect(row)}
+                            className={`w-5 h-5 cursor-pointer accent-emerald-500 transition-transform duration-150 
+      ${disabled ? "opacity-40 cursor-not-allowed" : "hover:scale-110"}
+    `}
+                          />
+                        )}
                       </TableCell>
                     )}
                     {visibleColumns.id && <TableCell>{row.id}</TableCell>}
