@@ -13,6 +13,7 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
+import { ClockClockwise, Wrench, Archive } from "@phosphor-icons/react";
 import { vi } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -70,6 +71,40 @@ const STATUS = {
 };
 
 const normStatus = (s) => (s ? String(s).toLowerCase() : "pending");
+function generateRecurringPlanEvents(plan, monthsAhead = 12) {
+  const events = [];
+
+  let cursor = new Date(plan.next_maintenance_date);
+
+  const freq = String(plan.frequency || "").toLowerCase();
+  const match = freq.match(/(\d+)_(\w+)/);
+
+  const value = match ? Number(match[1]) : 1;
+  const type = match ? match[2] : "month";
+
+  for (let i = 0; i < monthsAhead; i++) {
+    events.push({
+      id: `${plan.id}_rec_${i}`,
+      type: "plan",
+      unitId: plan.equipment_id,
+      unitGroup: plan.equipment_name,
+      branch: "—",
+      start: new Date(cursor),
+      status: "plan",
+      image: plan.image,
+      color: "bg-amber-400 text-white",
+      label: "🟠 Lịch định kỳ",
+    });
+
+    // tăng kỳ tiếp theo
+    if (type.includes("month")) cursor = addMonths(cursor, value);
+    else if (type.includes("week")) cursor = addWeeks(cursor, value);
+    else if (type.includes("day")) cursor = addDays(cursor, value);
+  }
+
+  return events;
+}
+
 const fmtDayKey = (d) => format(d, "yyyy-MM-dd");
 
 /* 🧩 Map dữ liệu từ API -> event chuẩn (lấy thêm tên dòng thiết bị) */
@@ -111,6 +146,10 @@ export default function SetScheduleSection() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignMode, setAssignMode] = useState("confirm"); // confirm | loading | success
   const [selectedRequest, setSelectedRequest] = useState(null);
+
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelMode, setCancelMode] = useState("confirm"); // confirm | loading | success
+
   const handleAssign = async () => {
     try {
       // popup vẫn mở
@@ -118,7 +157,7 @@ export default function SetScheduleSection() {
 
       const requestId = selectedRequest.id;
 
-      // update màu UI ngay
+      // 🔥 Update UI ngay lập tức
       setEvents((prev) =>
         prev.map((e) =>
           e.id === requestId
@@ -145,11 +184,11 @@ export default function SetScheduleSection() {
   const [view, setView] = useState("month"); // 'week' | 'month' | 'year'
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [isHoveringPopup, setIsHoveringPopup] = useState(false);
 
   const [hoverDay, setHoverDay] = useState(null);
   const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
-  const [keepPopup, setKeepPopup] = useState(false);
+  const popupHoverRef = React.useRef(false);
+  const dayHoverRef = React.useRef(false);
 
   // 🔹 Lưu ID của yêu cầu đang mở "Chi tiết thiết bị"
   const [expandedRequest, setExpandedRequest] = useState(null);
@@ -171,43 +210,69 @@ export default function SetScheduleSection() {
       const requests = Array.isArray(reqRes) ? reqRes : reqRes?.data || [];
 
       // 🔸 Lịch định kỳ (plan)
-      const planEvents = plans.map((p) => ({
-        id: p.id,
-        type: "plan",
-        unitId: p.equipment_id,
-        unitGroup: p.equipment_name,
-        branch: "—",
-        start: new Date(p.next_maintenance_date),
-        status: "plan",
-        color: "bg-amber-400 text-white",
-        label: "🟠 Lịch đúng hẹn",
-      }));
+      // 🔥 Tạo lịch định kỳ cho nhiều kỳ tương lai
+      let planEvents = [];
+      for (const p of plans) {
+        let eqImg = null;
+        try {
+          const eq = await EquipmentService.getById(p.equipment_id);
+          eqImg = eq?.image || eq?.equipment_image || eq?.thumbnail || null;
+        } catch (e) {}
 
-      // 🔹 Yêu cầu bảo trì (request)
-      const requestEvents = requests.map((r) => ({
-        id: r.id, // ID chung của request
-        type: "request",
-        units: r.units || [], // danh sách thiết bị
-        image: r.units?.[0]?.equipment_image, // thumbnail lấy thiết bị đầu tiên
-        unitGroup: r.units?.[0]?.equipment_name,
-        maintenance_reason: r.maintenance_reason,
-        branch: r.units?.[0]?.branch_name || "—",
-        start: new Date(r.scheduled_at),
-        status: r.status, // pending / confirmed
-        requestStatus: r.status,
-        color:
-          r.status === "confirmed"
-            ? "bg-emerald-500 text-white"
-            : "bg-cyan-500 text-white",
-        label:
-          r.status === "confirmed" ? "🟩 Lịch bảo trì" : "🟦 Lịch chờ đảm nhận",
-      }));
+        // Gán image vào plan object để dùng trong generator
+        p.image = eqImg;
+
+        // tạo 12 kỳ (có thể đổi monthsAhead nếu muốn)
+        const rec = generateRecurringPlanEvents(p, 12);
+        planEvents = [...planEvents, ...rec];
+      }
+
+      // 🔹 Request Events (đã FIX 100% lỗi cancelled + ghost event)
+      const requestEvents = requests
+        .filter((r) => !!r.scheduled_at)
+        .filter((r) => {
+          const st = (r.status || "").trim().toLowerCase();
+          return !["cancel", "canceled", "cancelled"].includes(st);
+        })
+        .map((r) => {
+          const status = String(r.status || "")
+            .trim()
+            .toLowerCase();
+          const isConfirmed = status === "confirmed";
+
+          return {
+            key: r.id, // 🔥 FIX LỖI GHOST EVENT
+            id: r.id,
+            requestId: r.id,
+            type: "request",
+
+            units: r.units || [],
+            image: r.units?.[0]?.equipment_image,
+            unitGroup: r.units?.[0]?.equipment_name,
+            maintenance_reason: r.maintenance_reason,
+            branch: r.units?.[0]?.branch_name || "—",
+
+            start: new Date(r.scheduled_at.replace("Z", "")),
+            scheduled_at: r.scheduled_at,
+            originalScheduledAt: r.scheduled_at,
+
+            requestStatus: status,
+            status: status,
+            confirmed_by_name: r.confirmed_by_name,
+            candidate_tech_name: r.candidate_tech_name,
+
+            color: isConfirmed
+              ? "bg-emerald-500 text-white"
+              : "bg-cyan-500 text-white",
+
+            label: isConfirmed ? "🟩 Lịch đã đảm nhận" : "🟦 Lịch chờ đảm nhận",
+          };
+        });
 
       // 🔹 Gộp 2 loại event
       const allEvents = [...planEvents, ...requestEvents].sort(
         (a, b) => a.start - b.start
       );
-
       setEvents(allEvents);
     } catch (err) {
       console.error("❌ Lỗi khi tải dữ liệu lịch:", err);
@@ -237,32 +302,89 @@ export default function SetScheduleSection() {
   }, [cursor]);
   // 🧮 Lọc sự kiện theo loại lịch được chọn
   const filteredEvents = useMemo(() => {
-    if (eventFilter === "all") return events;
-    if (eventFilter === "plan") return events.filter((e) => e.type === "plan");
-    if (eventFilter === "pending")
-      return events.filter((e) => e.status === "pending");
-    if (eventFilter === "confirmed")
-      return events.filter((e) => e.status === "confirmed");
-    return events;
+    return events
+      .filter((e) => {
+        // ⭐ GIỮ LỊCH VÀNG (plan)
+        if (e.type === "plan") return true;
+
+        // ⭐ Request
+        if (e.type === "request") {
+          const st = (e.requestStatus || "").toLowerCase();
+          const st2 = (e.status || "").toLowerCase(); // 🟩 THÊM DÒNG NÀY
+
+          // ⭐ Loại bỏ tuyệt đối cancelled (UI lẫn API)
+          if (
+            ["cancel", "canceled", "cancelled"].includes(st) ||
+            ["cancel", "canceled", "cancelled"].includes(st2)
+          ) {
+            return false; // 🟩 KHÔNG CHO CANCELLED XUẤT HIỆN
+          }
+          // ❌ LOẠI LUÔN executed khỏi calendar
+          if (st === "executed" || st2 === "executed") {
+            return false;
+          }
+
+          // ⭐ Không có ngày → bỏ
+          if (!e.start) return false;
+
+          return true;
+        }
+
+        return false;
+      })
+      .filter((e) => {
+        // 🟢 Filter theo loại sự kiện user đang chọn
+        if (eventFilter === "all") return true;
+        if (eventFilter === "plan") return e.type === "plan";
+        if (eventFilter === "pending")
+          return e.type === "request" && e.requestStatus === "pending";
+        if (eventFilter === "confirmed")
+          return e.type === "request" && e.requestStatus === "confirmed";
+
+        return true;
+      });
   }, [events, eventFilter]);
 
-  /* Sự kiện trong ngày */
-  const eventsOfDay = (day) =>
-    filteredEvents
-      .filter((e) => isSameDay(e.start, day))
+  const eventsOfDay = (day) => {
+    return filteredEvents
+      .filter((e) => {
+        if (!e.start) return false;
+
+        const st = (e.requestStatus || "").toLowerCase();
+        const st2 = (e.status || "").toLowerCase();
+
+        // ❗ Chỉ cần chỗ này đúng → toàn hệ thống hết lỗi
+        if (["cancel", "canceled", "cancelled"].includes(st)) return false;
+        if (["cancel", "canceled", "cancelled"].includes(st2)) return false;
+        // ❌ Loại lịch sử khỏi calendar
+        if (st === "executed" || st2 === "executed") return false;
+
+        return isSameDay(e.start, day);
+      })
       .sort((a, b) => a.start - b.start);
+  };
+
   // 🟢 Events hiển thị trong popup hover theo ngày
   const popupEvents = useMemo(() => {
     if (!hoverDay) return { confirmed: [], pending: [], plan: [] };
 
-    const eventsToday = eventsOfDay(hoverDay);
+    const eventsToday = filteredEvents
+      .filter((e) => isSameDay(e.start, hoverDay))
+      .filter(
+        (e) =>
+          !["cancel", "canceled", "cancelled"].includes(
+            (e.requestStatus || "").toLowerCase()
+          )
+      )
+
+      .sort((a, b) => a.start - b.start);
 
     return {
-      confirmed: eventsToday.filter((e) => e.status === "confirmed"),
-      pending: eventsToday.filter((e) => e.status === "pending"),
+      confirmed: eventsToday.filter((e) => e.requestStatus === "confirmed"),
+      pending: eventsToday.filter((e) => e.requestStatus === "pending"),
       plan: eventsToday.filter((e) => e.type === "plan"),
     };
-  }, [hoverDay, events, eventFilter]);
+  }, [hoverDay, filteredEvents]);
 
   /* Lọc sự kiện trong phạm vi view + trạng thái pending cho panel phải */
   const inCurrentView = useMemo(() => {
@@ -276,36 +398,53 @@ export default function SetScheduleSection() {
     return (ev) => format(ev.start, "yyyy") === format(cursor, "yyyy");
   }, [view, cursor]);
 
-  // 🔹 Danh sách pending/confirmed theo view + eventFilter
   const pendingInView = useMemo(() => {
-    let base = events.filter(
-      (e) =>
+    let base = filteredEvents.filter((e) => {
+      const st = (e.requestStatus || "").toLowerCase();
+      return (
         e.type === "request" &&
-        e.requestStatus === "pending" &&
+        st === "pending" &&
+        !["cancel", "canceled", "cancelled"].includes(st) &&
         inCurrentView(e)
-    );
-    if (eventFilter === "plan") base = []; // ẩn khi chỉ xem lịch chu kỳ
-    if (eventFilter === "confirmed")
-      base = base.filter((e) => e.status === "confirmed");
-    if (eventFilter === "pending")
-      base = base.filter((e) => e.status === "pending");
+      );
+    });
+
+    if (eventFilter === "plan") return [];
+    if (eventFilter === "pending") return base;
+    if (eventFilter === "confirmed") return [];
+
+    return base;
+  }, [filteredEvents, inCurrentView, eventFilter]);
+
+  const confirmedInView = useMemo(() => {
+    let base = events.filter((e) => {
+      const st = (e.requestStatus || "").toLowerCase();
+      return (
+        e.type === "request" &&
+        st === "confirmed" &&
+        !["cancel", "canceled", "cancelled"].includes(st) &&
+        inCurrentView(e)
+      );
+    });
+
+    if (eventFilter === "plan") return [];
+    if (eventFilter === "pending") return [];
+    if (eventFilter === "confirmed") return base;
+
     return base;
   }, [events, inCurrentView, eventFilter]);
 
-  const confirmedInView = useMemo(() => {
-    let base = events.filter(
-      (e) =>
+  const historyInView = useMemo(() => {
+    return events.filter((e) => {
+      const st = (e.requestStatus || "").toLowerCase();
+      return (
         e.type === "request" &&
-        e.requestStatus === "confirmed" &&
+        st === "executed" && // lịch sử
+        !["cancel", "canceled", "cancelled"].includes(st) &&
         inCurrentView(e)
-    );
-    if (eventFilter === "plan") base = []; // ẩn khi chỉ xem lịch chu kỳ
-    if (eventFilter === "pending")
-      base = base.filter((e) => e.status === "pending");
-    if (eventFilter === "confirmed")
-      base = base.filter((e) => e.status === "confirmed");
-    return base;
-  }, [events, inCurrentView, eventFilter]);
+      );
+    });
+  }, [events, inCurrentView]);
 
   // 🔹 Tab đang chọn ("pending" hoặc "confirmed")
   const [activeTab, setActiveTab] = useState("pending");
@@ -353,6 +492,42 @@ export default function SetScheduleSection() {
       intensity: i.count === 0 ? 0 : i.count / max, // 0..1
     }));
   }, [view, cursor, events]);
+
+  const handleCancel = async () => {
+    try {
+      setCancelMode("loading");
+
+      const requestId = selectedRequest.id;
+
+      await MaintenanceRequestService.cancel(requestId);
+
+      // 🟩 Lấy ngày cancel từ API (không bị lệch timezone)
+      const cancelledDate = new Date(
+        selectedRequest.originalScheduledAt ||
+          selectedRequest.scheduled_at ||
+          selectedRequest.start
+      );
+
+      // 🟩 Xóa toàn bộ event cùng ngày
+      setEvents((prev) =>
+        prev.filter(
+          (e) =>
+            !(
+              e.type === "request" &&
+              e.start &&
+              isSameDay(e.start, cancelledDate)
+            )
+        )
+      );
+
+      await fetchPlans();
+
+      setCancelMode("success");
+    } catch (err) {
+      toast.error("Không thể hủy yêu cầu!");
+      setCancelOpen(false);
+    }
+  };
 
   /* ====== UI ====== */
   return (
@@ -545,24 +720,38 @@ export default function SetScheduleSection() {
                 <div className="grid grid-cols-7 gap-2 p-3">
                   {rangeForWeek.map((day) => {
                     const dayEvents = eventsOfDay(day);
+
                     const selected = isSameDay(day, selectedDate);
                     return (
                       <div
                         key={fmtDayKey(day)}
                         onClick={() => setSelectedDate(day)}
                         onMouseEnter={(e) => {
-                          if (dayEvents.length === 0) return;
-                          setHoverDay(day);
-                          setPopupPos({ x: e.clientX, y: e.clientY });
+                          dayHoverRef.current = true;
+
+                          if (dayEvents.length > 0) {
+                            setHoverDay(day);
+                            setPopupPos({ x: e.clientX, y: e.clientY });
+                          } else {
+                            setHoverDay(null); // 🟢 KHÔNG CÓ EVENT → TẮT POPUP NGAY
+                          }
                         }}
                         onMouseMove={(e) => {
-                          if (!hoverDay) return;
-                          setPopupPos({ x: e.clientX, y: e.clientY });
+                          if (hoverDay) {
+                            setPopupPos({ x: e.clientX, y: e.clientY });
+                          }
                         }}
                         onMouseLeave={() => {
-                          if (!isHoveringPopup) {
-                            setHoverDay(null);
-                          }
+                          dayHoverRef.current = false;
+
+                          setTimeout(() => {
+                            if (
+                              !popupHoverRef.current &&
+                              !dayHoverRef.current
+                            ) {
+                              setHoverDay(null);
+                            }
+                          }, 80);
                         }}
                         className={`p-3 rounded-xl border min-h-[120px] cursor-pointer transition ${
                           selected
@@ -570,7 +759,60 @@ export default function SetScheduleSection() {
                             : "border-slate-200 hover:bg-slate-50"
                         }`}
                       >
-                        ...
+                        {/* Header ngày + hôm nay */}
+                        <div className="flex justify-between mb-1 text-[11px] font-medium">
+                          <span className="text-slate-700">
+                            {format(day, "d", { locale: vi })}
+                          </span>
+
+                          {isToday(day) && (
+                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
+                              Hôm nay
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Event list */}
+                        <div className="space-y-1">
+                          {dayEvents
+                            // ưu tiên lịch plan trước
+                            .sort((a, b) => {
+                              const priority = {
+                                plan: 1,
+                                pending: 2,
+                                confirmed: 3,
+                              };
+
+                              const pa =
+                                priority[
+                                  a.type === "plan" ? "plan" : a.requestStatus
+                                ];
+                              const pb =
+                                priority[
+                                  b.type === "plan" ? "plan" : b.requestStatus
+                                ];
+
+                              return pa - pb || a.start - b.start;
+                            })
+
+                            // cho phép nhiều hơn 3 lịch để không mất plan
+                            .slice(0, 5)
+
+                            .map((ev) => (
+                              <div
+                                key={ev.key}
+                                className={`px-2 py-1 rounded-md text-[11px] truncate font-medium ${ev.color}`}
+                              >
+                                {ev.type === "plan" ? ev.unitGroup : ev.id}
+                              </div>
+                            ))}
+
+                          {dayEvents.length > 3 && (
+                            <div className="text-[10px] text-slate-500">
+                              +{dayEvents.length - 3} nữa…
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -603,26 +845,47 @@ export default function SetScheduleSection() {
                   {rangeForMonth.map((day) => {
                     const inMonth = isSameMonth(day, cursor);
                     const dayEvents = eventsOfDay(day);
+
                     const selected = isSameDay(day, selectedDate);
 
                     return (
                       <motion.div
                         key={fmtDayKey(day)}
+                        //  id={`card-${group.id}`}
                         whileHover={{ scale: 1.02 }}
                         onClick={() => setSelectedDate(day)}
                         onMouseEnter={(e) => {
-                          if (dayEvents.length === 0) return;
-                          setHoverDay(day);
-                          setPopupPos({ x: e.clientX, y: e.clientY });
-                        }}
-                        onMouseMove={(e) => {
-                          if (!hoverDay) return;
-                          setPopupPos({ x: e.clientX, y: e.clientY });
-                        }}
-                        onMouseLeave={() => {
-                          if (!isHoveringPopup) {
+                          dayHoverRef.current = true;
+
+                          const realEvents = dayEvents.filter(
+                            (e) =>
+                              !["cancel", "canceled", "cancelled"].includes(
+                                (e.requestStatus || "").toLowerCase()
+                              )
+                          );
+
+                          if (realEvents.length > 0) {
+                            setHoverDay(day);
+                          } else {
                             setHoverDay(null);
                           }
+                        }}
+                        onMouseMove={(e) => {
+                          if (hoverDay) {
+                            setPopupPos({ x: e.clientX, y: e.clientY });
+                          }
+                        }}
+                        onMouseLeave={() => {
+                          dayHoverRef.current = false;
+
+                          setTimeout(() => {
+                            if (
+                              !popupHoverRef.current &&
+                              !dayHoverRef.current
+                            ) {
+                              setHoverDay(null);
+                            }
+                          }, 80);
                         }}
                         className={`p-2 rounded-xl border cursor-pointer min-h-[110px] transition-all ${
                           selected
@@ -658,15 +921,23 @@ export default function SetScheduleSection() {
                                 pending: 2,
                                 confirmed: 3,
                               };
-                              return (
-                                (priority[a.status] || 0) -
-                                (priority[b.status] || 0)
-                              );
+
+                              const pa =
+                                priority[
+                                  a.type === "plan" ? "plan" : a.requestStatus
+                                ];
+                              const pb =
+                                priority[
+                                  b.type === "plan" ? "plan" : b.requestStatus
+                                ];
+
+                              return pa - pb;
                             })
+
                             .slice(0, 3)
                             .map((ev) => (
                               <div
-                                key={ev.id + ev.unitId}
+                                key={ev.key}
                                 className={`px-2 py-1 rounded-md text-[11px] truncate font-medium ${ev.color}`}
                               >
                                 {ev.type === "plan" ? ev.unitGroup : ev.id}
@@ -758,133 +1029,227 @@ export default function SetScheduleSection() {
 
         {/* ====== Right: Panel “Thiết bị chờ đảm nhận” (giao diện tối giản, 4 dòng) ====== */}
         <div className="lg:col-span-4">
-          <div className="rounded-2xl bg-white shadow-[0_6px_20px_rgba(0,0,0,0.05)] overflow-hidden border border-slate-200 sticky top-4 max-h-[74vh] flex flex-col">
-            {/* Header */}
-            {/* 🔹 Tabs header: Chờ đảm nhận / Chờ bảo trì */}
-            <div className="flex border-b bg-gradient-to-r from-emerald-50 to-cyan-50">
-              <button
-                onClick={() => setActiveTab("pending")}
-                className={`flex-1 px-4 py-3 font-semibold text-sm transition-all ${
-                  activeTab === "pending"
-                    ? "text-emerald-700 border-b-2 border-emerald-500 bg-white"
-                    : "text-slate-600 hover:bg-white/50"
-                }`}
+          {/* Header - PREMIUM ICON TABS */}
+          <div className="flex justify-around items-center py-3 border-b bg-white/70 backdrop-blur-xl shadow-[0_3px_12px_rgba(0,0,0,0.06)] z-10">
+            {/* Pending */}
+            <button
+              onClick={() => setActiveTab("pending")}
+              className={`
+      flex flex-col items-center gap-1 px-3 py-1.5 transition-all duration-300
+      ${
+        activeTab === "pending"
+          ? "text-cyan-600 scale-110 font-semibold"
+          : "text-slate-500 hover:text-slate-700 scale-100"
+      }
+    `}
+            >
+              <div
+                className={`
+      p-2 rounded-xl transition-all duration-300
+      ${
+        activeTab === "pending"
+          ? "bg-cyan-100 shadow-[0_4px_14px_rgba(34,211,238,0.35)]"
+          : "bg-slate-100"
+      }
+    `}
               >
-                Danh sách các thiết bị chờ Đảm nhận ({pendingInView.length})
-              </button>
+                <ClockClockwise
+                  size={22}
+                  weight={activeTab === "pending" ? "fill" : "regular"}
+                  className="transition-transform duration-300"
+                  style={{
+                    transform:
+                      activeTab === "pending" ? "translateY(-2px)" : "none",
+                  }}
+                />
+              </div>
+              <span className="text-[11px]">
+                Chờ nhận ({pendingInView.length})
+              </span>
+            </button>
 
-              <button
-                onClick={() => setActiveTab("confirmed")}
-                className={`flex-1 px-4 py-3 font-semibold text-sm transition-all ${
-                  activeTab === "confirmed"
-                    ? "text-cyan-700 border-b-2 border-cyan-500 bg-white"
-                    : "text-slate-600 hover:bg-white/50"
-                }`}
+            {/* Confirmed */}
+            <button
+              onClick={() => setActiveTab("confirmed")}
+              className={`
+      flex flex-col items-center gap-1 px-3 py-1.5 transition-all duration-300
+      ${
+        activeTab === "confirmed"
+          ? "text-emerald-600 scale-110 font-semibold"
+          : "text-slate-500 hover:text-slate-700 scale-100"
+      }
+    `}
+            >
+              <div
+                className={`
+      p-2 rounded-xl transition-all duration-300
+      ${
+        activeTab === "confirmed"
+          ? "bg-emerald-100 shadow-[0_4px_14px_rgba(16,185,129,0.35)]"
+          : "bg-slate-100"
+      }
+    `}
               >
-                Danh sách các thiết bị chờ đến ngày Bảo trì (
-                {confirmedInView.length})
-              </button>
-            </div>
+                <Wrench
+                  size={22}
+                  weight={activeTab === "confirmed" ? "fill" : "regular"}
+                  className="transition-transform duration-300"
+                  style={{
+                    transform:
+                      activeTab === "confirmed" ? "translateY(-2px)" : "none",
+                  }}
+                />
+              </div>
+              <span className="text-[11px]">
+                Chờ bảo trì ({confirmedInView.length})
+              </span>
+            </button>
 
-            <div className="p-3 space-y-3 overflow-y-auto max-h-[70vh]">
-              {/* ==== Gom nhóm dữ liệu ==== */}
-              {(() => {
-                // 🔹 Gom pending theo request.id
-                const groupedPending = Object.values(
-                  pendingInView.reduce((acc, ev) => {
-                    if (!acc[ev.id])
-                      acc[ev.id] = { ...ev, units: [], image: ev.image };
+            {/* History */}
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`
+      flex flex-col items-center gap-1 px-3 py-1.5 transition-all duration-300
+      ${
+        activeTab === "history"
+          ? "text-purple-600 scale-110 font-semibold"
+          : "text-slate-500 hover:text-slate-700 scale-100"
+      }
+    `}
+            >
+              <div
+                className={`
+      p-2 rounded-xl transition-all duration-300
+      ${
+        activeTab === "history"
+          ? "bg-purple-100 shadow-[0_4px_14px_rgba(168,85,247,0.35)]"
+          : "bg-slate-100"
+      }
+    `}
+              >
+                <Archive
+                  size={22}
+                  weight={activeTab === "history" ? "fill" : "regular"}
+                  className="transition-transform duration-300"
+                  style={{
+                    transform:
+                      activeTab === "history" ? "translateY(-2px)" : "none",
+                  }}
+                />
+              </div>
+              <span className="text-[11px]">
+                Lịch sử ({historyInView.length})
+              </span>
+            </button>
+          </div>
+          {/* ==== PANEL LIST (pending / confirmed / history) ==== */}
+          <div className="p-3 space-y-3 overflow-y-auto max-h-[70vh]">
+            {/* ==== GOM NHÓM DỮ LIỆU ==== */}
+            {(() => {
+              // GROUP PENDING
+              const groupedPending = Object.values(
+                pendingInView.reduce((acc, ev) => {
+                  if (!acc[ev.id])
+                    acc[ev.id] = { ...ev, units: [], image: ev.image };
 
-                    ev.units.forEach((u) =>
-                      acc[ev.id].units.push({
-                        id: u.id,
-                        status: u.status || "-",
-                        lastMaintenance: u.lastMaintenance || "-",
-                      })
-                    );
+                  ev.units.forEach((u) =>
+                    acc[ev.id].units.push({
+                      id: u.id,
+                      status: u.status || "-",
+                      lastMaintenance: u.last_maintenance_date || "-",
+                    })
+                  );
 
-                    return acc; // ✅ BẮT BUỘC
-                  }, {})
-                );
+                  return acc;
+                }, {})
+              );
 
-                const groupedConfirmed = Object.values(
-                  confirmedInView.reduce((acc, ev) => {
-                    if (!acc[ev.id])
-                      acc[ev.id] = { ...ev, units: [], image: ev.image };
+              // GROUP CONFIRMED
+              const groupedConfirmed = Object.values(
+                confirmedInView.reduce((acc, ev) => {
+                  if (!acc[ev.id])
+                    acc[ev.id] = {
+                      ...ev,
+                      units: [],
+                      image: ev.image,
+                      confirmed_by_name: ev.confirmed_by_name,
+                      candidate_tech_name: ev.candidate_tech_name,
+                    };
 
-                    ev.units.forEach((u) =>
-                      acc[ev.id].units.push({
-                        id: u.id,
-                        status: u.status || "-",
-                        lastMaintenance: u.lastMaintenance || "-",
-                      })
-                    );
+                  ev.units.forEach((u) =>
+                    acc[ev.id].units.push({
+                      id: u.id,
+                      status: u.status || "-",
+                      lastMaintenance: u.last_maintenance_date || "-",
+                    })
+                  );
 
-                    return acc; // ✅ BẮT BUỘC
-                  }, {})
-                );
+                  return acc;
+                }, {})
+              );
 
-                return (
-                  <>
-                    {/* === TAB: PENDING === */}
-                    {activeTab === "pending" &&
-                      (groupedPending.length === 0 ? (
-                        <div className="text-sm text-slate-400 italic text-center py-8">
-                          Không có mục nào đang chờ đảm nhận.
-                        </div>
-                      ) : (
-                        groupedPending
-                          .sort((a, b) => a.start - b.start)
-                          .map((group) => (
-                            <motion.div
-                              whileHover={{ scale: 1.02 }}
-                              key={group.id}
-                              className={`relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition ${
-                                group.requestStatus === "pending"
-                                  ? "border-cyan-300"
-                                  : "border-emerald-300"
-                              }`}
-                            >
-                              <div className="flex flex-col gap-2">
-                                {/* ==== DÒNG 1: ID ==== */}
-                                <div className="text-cyan-700 font-semibold text-sm">
-                                  {group.id}
+              return (
+                <>
+                  {/* ==== TAB: PENDING ==== */}
+                  {activeTab === "pending" &&
+                    (groupedPending.length === 0 ? (
+                      <div className="text-sm text-slate-400 italic text-center py-8">
+                        Không có mục nào đang chờ đảm nhận.
+                      </div>
+                    ) : (
+                      groupedPending
+                        .sort((a, b) => a.start - b.start)
+                        .map((group) => (
+                          <motion.div
+                            id={`card-${group.id}`}
+                            whileHover={{ scale: 1.02 }}
+                            key={group.id}
+                            className={`relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition ${
+                              group.requestStatus === "pending"
+                                ? "border-cyan-300"
+                                : "border-emerald-300"
+                            }`}
+                          >
+                            <div className="flex flex-col gap-2">
+                              {/* ID */}
+                              <div className="text-cyan-700 font-semibold text-sm">
+                                {group.id}
+                              </div>
+
+                              {/* số lượng + chip */}
+                              <div className="flex items-center justify-between">
+                                <div className="text-xs text-slate-600">
+                                  ({group.units?.length || 1} thiết bị)
                                 </div>
 
-                                {/* ==== DÒNG 2: Số lượng + trạng thái ==== */}
-                                <div className="flex items-center justify-between">
-                                  <div className="text-xs text-slate-600">
-                                    ({group.units?.length || 1} thiết bị)
+                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
+                                  ⏳ Chờ đảm nhận
+                                </span>
+                              </div>
+
+                              {/* image + info */}
+                              <div className="flex items-start gap-3 mt-1">
+                                <img
+                                  src={group.image}
+                                  className="w-12 h-12 rounded-lg border object-cover"
+                                />
+
+                                <div className="text-[12px] flex flex-col gap-1 text-slate-600">
+                                  <div>
+                                    🕒{" "}
+                                    {format(group.start, "dd/MM/yyyy HH:mm", {
+                                      locale: vi,
+                                    })}
                                   </div>
-
-                                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
-                                    ⏳ Chờ đảm nhận
-                                  </span>
-                                </div>
-
-                                {/* Ảnh + thông tin */}
-                                <div className="flex items-start gap-3 mt-1">
-                                  <img
-                                    src={group.image}
-                                    className="w-12 h-12 rounded-lg border object-cover"
-                                  />
-
-                                  <div className="text-[12px] flex flex-col gap-1 text-slate-600">
-                                    <div>
-                                      🕒{" "}
-                                      {format(group.start, "dd/MM/yyyy HH:mm", {
-                                        locale: vi,
-                                      })}
-                                    </div>
-                                    <div>
-                                      📌 {group.maintenance_reason || "—"}
-                                    </div>
+                                  <div>
+                                    📌 {group.maintenance_reason || "—"}
                                   </div>
                                 </div>
+                              </div>
 
-                                {/* Nút → Chi tiết */}
-                                {/* Nút → Chi tiết */}
-                                <div className="flex items-center justify-between mt-2">
+                              {/* Buttons */}
+                              <div className="flex items-center justify-between mt-2">
+                                <div className="flex items-center gap-2">
                                   <Button
                                     size="sm"
                                     onClick={() => {
@@ -897,199 +1262,313 @@ export default function SetScheduleSection() {
                                     🧰 Đảm nhận
                                   </Button>
 
-                                  <button
-                                    onClick={() =>
-                                      setExpandedRequest((prev) =>
-                                        prev === group.id ? null : group.id
-                                      )
-                                    }
-                                    className="text-xs text-slate-600 hover:text-cyan-600 underline transition"
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedRequest(group);
+                                      setCancelMode("confirm");
+                                      setCancelOpen(true);
+                                    }}
+                                    className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-3 py-1"
                                   >
-                                    {expandedRequest === group.id
-                                      ? "Ẩn chi tiết thiết bị ▲"
-                                      : "Chi tiết các thiết bị ▼"}
-                                  </button>
+                                    Hủy lịch
+                                  </Button>
                                 </div>
 
-                                {/* ====== Bảng chi tiết ====== */}
-                                {expandedRequest === group.id && (
-                                  <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
-                                    <table className="w-full text-xs border-collapse">
-                                      <thead className="bg-cyan-100/70 text-slate-700 font-semibold">
-                                        <tr>
-                                          <th className="px-3 py-2 text-left">
-                                            Mã định danh
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Trạng thái
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Bảo trì gần nhất
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {(group.units || []).map((u) => (
-                                          <tr
-                                            key={u.id}
-                                            className="border-t hover:bg-cyan-50 transition"
-                                          >
-                                            <td className="px-3 py-2 font-medium">
-                                              {u.id}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                              {u.status || "—"}
-                                            </td>
-                                            <td className="px-3 py-2 text-slate-600">
-                                              {u.lastMaintenance || "—"}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
+                                <button
+                                  onClick={() =>
+                                    setExpandedRequest((prev) =>
+                                      prev === group.id ? null : group.id
+                                    )
+                                  }
+                                  className="text-xs text-slate-600 hover:text-cyan-600 underline transition"
+                                >
+                                  {expandedRequest === group.id
+                                    ? "Ẩn chi tiết thiết bị ▲"
+                                    : "Chi tiết các thiết bị ▼"}
+                                </button>
                               </div>
-                            </motion.div>
-                          ))
-                      ))}
 
-                    {/* === TAB: CONFIRMED === */}
-                    {activeTab === "confirmed" &&
-                      (groupedConfirmed.length === 0 ? (
-                        <div className="text-sm text-slate-400 italic text-center py-8">
-                          Không có mục nào đang chờ bảo trì.
-                        </div>
-                      ) : (
-                        groupedConfirmed
-                          .sort((a, b) => a.start - b.start)
-                          .map((group) => (
-                            <motion.div
-                              whileHover={{ scale: 1.02 }}
-                              key={group.id}
-                              className="relative p-3 rounded-xl border bg-white 
-                     hover:bg-emerald-50/60 
-                     shadow-sm hover:shadow-md 
-                     transition border-emerald-300"
-                            >
-                              <div className="flex flex-col gap-2">
-                                {/* ==== DÒNG 1: ID ==== */}
-                                <div className="text-emerald-700 font-semibold text-sm">
-                                  {group.id}
-                                </div>
-
-                                {/* ==== DÒNG 2: Số lượng + trạng thái ==== */}
-                                <div className="flex items-center justify-between">
-                                  <div className="text-xs text-slate-600">
-                                    ({group.units?.length || 1} thiết bị)
-                                  </div>
-
-                                  <span
-                                    className="text-[11px] px-2 py-0.5 rounded-md 
-                               bg-emerald-100 text-emerald-700 
-                               border border-emerald-200"
-                                  >
-                                    🔧 Chờ bảo trì
-                                  </span>
-                                </div>
-
-                                {/* ==== Ảnh + thông tin ==== */}
-                                <div className="flex items-start gap-3 mt-1">
-                                  <img
-                                    src={group.image}
-                                    alt={group.unitGroup}
-                                    className="w-12 h-12 rounded-lg object-cover border"
-                                  />
-
-                                  <div className="flex flex-col gap-1 text-[12px] text-slate-600">
-                                    <div>
-                                      👨‍🔧{" "}
-                                      {group.confirmed_by_name &&
-                                      group.confirmed_by_name !==
-                                        "Chưa có thông tin"
-                                        ? group.confirmed_by_name
-                                        : group.candidate_tech_name &&
-                                          group.candidate_tech_name !==
-                                            "Chưa có thông tin"
-                                        ? group.candidate_tech_name
-                                        : "—"}
-                                    </div>
-
-                                    <div>
-                                      🕒{" "}
-                                      {format(group.start, "dd/MM/yyyy HH:mm", {
-                                        locale: vi,
-                                      })}
-                                    </div>
-
-                                    <div>
-                                      📌 {group.maintenance_reason || "—"}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* ==== Nút Chi tiết ==== */}
-                                <div className="flex items-center justify-end mt-2">
-                                  <button
-                                    onClick={() =>
-                                      setExpandedRequest((prev) =>
-                                        prev === group.id ? null : group.id
-                                      )
-                                    }
-                                    className="text-xs text-slate-600 hover:text-emerald-600 underline transition"
-                                  >
-                                    {expandedRequest === group.id
-                                      ? "Ẩn chi tiết thiết bị ▲"
-                                      : "Chi tiết các thiết bị ▼"}
-                                  </button>
-                                </div>
-
-                                {/* ==== Bảng chi tiết thiết bị ==== */}
-                                {expandedRequest === group.id && (
-                                  <div className="mt-3 border border-emerald-200 rounded-lg overflow-hidden">
-                                    <table className="w-full text-xs border-collapse">
-                                      <thead className="bg-emerald-100/70 text-slate-700 font-semibold">
-                                        <tr>
-                                          <th className="px-3 py-2 text-left">
-                                            Mã định danh
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Trạng thái
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Bảo trì gần nhất
-                                          </th>
+                              {/* DETAIL TABLE */}
+                              {expandedRequest === group.id && (
+                                <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
+                                  <table className="w-full text-xs border-collapse">
+                                    <thead className="bg-cyan-100/70 text-slate-700 font-semibold">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left">
+                                          Mã định danh
+                                        </th>
+                                        <th className="px-3 py-2 text-left">
+                                          Trạng thái
+                                        </th>
+                                        <th className="px-3 py-2 text-left">
+                                          Bảo trì gần nhất
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(group.units || []).map((u) => (
+                                        <tr
+                                          key={u.id}
+                                          className="border-t hover:bg-cyan-50 transition"
+                                        >
+                                          <td className="px-3 py-2 font-medium">
+                                            {u.id}
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            {u.status || "—"}
+                                          </td>
+                                          <td className="px-3 py-2 text-slate-600">
+                                            {u.lastMaintenance || "—"}
+                                          </td>
                                         </tr>
-                                      </thead>
-                                      <tbody>
-                                        {(group.units || []).map((u) => (
-                                          <tr
-                                            key={u.id}
-                                            className="border-t hover:bg-emerald-50 transition"
-                                          >
-                                            <td className="px-3 py-2 font-medium">
-                                              {u.id}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                              {u.status || "—"}
-                                            </td>
-                                            <td className="px-3 py-2 text-slate-600">
-                                              {u.lastMaintenance || "—"}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))
+                    ))}
+
+                  {/* ==== TAB: CONFIRMED ==== */}
+                  {activeTab === "confirmed" &&
+                    (groupedConfirmed.length === 0 ? (
+                      <div className="text-sm text-slate-400 italic text-center py-8">
+                        Không có mục nào đang chờ bảo trì.
+                      </div>
+                    ) : (
+                      groupedConfirmed
+                        .sort((a, b) => a.start - b.start)
+                        .map((group) => (
+                          <motion.div
+                            id={`card-${group.id}`}
+                            whileHover={{ scale: 1.02 }}
+                            key={group.id}
+                            className="relative p-3 rounded-xl border bg-white 
+                  hover:bg-emerald-50/60 shadow-sm hover:shadow-md 
+                  transition border-emerald-300"
+                          >
+                            <div className="flex flex-col gap-2">
+                              {/* ID */}
+                              <div className="text-emerald-700 font-semibold text-sm">
+                                {group.id}
                               </div>
-                            </motion.div>
-                          ))
-                      ))}
-                  </>
-                );
-              })()}
-            </div>
+
+                              <div className="flex items-center justify-between">
+                                <div className="text-xs text-slate-600">
+                                  ({group.units?.length || 1} thiết bị)
+                                </div>
+
+                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 border border-emerald-200">
+                                  🔧 Chờ bảo trì
+                                </span>
+                              </div>
+
+                              <div className="flex items-start gap-3 mt-1">
+                                <img
+                                  src={group.image}
+                                  className="w-12 h-12 rounded-lg object-cover border"
+                                />
+
+                                <div className="flex flex-col gap-1 text-[12px] text-slate-600">
+                                  <div>
+                                    👨‍🔧{" "}
+                                    {group.confirmed_by_name ||
+                                      group.candidate_tech_name ||
+                                      "—"}
+                                  </div>
+
+                                  <div>
+                                    🕒{" "}
+                                    {format(group.start, "dd/MM/yyyy HH:mm", {
+                                      locale: vi,
+                                    })}
+                                  </div>
+
+                                  <div>
+                                    📌 {group.maintenance_reason || "—"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-end mt-2">
+                                <button
+                                  onClick={() =>
+                                    setExpandedRequest((prev) =>
+                                      prev === group.id ? null : group.id
+                                    )
+                                  }
+                                  className="text-xs text-slate-600 hover:text-emerald-600 underline transition"
+                                >
+                                  {expandedRequest === group.id
+                                    ? "Ẩn chi tiết thiết bị ▲"
+                                    : "Chi tiết các thiết bị ▼"}
+                                </button>
+                              </div>
+
+                              {expandedRequest === group.id && (
+                                <div className="mt-3 border border-emerald-200 rounded-lg overflow-hidden">
+                                  <table className="w-full text-xs border-collapse">
+                                    <thead className="bg-emerald-100/70 text-slate-700 font-semibold">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left">
+                                          Mã định danh
+                                        </th>
+                                        <th className="px-3 py-2 text-left">
+                                          Trạng thái
+                                        </th>
+                                        <th className="px-3 py-2 text-left">
+                                          Bảo trì gần nhất
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(group.units || []).map((u) => (
+                                        <tr
+                                          key={u.id}
+                                          className="border-t hover:bg-emerald-50 transition"
+                                        >
+                                          <td className="px-3 py-2 font-medium">
+                                            {u.id}
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            {u.status || "—"}
+                                          </td>
+                                          <td className="px-3 py-2 text-slate-600">
+                                            {u.lastMaintenance || "—"}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))
+                    ))}
+
+                  {/* ==== TAB: HISTORY ==== */}
+                  {activeTab === "history" &&
+                    (historyInView.length === 0 ? (
+                      <div className="text-sm text-slate-400 italic text-center py-8">
+                        Không có lịch sử bảo trì.
+                      </div>
+                    ) : (
+                      historyInView
+                        .sort((a, b) => b.start - a.start)
+                        .map((group) => (
+                          <motion.div
+                            id={`card-${group.id}`}
+                            whileHover={{ scale: 1.02 }}
+                            key={group.id}
+                            className="relative p-3 rounded-xl border bg-white 
+                  border-purple-300 hover:bg-purple-50/60
+                  shadow-sm hover:shadow-md transition"
+                          >
+                            <div className="flex flex-col gap-2">
+                              <div className="text-purple-700 font-semibold text-sm">
+                                {group.id}
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <div className="text-xs text-slate-600">
+                                  ({group.units?.length || 1} thiết bị)
+                                </div>
+
+                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 border border-purple-200">
+                                  ✔️ Đã đảm nhận
+                                </span>
+                              </div>
+
+                              <div className="flex items-start gap-3 mt-1">
+                                <img
+                                  src={group.image}
+                                  className="w-12 h-12 rounded-lg object-cover border"
+                                />
+
+                                <div className="flex flex-col text-[12px] text-slate-600 gap-1">
+                                  <div>
+                                    👨‍🔧{" "}
+                                    {group.confirmed_by_name ||
+                                      group.candidate_tech_name ||
+                                      "—"}
+                                  </div>
+
+                                  <div>
+                                    🕒{" "}
+                                    {format(group.start, "dd/MM/yyyy HH:mm", {
+                                      locale: vi,
+                                    })}
+                                  </div>
+
+                                  <div>
+                                    📌 {group.maintenance_reason || "—"}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-end mt-2">
+                                <button
+                                  onClick={() =>
+                                    setExpandedRequest((prev) =>
+                                      prev === group.id ? null : group.id
+                                    )
+                                  }
+                                  className="text-xs text-slate-600 hover:text-purple-600 underline transition"
+                                >
+                                  {expandedRequest === group.id
+                                    ? "Ẩn chi tiết thiết bị ▲"
+                                    : "Chi tiết các thiết bị ▼"}
+                                </button>
+                              </div>
+
+                              {expandedRequest === group.id && (
+                                <div className="mt-3 border border-purple-200 rounded-lg overflow-hidden">
+                                  <table className="w-full text-xs border-collapse">
+                                    <thead className="bg-purple-100/70 text-slate-700 font-semibold">
+                                      <tr>
+                                        <th className="px-3 py-2 text-left">
+                                          Mã định danh
+                                        </th>
+                                        <th className="px-3 py-2 text-left">
+                                          Trạng thái
+                                        </th>
+                                        <th className="px-3 py-2 text-left">
+                                          Bảo trì gần nhất
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(group.units || []).map((u) => (
+                                        <tr
+                                          key={u.id}
+                                          className="border-t hover:bg-purple-50 transition"
+                                        >
+                                          <td className="px-3 py-2 font-medium">
+                                            {u.id}
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            {u.status || "—"}
+                                          </td>
+                                          <td className="px-3 py-2 text-slate-600">
+                                            {u.lastMaintenance || "—"}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        ))
+                    ))}
+                </>
+              );
+            })()}
           </div>
         </div>
         {/* ====== POPUP ĐẢM NHẬN ====== */}
@@ -1148,111 +1627,206 @@ export default function SetScheduleSection() {
             )}
           </AlertDialogContent>
         </AlertDialog>
+        {/* ===== POPUP HỦY YÊU CẦU ===== */}
+        <AlertDialog open={cancelOpen} onOpenChange={setCancelOpen}>
+          <AlertDialogContent className="max-w-md z-[300000]">
+            {cancelMode === "confirm" && (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Xác nhận hủy yêu cầu</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Bạn có chắc muốn HỦY yêu cầu bảo trì này?
+                    <br />
+                    <strong>ID: {selectedRequest?.id}</strong>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Đóng</AlertDialogCancel>
+
+                  <button
+                    onClick={handleCancel}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+                  >
+                    Xác nhận hủy
+                  </button>
+                </AlertDialogFooter>
+              </>
+            )}
+
+            {cancelMode === "loading" && (
+              <div className="py-6 flex flex-col items-center">
+                <div className="w-10 h-10 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-slate-700 font-medium">
+                  Đang xử lý yêu cầu...
+                </p>
+              </div>
+            )}
+
+            {cancelMode === "success" && (
+              <div className="py-6 flex flex-col items-center">
+                <div className="w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white text-xl mb-3">
+                  ✓
+                </div>
+                <p className="text-red-700 font-semibold">
+                  Hủy yêu cầu thành công!
+                </p>
+
+                <div className="mt-4">
+                  <AlertDialogAction
+                    onClick={() => setCancelOpen(false)}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md"
+                  >
+                    Đóng
+                  </AlertDialogAction>
+                </div>
+              </div>
+            )}
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
-      {/* ====== POPUP LỊCH THEO NGÀY ====== */}
       <AnimatePresence>
         {hoverDay && (
           <motion.div
             onMouseEnter={() => {
-              setIsHoveringPopup(true);
+              popupHoverRef.current = true;
             }}
             onMouseLeave={() => {
-              setIsHoveringPopup(false);
-              setHoverDay(null); // chỉ tắt khi rời popup
+              popupHoverRef.current = false;
+
+              setTimeout(() => {
+                if (!popupHoverRef.current && !dayHoverRef.current) {
+                  setHoverDay(null);
+                }
+              }, 80);
             }}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed z-[999999] p-4 rounded-xl border bg-white shadow-xl w-72 text-xs"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            className="
+        fixed z-[999999]
+        w-80 p-4 rounded-2xl
+        bg-white border border-slate-200 
+        shadow-[0_6px_20px_rgba(0,0,0,0.15)]
+      "
             style={{
-              top: popupPos.y + 12,
-              left: popupPos.x + 12,
+              top: popupPos.y + 10,
+              left: popupPos.x + 10,
             }}
           >
-            {/* Đã đảm nhận */}
-            {popupEvents.confirmed.length > 0 && (
-              <div className="mb-3">
-                <div className="text-emerald-600 font-semibold text-sm mb-1">
-                  Lịch đã đảm nhận
-                </div>
+            <div className="font-semibold text-slate-700 text-sm mb-3 border-b pb-2">
+              Lịch bảo trì ngày {format(hoverDay, "dd/MM/yyyy", { locale: vi })}
+            </div>
 
-                <div className="space-y-2">
+            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+              {/* CONFIRMED */}
+              {popupEvents.confirmed.length > 0 && (
+                <>
+                  <div className="text-emerald-600 font-semibold text-xs mb-1">
+                    🔧 Lịch đã đảm nhận
+                  </div>
+
                   {popupEvents.confirmed.map((ev) => (
                     <div
                       key={ev.id}
+                      onClick={() => {
+                        const el = document.getElementById(`card-${ev.id}`);
+                        if (el) {
+                          el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+                          el.classList.add("ring-4", "ring-emerald-400");
+
+                          setTimeout(() => {
+                            el.classList.remove("ring-4", "ring-emerald-400");
+                          }, 1500);
+                        }
+                      }}
                       className="
-                  px-3 py-1.5 rounded-lg border 
-                  border-emerald-400 
-                  text-emerald-700 
-                  font-medium bg-white
+                  flex items-center gap-3 p-2 rounded-lg 
+                  border border-emerald-300 hover:bg-emerald-50 cursor-pointer
                 "
                     >
-                      {ev.id}
+                      <img
+                        src={ev.image}
+                        className="w-10 h-10 rounded-md object-cover border"
+                      />
+                      <div className="text-[12px] font-medium text-slate-700">
+                        {ev.id}
+                      </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
+                </>
+              )}
 
-            {/* Lịch chưa đảm nhận */}
-            {popupEvents.pending.length > 0 && (
-              <div className="mb-3">
-                <div className="text-cyan-600 font-semibold text-sm mb-1">
-                  Lịch chưa đảm nhận
-                </div>
+              {/* PENDING */}
+              {popupEvents.pending.length > 0 && (
+                <>
+                  <div className="text-cyan-600 font-semibold text-xs mb-1">
+                    ⏳ Lịch chờ đảm nhận
+                  </div>
 
-                <div className="space-y-2">
                   {popupEvents.pending.map((ev) => (
                     <div
                       key={ev.id}
+                      onClick={() => {
+                        const el = document.getElementById(`card-${ev.id}`);
+                        if (el) {
+                          el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                          });
+                          el.classList.add("ring-4", "ring-cyan-400");
+
+                          setTimeout(() => {
+                            el.classList.remove("ring-4", "ring-cyan-400");
+                          }, 1500);
+                        }
+                      }}
                       className="
-                  px-3 py-1.5 rounded-lg border 
-                  border-cyan-400 
-                  text-cyan-700 
-                  font-medium bg-white
+                  flex items-center gap-3 p-2 rounded-lg 
+                  border border-cyan-300 hover:bg-cyan-50 cursor-pointer
                 "
                     >
-                      {ev.id}
+                      <img
+                        src={ev.image}
+                        className="w-10 h-10 rounded-md object-cover border"
+                      />
+                      <div className="text-[12px] font-medium text-slate-700">
+                        {ev.id}
+                      </div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
+                </>
+              )}
 
-            {/* Lịch định kỳ */}
-            {popupEvents.plan.length > 0 && (
-              <div>
-                <div className="text-amber-600 font-semibold text-sm mb-1">
-                  Lịch bảo trì định kỳ
-                </div>
+              {/* PLAN */}
+              {popupEvents.plan.length > 0 && (
+                <>
+                  <div className="text-amber-600 font-semibold text-xs mb-1">
+                    🟠 Lịch bảo trì định kỳ
+                  </div>
 
-                <div className="space-y-2">
                   {popupEvents.plan.map((ev) => (
                     <div
                       key={ev.id}
                       className="
-                  px-3 py-1.5 rounded-lg border 
-                  border-amber-400 
-                  text-amber-700 
-                  font-medium bg-white
+                  flex items-center gap-3 p-2 rounded-lg 
+                  border border-amber-300 bg-white
                 "
                     >
-                      {ev.unitGroup}
+                      <img
+                        src={ev.image || "/placeholder.jpg"}
+                        className="w-10 h-10 rounded-md object-cover border"
+                      />
+                      <div className="text-[12px]">{ev.unitGroup}</div>
                     </div>
                   ))}
-                </div>
-              </div>
-            )}
-
-            {/* Nếu không có gì */}
-            {popupEvents.confirmed.length === 0 &&
-              popupEvents.pending.length === 0 &&
-              popupEvents.plan.length === 0 && (
-                <div className="text-slate-400 italic text-[11px]">
-                  Không có lịch phù hợp bộ lọc.
-                </div>
+                </>
               )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
