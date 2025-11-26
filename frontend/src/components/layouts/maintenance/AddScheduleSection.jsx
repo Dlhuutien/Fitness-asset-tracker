@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import MaintainService from "@/services/MaintainService";
 
-export default function AddScheduleSection({ onClose, onSaved }) {
+export default function AddScheduleSection({ editing, onClose, onSaved }) {
   const [maintenancePlans, setMaintenancePlans] = useState([]);
   const [users, setUsers] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -132,7 +132,9 @@ export default function AddScheduleSection({ onClose, onSaved }) {
         setBranches(res || []);
 
         // vì danh sách kế hoạch dùng chung, activeBranch chỉ dùng để filter UNIT
-        setActiveBranch(isSuperAdmin ? res?.[0]?.id || "" : branchId || "");
+        if (!editing) {
+          setActiveBranch(isSuperAdmin ? res?.[0]?.id || "" : branchId || "");
+        }
       } catch (err) {
         console.error("❌ Lỗi load chi nhánh:", err);
       }
@@ -142,15 +144,17 @@ export default function AddScheduleSection({ onClose, onSaved }) {
 
   // Khi đổi chi nhánh → reset unit đã load & chọn
   useEffect(() => {
+    if (!activeBranch) return;
+    if (editing) return; // 🔥 ĐANG UPDATE THÌ KHÔNG RESET CHỌN
+
     setEquipmentUnits({});
     setSelectedUnits({});
 
     // ❗ KHÔNG RESET DÒNG nếu đang chọn dòng
-    // prev !== null → giữ nguyên
     setExpandedEquipment((prev) => prev);
 
     setCurrentPage(1);
-  }, [activeBranch]);
+  }, [activeBranch, editing]);
 
   // ===== CHỌN UNIT =====
   const toggleUnit = (equipmentId, unitId) => {
@@ -231,6 +235,20 @@ export default function AddScheduleSection({ onClose, onSaved }) {
         return a.isScheduleLocked ? 1 : -1;
       });
 
+      // 🔥 Nếu đang mở popup cập nhật → MỞ KHÓA toàn bộ unit thuộc request
+      if (editing) {
+        const editingUnitIds = editing.units?.map((u) => u.id) || [];
+
+        sorted.forEach((u) => {
+          if (
+            editingUnitIds.includes(u.id) ||
+            selectedUnits[equipmentId]?.includes(u.id)
+          ) {
+            u.isScheduleLocked = false;
+          }
+        });
+      }
+
       // Lưu vào state
       setEquipmentUnits((prev) => ({
         ...prev,
@@ -252,6 +270,20 @@ export default function AddScheduleSection({ onClose, onSaved }) {
       )}T${time}:00`;
 
       const allUnitIds = Object.values(selectedUnits).flat();
+
+      if (editing) {
+        await MaintenanceRequestService.update(editing.id, {
+          scheduled_at: scheduledISO,
+          maintenance_reason: maintenanceReason,
+          equipment_unit_id: allUnitIds,
+          candidate_tech_id: selectedUser || null,
+        });
+
+        toast.success("Cập nhật yêu cầu thành công!");
+        onSaved();
+        onClose();
+        return;
+      }
 
       const payload = {
         equipment_unit_id: allUnitIds,
@@ -283,6 +315,31 @@ export default function AddScheduleSection({ onClose, onSaved }) {
     time && // có giờ
     selectedDateObj && // có ngày
     maintenanceReason.trim(); // có lý do
+
+  // ===== Nếu đang cập nhật yêu cầu =====
+  useEffect(() => {
+    if (!editing) return;
+
+    const r = editing;
+
+    // 1) Set branch đúng theo request
+    setActiveBranch(r.units?.[0]?.branch_id || "");
+
+    // 2) Set selected units + dòng đang mở
+    const eqId = r.units[0].equipment_id;
+    const unitIds = r.units.map((u) => u.id);
+    setSelectedUnits({ [eqId]: unitIds });
+    setExpandedEquipment(eqId);
+
+    // 3) Ngày + giờ + lý do
+    setSelectedDateObj(new Date(r.scheduled_at));
+    const t = r.scheduled_at.split("T")[1].slice(0, 5);
+    setTime(t);
+    setMaintenanceReason(r.maintenance_reason || "");
+
+    // 4) Load lại unit theo đúng branch của request
+    loadUnitsForEquipment(eqId, r.units[0].branch_id);
+  }, [editing]);
 
   return (
     <>
@@ -421,9 +478,10 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                   <Select
                     value={activeBranch}
                     onValueChange={async (v) => {
+                      if (editing) return; // NGĂN KHÔNG CHO ĐỔI NHÁNH KHI CẬP NHẬT
                       setActiveBranch(v);
 
-                      // 🔥 THÊM CODE — reset unit nhưng KHÔNG reset dòng
+                      // THÊM CODE — reset unit nhưng KHÔNG reset dòng
                       setSelectedUnits({});
 
                       if (expandedEquipment) {
@@ -442,7 +500,10 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                       }
                     }}
                   >
-                    <SelectTrigger className="h-9 w-48 text-sm border-emerald-300">
+                    <SelectTrigger
+                      disabled={editing}
+                      className="h-9 w-48 text-sm border-emerald-300"
+                    >
                       <SelectValue placeholder="Chi nhánh" />
                     </SelectTrigger>
                     <SelectContent className="z-[20000] bg-white">
@@ -527,7 +588,13 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                               const checked = selectedUnits[
                                 expandedEquipment
                               ]?.includes(unit.id);
-                              const locked = unit.isScheduleLocked;
+                              const locked =
+                                editing &&
+                                selectedUnits[expandedEquipment]?.includes(
+                                  unit.id
+                                )
+                                  ? false // unit đang được chỉnh sửa -> mở chọn
+                                  : unit.isScheduleLocked;
 
                               return (
                                 <tr
@@ -786,7 +853,34 @@ export default function AddScheduleSection({ onClose, onSaved }) {
                 <Input
                   type="time"
                   value={time}
-                  onChange={(e) => setTime(e.target.value)}
+                  min={
+                    format(selectedDateObj, "yyyy-MM-dd") ===
+                    format(new Date(), "yyyy-MM-dd")
+                      ? format(new Date(), "HH:mm") // 🔥 nếu hôm nay → chỉ cho chọn từ giờ hiện tại trở đi
+                      : undefined
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+
+                    const now = new Date();
+                    const selected = new Date(selectedDateObj);
+
+                    const [h, m] = val.split(":");
+                    selected.setHours(parseInt(h, 10));
+                    selected.setMinutes(parseInt(m, 10));
+
+                    // 🔥 VALIDATION: ngày là hôm nay → không cho nhỏ hơn giờ hiện tại
+                    if (
+                      format(selectedDateObj, "yyyy-MM-dd") ===
+                        format(now, "yyyy-MM-dd") &&
+                      selected < now
+                    ) {
+                      toast.error("Không thể chọn giờ trong quá khứ");
+                      return;
+                    }
+
+                    setTime(val);
+                  }}
                   className="w-40"
                 />
               </div>
@@ -1118,11 +1212,31 @@ export default function AddScheduleSection({ onClose, onSaved }) {
           {confirmMode === "confirm" && (
             <>
               <AlertDialogHeader>
-                <AlertDialogTitle>Xác nhận tạo lịch bảo trì</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {editing
+                    ? "Xác nhận cập nhật lịch bảo trì"
+                    : "Xác nhận tạo lịch bảo trì"}
+                </AlertDialogTitle>
+
                 <AlertDialogDescription>
-                  Bạn có chắc muốn tạo lịch bảo trì cho{" "}
-                  <strong>{Object.values(selectedUnits).flat().length}</strong>{" "}
-                  thiết bị?
+                  {editing ? (
+                    <>
+                      Bạn có chắc muốn <strong>cập nhật</strong> lịch bảo trì
+                      cho{" "}
+                      <strong>
+                        {Object.values(selectedUnits).flat().length}
+                      </strong>{" "}
+                      thiết bị?
+                    </>
+                  ) : (
+                    <>
+                      Bạn có chắc muốn <strong>tạo</strong> lịch bảo trì cho{" "}
+                      <strong>
+                        {Object.values(selectedUnits).flat().length}
+                      </strong>{" "}
+                      thiết bị?
+                    </>
+                  )}
                 </AlertDialogDescription>
               </AlertDialogHeader>
 
@@ -1138,22 +1252,26 @@ export default function AddScheduleSection({ onClose, onSaved }) {
             </>
           )}
 
+          {/* LOADING */}
           {confirmMode === "loading" && (
             <div className="py-6 flex flex-col items-center">
               <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
               <p className="text-slate-700 font-medium">
-                Đang tạo lịch bảo trì...
+                {editing
+                  ? "Đang cập nhật lịch bảo trì..."
+                  : "Đang tạo lịch bảo trì..."}
               </p>
             </div>
           )}
 
+          {/* SUCCESS */}
           {confirmMode === "success" && (
             <div className="py-6 flex flex-col items-center">
               <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white text-xl mb-3">
                 ✓
               </div>
               <p className="text-emerald-700 font-semibold">
-                Tạo lịch thành công!
+                {editing ? "Cập nhật lịch thành công!" : "Tạo lịch thành công!"}
               </p>
             </div>
           )}
@@ -1164,19 +1282,31 @@ export default function AddScheduleSection({ onClose, onSaved }) {
       <AlertDialog open={successOpen} onOpenChange={setSuccessOpen}>
         <AlertDialogContent className="max-w-md z-[300000]">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-emerald-700">
-              🎉 Tạo lịch bảo trì thành công!
+            <AlertDialogTitle
+              className={editing ? "text-blue-700" : "text-emerald-700"}
+            >
+              {editing
+                ? "🎉 Cập nhật lịch bảo trì thành công!"
+                : "🎉 Tạo lịch bảo trì thành công!"}
             </AlertDialogTitle>
+
             <AlertDialogDescription>
-              Hệ thống đã tạo yêu cầu bảo trì và cập nhật trạng thái thiết bị.
+              {editing
+                ? "Hệ thống đã cập nhật yêu cầu bảo trì và đồng bộ lại trạng thái thiết bị."
+                : "Hệ thống đã tạo yêu cầu bảo trì và cập nhật trạng thái thiết bị."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
             <AlertDialogAction
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className={`text-white ${
+                editing
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+              }`}
               onClick={() => {
                 setSuccessOpen(false);
-                onClose?.(); // 🔥 đóng modal chính
+                onClose?.(); // đóng modal chính
               }}
             >
               Đóng
