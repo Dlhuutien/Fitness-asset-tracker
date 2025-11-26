@@ -191,7 +191,6 @@ function generateScheduleRequestId(equipmentId) {
   return `${equipmentId}-SCH-${timestamp}`;
 }
 
-
 const maintenanceRequestService = {
   createRequest: async (data, userSub) => {
     // ✅ Mặc định equipment_unit_id là mảng
@@ -413,12 +412,12 @@ const maintenanceRequestService = {
       throw new Error("Chỉ được chỉnh sửa khi yêu cầu chưa được thực hiện");
     }
 
-    // 🧠 Kiểm tra quyền (admin hoặc người tạo)
+    // 🧠 Kiểm tra quyền cập nhật
     if (!isAdminOrSuperAdmin && reqItem.assigned_by !== userSub) {
       throw new Error("Bạn không có quyền chỉnh sửa yêu cầu này");
     }
 
-    // ✅ Nếu có thay đổi thời gian — xóa schedule cũ và tạo mới
+    // 1️⃣ Nếu có thay đổi thời gian → XÓA schedule cũ (nếu tồn tại)
     if (data.scheduled_at && reqItem.auto_start_schedule_arn) {
       try {
         const delCmd = new DeleteScheduleCommand({
@@ -429,23 +428,10 @@ const maintenanceRequestService = {
       } catch (e) {
         console.warn("⚠️ Failed to delete old schedule:", e?.message);
       }
+      data.auto_start_schedule_arn = null;
     }
 
-    // ✅ Nếu có thời gian mới → tạo lại AWS schedule
-    if (data.scheduled_at) {
-      const scheduleName = `auto-maintenance-${id}`;
-      const result = await createOneTimeSchedule({
-        scheduleName,
-        runAtIsoUtc: data.scheduled_at,
-        payload: {
-          type: "AUTO_MAINTENANCE_FROM_REQUEST",
-          request_id: id,
-        },
-      });
-      data.auto_start_schedule_arn = result.ScheduleArn;
-    }
-
-    // 🧮 So sánh danh sách unit cũ và mới để cập nhật lock
+    // 2️⃣ Xử lý unit: unlock removed + lock added
     const oldIds = Array.isArray(reqItem.equipment_unit_id)
       ? reqItem.equipment_unit_id
       : JSON.parse(reqItem.equipment_unit_id || "[]");
@@ -453,36 +439,27 @@ const maintenanceRequestService = {
       ? data.equipment_unit_id
       : oldIds;
 
-    // 🔓 Mở khóa những unit bị loại bỏ
+    // 🔓 unlock các unit bị bỏ
     const removed = oldIds.filter((id) => !newIds.includes(id));
     for (const unitId of removed) {
       await equipmentUnitRepository.update(unitId, { isScheduleLocked: false });
       console.log(`🔓 Unlocked removed unit ${unitId} from request ${id}`);
     }
 
-    // 🔒 Khóa những unit mới thêm
+    // 🔒 lock các unit mới thêm
     const added = newIds.filter((id) => !oldIds.includes(id));
     for (const unitId of added) {
       await equipmentUnitRepository.update(unitId, { isScheduleLocked: true });
       console.log(`🔒 Locked added unit ${unitId} to request ${id}`);
     }
 
-    // ✅ Cập nhật vào DynamoDB
+    // 3️⃣ Lưu thay đổi vào DB
     const updated = await maintenanceRequestRepository.update(id, data);
 
-    // ✅ Gửi thông báo
-    try {
-      const admins = await userService.getUsersByRoles([
-        "admin",
-        "super-admin",
-      ]);
-      const allTechs = await userService.getUsersByRoles(["technician"]);
-
-      // 🔹 Nếu update có candidate_tech_id mới → Gửi thông báo Assigned
-      if (data.candidate_tech_id) {
-        const assignedTech =
-          allTechs.find((t) => t.sub === data.candidate_tech_id) || null;
-
+    // 4️⃣ TH chỉ định kỹ thuật viên → tạo schedule NGAY TẠI ĐÂY
+    if (data.candidate_tech_id) {
+      try {
+        // Cập nhật trạng thái "confirmed" nếu trước đó đang pending
         if (!reqItem.confirmed_by) {
           await maintenanceRequestRepository.update(id, {
             confirmed_by: data.candidate_tech_id,
@@ -490,28 +467,50 @@ const maintenanceRequestService = {
           });
         }
 
+        // 🟦 Tạo AWS schedule (vì bây giờ đã có người đảm nhận)
+        if (data.scheduled_at) {
+          const scheduleName = `auto-maintenance-${id}`;
+          const result = await createOneTimeSchedule({
+            scheduleName,
+            runAtIsoUtc: data.scheduled_at,
+            payload: {
+              type: "AUTO_MAINTENANCE_FROM_REQUEST",
+              request_id: id,
+            },
+          });
+
+          await maintenanceRequestRepository.update(id, {
+            auto_start_schedule_arn: result.ScheduleArn,
+          });
+
+          console.log(`🗓️ Scheduler CREATED for updated request ${id}`);
+        }
+      } catch (e) {
+        console.warn("⚠️ Failed to create schedule on assigned update:", e);
+      }
+    }
+
+    // 5️⃣ Gửi thông báo
+    try {
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      const allTechs = await userService.getUsersByRoles(["technician"]);
+
+      if (data.candidate_tech_id) {
+        const assignedTech =
+          allTechs.find((t) => t.sub === data.candidate_tech_id) || null;
+
         const recipients = [
           ...admins,
           ...allTechs.filter((t) => !admins.some((a) => a.sub === t.sub)),
         ];
 
         await notificationService.notifyMaintenanceRequestAssigned(
-          {
-            ...updated,
-            candidate_tech: assignedTech,
-          },
+          { ...updated, candidate_tech: assignedTech },
           recipients,
           userSub
-        );
-
-        console.log(
-          `📩 Assigned notification sent to ${
-            recipients.length
-          } recipients (assigned to ${
-            assignedTech?.attributes?.name ||
-            assignedTech?.username ||
-            "Không rõ"
-          })`
         );
       } else {
         await notificationService.notifyMaintenanceRequestUpdated(

@@ -31,6 +31,7 @@ import EquipmentService from "@/services/equipmentService";
 import AddScheduleSection from "./AddScheduleSection";
 import { X } from "lucide-react";
 import MaintenanceRequestService from "@/services/MaintenanceRequestService";
+import MaintainService from "@/services/MaintainService";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -150,6 +151,9 @@ export default function SetScheduleSection() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelMode, setCancelMode] = useState("confirm"); // confirm | loading | success
 
+  const [pendingGroups, setPendingGroups] = useState([]);
+  const [confirmedGroups, setConfirmedGroups] = useState([]);
+
   const handleAssign = async () => {
     try {
       // popup vẫn mở
@@ -184,6 +188,8 @@ export default function SetScheduleSection() {
   const [view, setView] = useState("month"); // 'week' | 'month' | 'year'
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
+  const [editingRequest, setEditingRequest] = useState(null);
 
   const [hoverDay, setHoverDay] = useState(null);
   const [popupPos, setPopupPos] = useState({ x: 0, y: 0 });
@@ -529,6 +535,71 @@ export default function SetScheduleSection() {
     }
   };
 
+  useEffect(() => {
+    const loadGroups = async () => {
+      // GROUP PENDING
+      const gp = await Promise.all(
+        Object.values(
+          pendingInView.reduce((acc, ev) => {
+            if (!acc[ev.id]) acc[ev.id] = { ...ev, units: [] };
+            ev.units.forEach((u) => acc[ev.id].units.push(u));
+            return acc;
+          }, {})
+        ).map(async (group) => {
+          const unitsWithLatest = await Promise.all(
+            group.units.map(async (u) => {
+              try {
+                const latest = await MaintainService.getLatestHistory(u.id);
+                return {
+                  ...u,
+                  lastMaintenance: latest
+                    ? latest.start_date.split("T")[0]
+                    : "Chưa có",
+                };
+              } catch {
+                return { ...u, lastMaintenance: "Chưa có" };
+              }
+            })
+          );
+          return { ...group, units: unitsWithLatest };
+        })
+      );
+
+      // GROUP CONFIRMED
+      const gc = await Promise.all(
+        Object.values(
+          confirmedInView.reduce((acc, ev) => {
+            if (!acc[ev.id]) acc[ev.id] = { ...ev, units: [] };
+            ev.units.forEach((u) => acc[ev.id].units.push(u));
+            return acc;
+          }, {})
+        ).map(async (group) => {
+          const unitsWithLatest = await Promise.all(
+            group.units.map(async (u) => {
+              try {
+                const latest = await MaintainService.getLatestHistory(u.id);
+                return {
+                  ...u,
+                  lastMaintenance: latest
+                    ? latest.start_date.split("T")[0]
+                    : "Chưa có",
+                };
+              } catch {
+                return { ...u, lastMaintenance: "Chưa có" };
+              }
+            })
+          );
+          return { ...group, units: unitsWithLatest };
+        })
+      );
+
+      setPendingGroups(gp);
+      setConfirmedGroups(gc);
+    };
+
+    loadGroups();
+  }, [pendingInView, confirmedInView]);
+
   /* ====== UI ====== */
   return (
     <div className="relative bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden">
@@ -611,7 +682,10 @@ export default function SetScheduleSection() {
           </div>
 
           <Button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setEditingRequest(null); // reset để form load chế độ tạo mới
+              setShowForm(true);
+            }}
             className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold shadow-md flex items-center gap-1"
           >
             <Plus className="w-4 h-4" /> Tạo kế hoạch
@@ -622,7 +696,11 @@ export default function SetScheduleSection() {
               <>
                 {/* Overlay + Form */}
                 <AddScheduleSection
-                  onClose={() => setShowForm(false)}
+                  editing={editingRequest}
+                  onClose={() => {
+                    setShowForm(false);
+                    setEditingRequest(null);
+                  }}
                   onSaved={fetchPlans}
                 />
 
@@ -1146,191 +1224,175 @@ export default function SetScheduleSection() {
           <div className="p-3 space-y-3 overflow-y-auto max-h-[70vh]">
             {/* ==== GOM NHÓM DỮ LIỆU ==== */}
             {(() => {
-              // GROUP PENDING
-              const groupedPending = Object.values(
-                pendingInView.reduce((acc, ev) => {
-                  if (!acc[ev.id])
-                    acc[ev.id] = { ...ev, units: [], image: ev.image };
-
-                  ev.units.forEach((u) =>
-                    acc[ev.id].units.push({
-                      id: u.id,
-                      status: u.status || "-",
-                      lastMaintenance: u.last_maintenance_date || "-",
-                    })
-                  );
-
-                  return acc;
-                }, {})
-              );
-
-              // GROUP CONFIRMED
-              const groupedConfirmed = Object.values(
-                confirmedInView.reduce((acc, ev) => {
-                  if (!acc[ev.id])
-                    acc[ev.id] = {
-                      ...ev,
-                      units: [],
-                      image: ev.image,
-                      confirmed_by_name: ev.confirmed_by_name,
-                      candidate_tech_name: ev.candidate_tech_name,
-                    };
-
-                  ev.units.forEach((u) =>
-                    acc[ev.id].units.push({
-                      id: u.id,
-                      status: u.status || "-",
-                      lastMaintenance: u.last_maintenance_date || "-",
-                    })
-                  );
-
-                  return acc;
-                }, {})
-              );
+              const groupedPending = pendingGroups;
+              const groupedConfirmed = confirmedGroups;
 
               return (
                 <>
                   {/* ==== TAB: PENDING ==== */}
-                  {activeTab === "pending" &&
-                    (groupedPending.length === 0 ? (
-                      <div className="text-sm text-slate-400 italic text-center py-8">
-                        Không có mục nào đang chờ đảm nhận.
-                      </div>
-                    ) : (
-                      groupedPending
-                        .sort((a, b) => a.start - b.start)
-                        .map((group) => (
-                          <motion.div
-                            id={`card-${group.id}`}
-                            whileHover={{ scale: 1.02 }}
-                            key={group.id}
-                            className={`relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition ${
-                              group.requestStatus === "pending"
-                                ? "border-cyan-300"
-                                : "border-emerald-300"
-                            }`}
-                          >
-                            <div className="flex flex-col gap-2">
-                              {/* ID */}
-                              <div className="text-cyan-700 font-semibold text-sm">
-                                {group.id}
-                              </div>
-
-                              {/* số lượng + chip */}
-                              <div className="flex items-center justify-between">
-                                <div className="text-xs text-slate-600">
-                                  ({group.units?.length || 1} thiết bị)
+                  {activeTab === "pending" && (
+                    <div className="max-h-[60vh] overflow-y-auto pr-1 space-y-3">
+                      {groupedPending.length === 0 ? (
+                        <div className="text-sm text-slate-400 italic text-center py-8">
+                          Không có mục nào đang chờ đảm nhận.
+                        </div>
+                      ) : (
+                        groupedPending
+                          .sort((a, b) => a.start - b.start)
+                          .map((group) => (
+                            <motion.div
+                              id={`card-${group.id}`}
+                              whileHover={{ scale: 1.02 }}
+                              key={group.id}
+                              className={`relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition ${
+                                group.requestStatus === "pending"
+                                  ? "border-cyan-300"
+                                  : "border-emerald-300"
+                              }`}
+                            >
+                              <div className="flex flex-col gap-2">
+                                {/* ID */}
+                                <div className="text-cyan-700 font-semibold text-sm">
+                                  {group.id}
                                 </div>
 
-                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
-                                  ⏳ Chờ đảm nhận
-                                </span>
-                              </div>
-
-                              {/* image + info */}
-                              <div className="flex items-start gap-3 mt-1">
-                                <img
-                                  src={group.image}
-                                  className="w-12 h-12 rounded-lg border object-cover"
-                                />
-
-                                <div className="text-[12px] flex flex-col gap-1 text-slate-600">
-                                  <div>
-                                    🕒{" "}
-                                    {format(group.start, "dd/MM/yyyy HH:mm", {
-                                      locale: vi,
-                                    })}
+                                {/* số lượng + chip */}
+                                <div className="flex items-center justify-between">
+                                  <div className="text-xs text-slate-600">
+                                    ({group.units?.length || 1} thiết bị)
                                   </div>
-                                  <div>
-                                    📌 {group.maintenance_reason || "—"}
+
+                                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
+                                    ⏳ Chờ đảm nhận
+                                  </span>
+                                </div>
+
+                                {/* image + info */}
+                                <div className="flex items-start gap-3 mt-1">
+                                  <img
+                                    src={group.image}
+                                    className="w-12 h-12 rounded-lg border object-cover"
+                                  />
+
+                                  <div className="text-[12px] flex flex-col gap-1 text-slate-600">
+                                    <div>
+                                      🕒{" "}
+                                      {format(group.start, "dd/MM/yyyy HH:mm", {
+                                        locale: vi,
+                                      })}
+                                    </div>
+                                    <div>
+                                      📌 {group.maintenance_reason || "—"}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
 
-                              {/* Buttons */}
-                              <div className="flex items-center justify-between mt-2">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedRequest(group);
-                                      setAssignMode("confirm");
-                                      setAssignOpen(true);
-                                    }}
-                                    className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium px-3 py-1"
-                                  >
-                                    🧰 Đảm nhận
-                                  </Button>
+                                {/* Buttons */}
+                                <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedRequest(group);
+                                        setAssignMode("confirm");
+                                        setAssignOpen(true);
+                                      }}
+                                      disabled={
+                                        new Date(group.start) < new Date()
+                                      }
+                                      className={`text-white text-xs font-medium px-3 py-1
+                                      ${
+                                        new Date(group.start) < new Date()
+                                          ? "bg-slate-300 cursor-not-allowed"
+                                          : "bg-cyan-500 hover:bg-cyan-600"
+                                      }
+                                    `}
+                                    >
+                                      🧰 Đảm nhận
+                                    </Button>
 
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedRequest(group);
-                                      setCancelMode("confirm");
-                                      setCancelOpen(true);
-                                    }}
-                                    className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-3 py-1"
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setEditingRequest(group);
+                                        setShowForm(true);
+                                      }}
+                                      className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium px-3 py-1"
+                                    >
+                                      ✏️ Cập nhật
+                                    </Button>
+
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedRequest(group);
+                                        setCancelMode("confirm");
+                                        setCancelOpen(true);
+                                      }}
+                                      className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-3 py-1"
+                                    >
+                                      Hủy lịch
+                                    </Button>
+                                  </div>
+
+                                  <button
+                                    onClick={() =>
+                                      setExpandedRequest((prev) =>
+                                        prev === group.id ? null : group.id
+                                      )
+                                    }
+                                    className="text-xs text-slate-600 hover:text-cyan-600 underline transition"
                                   >
-                                    Hủy lịch
-                                  </Button>
+                                    {expandedRequest === group.id
+                                      ? "Ẩn chi tiết thiết bị ▲"
+                                      : "Chi tiết các thiết bị ▼"}
+                                  </button>
                                 </div>
 
-                                <button
-                                  onClick={() =>
-                                    setExpandedRequest((prev) =>
-                                      prev === group.id ? null : group.id
-                                    )
-                                  }
-                                  className="text-xs text-slate-600 hover:text-cyan-600 underline transition"
-                                >
-                                  {expandedRequest === group.id
-                                    ? "Ẩn chi tiết thiết bị ▲"
-                                    : "Chi tiết các thiết bị ▼"}
-                                </button>
-                              </div>
-
-                              {/* DETAIL TABLE */}
-                              {expandedRequest === group.id && (
-                                <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
-                                  <table className="w-full text-xs border-collapse">
-                                    <thead className="bg-cyan-100/70 text-slate-700 font-semibold">
-                                      <tr>
-                                        <th className="px-3 py-2 text-left">
-                                          Mã định danh
-                                        </th>
-                                        <th className="px-3 py-2 text-left">
-                                          Trạng thái
-                                        </th>
-                                        <th className="px-3 py-2 text-left">
-                                          Bảo trì gần nhất
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {(group.units || []).map((u) => (
-                                        <tr
-                                          key={u.id}
-                                          className="border-t hover:bg-cyan-50 transition"
-                                        >
-                                          <td className="px-3 py-2 font-medium">
-                                            {u.id}
-                                          </td>
-                                          <td className="px-3 py-2">
-                                            {u.status || "—"}
-                                          </td>
-                                          <td className="px-3 py-2 text-slate-600">
-                                            {u.lastMaintenance || "—"}
-                                          </td>
+                                {/* DETAIL TABLE */}
+                                {expandedRequest === group.id && (
+                                  <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
+                                    <table className="w-full text-xs border-collapse">
+                                      <thead className="bg-cyan-100/70 text-slate-700 font-semibold">
+                                        <tr>
+                                          <th className="px-3 py-2 text-left">
+                                            Mã định danh
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Trạng thái
+                                          </th>
+                                          <th className="px-3 py-2 text-left">
+                                            Bảo trì gần nhất
+                                          </th>
                                         </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              )}
-                            </div>
-                          </motion.div>
-                        ))
-                    ))}
+                                      </thead>
+                                      <tbody>
+                                        {(group.units || []).map((u) => (
+                                          <tr
+                                            key={u.id}
+                                            className="border-t hover:bg-cyan-50 transition"
+                                          >
+                                            <td className="px-3 py-2 font-medium">
+                                              {u.id}
+                                            </td>
+                                            <td className="px-3 py-2">
+                                              {u.status || "—"}
+                                            </td>
+                                            <td className="px-3 py-2 text-slate-600">
+                                              {u.lastMaintenance || "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))
+                      )}
+                    </div>
+                  )}
 
                   {/* ==== TAB: CONFIRMED ==== */}
                   {activeTab === "confirmed" &&
