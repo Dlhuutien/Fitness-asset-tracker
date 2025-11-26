@@ -16,6 +16,7 @@
     "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@fontsource/poppins": "^5.2.7",
     "@hookform/resolvers": "^5.2.2",
+    "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
