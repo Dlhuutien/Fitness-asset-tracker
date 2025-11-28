@@ -67,6 +67,12 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
   const [successOpen, setSuccessOpen] = useState(false);
   const [confirmMode, setConfirmMode] = useState("confirm");
   // confirm | loading | success
+  // ===== VALIDATION ERRORS =====
+  const [errors, setErrors] = useState({
+    date: false,
+    time: false,
+    reason: false,
+  });
 
   const daysInView = eachDayOfInterval({
     start: startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 }),
@@ -838,63 +844,104 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
             </div>
 
             {/* === Xác nhận ngày + giờ + lý do === */}
-            <div className="mt-5">
-              <p className="font-medium text-slate-700">
-                📅 Ngày được chọn:{" "}
-                <span className="text-emerald-700 font-semibold">
-                  {format(selectedDateObj, "EEEE, dd/MM/yyyy", { locale: vi })}
-                </span>
-              </p>
+            <div className="mt-5 space-y-4">
+              {/* ===== FIELD 1: NGÀY BẢO TRÌ ===== */}
+              <div>
+                <p className="font-medium text-slate-700 flex items-center gap-1">
+                  <span className="text-red-500 font-bold">*</span>
+                  <span className="text-red-500 text-sm">
+                    Bắt buộc: Phải chọn ngày bảo trì
+                  </span>
+                </p>
 
-              <div className="mt-3 flex items-center gap-3">
-                <label className="text-sm text-slate-600">
-                  🕒 Giờ bắt đầu:
-                </label>
+                <p className="font-medium text-slate-700 mt-1 flex items-center gap-1">
+                  📅 Ngày được chọn:
+                  <span className="text-emerald-700 font-semibold">
+                    {selectedDateObj
+                      ? format(selectedDateObj, "EEEE, dd/MM/yyyy", {
+                          locale: vi,
+                        })
+                      : "— Chưa chọn"}
+                  </span>
+                </p>
+
+                {errors?.date && (
+                  <p className="text-red-500 text-xs mt-1">
+                    Vui lòng chọn ngày bảo trì
+                  </p>
+                )}
+              </div>
+
+              {/* ===== FIELD 2: GIỜ BẮT ĐẦU ===== */}
+              <div className="flex flex-col">
+                <div className="flex items-start gap-1 flex-col">
+                  <div className="flex items-center gap-1">
+                    <span className="text-red-500 font-bold">*</span>
+                    <span className="text-red-500 text-sm">
+                      Bắt buộc: Phải chọn giờ bắt đầu
+                    </span>
+                  </div>
+
+                  <label className="text-sm text-slate-600">
+                    🕒 Giờ bắt đầu:
+                  </label>
+                </div>
+
                 <Input
                   type="time"
                   value={time}
+                  className={`w-40 mt-1 ${
+                    errors?.time ? "border-red-500" : ""
+                  }`}
                   min={
                     format(selectedDateObj, "yyyy-MM-dd") ===
                     format(new Date(), "yyyy-MM-dd")
-                      ? format(new Date(), "HH:mm") // 🔥 nếu hôm nay → chỉ cho chọn từ giờ hiện tại trở đi
+                      ? format(new Date(), "HH:mm")
                       : undefined
                   }
                   onChange={(e) => {
-                    const val = e.target.value;
-
-                    const now = new Date();
-                    const selected = new Date(selectedDateObj);
-
-                    const [h, m] = val.split(":");
-                    selected.setHours(parseInt(h, 10));
-                    selected.setMinutes(parseInt(m, 10));
-
-                    // 🔥 VALIDATION: ngày là hôm nay → không cho nhỏ hơn giờ hiện tại
-                    if (
-                      format(selectedDateObj, "yyyy-MM-dd") ===
-                        format(now, "yyyy-MM-dd") &&
-                      selected < now
-                    ) {
-                      toast.error("Không thể chọn giờ trong quá khứ");
-                      return;
-                    }
-
-                    setTime(val);
+                    setErrors((prev) => ({ ...prev, time: false }));
+                    setTime(e.target.value);
                   }}
-                  className="w-40"
                 />
+
+                {errors?.time && (
+                  <p className="text-red-500 text-xs mt-1">
+                    Vui lòng chọn giờ bắt đầu
+                  </p>
+                )}
               </div>
 
-              <div className="mt-4 flex flex-col gap-1">
-                <label className="text-sm text-slate-600 font-medium">
-                  📝 Lý do bảo trì:
-                </label>
+              {/* ===== FIELD 3: LÝ DO BẢO TRÌ ===== */}
+              <div className="flex flex-col">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1">
+                    <span className="text-red-500 font-bold">*</span>
+                    <span className="text-red-500 text-sm">
+                      Bắt buộc: Phải nhập lý do bảo trì
+                    </span>
+                  </div>
+
+                  <label className="text-sm text-slate-600 font-medium">
+                    📝 Lý do bảo trì:
+                  </label>
+                </div>
+
                 <Input
                   placeholder="Nhập lý do bảo trì..."
                   value={maintenanceReason}
-                  onChange={(e) => setMaintenanceReason(e.target.value)}
-                  className="w-full"
+                  className={`${errors?.reason ? "border-red-500" : ""} mt-1`}
+                  onChange={(e) => {
+                    setErrors((prev) => ({ ...prev, reason: false }));
+                    setMaintenanceReason(e.target.value);
+                  }}
                 />
+
+                {errors?.reason && (
+                  <p className="text-red-500 text-xs mt-1">
+                    Vui lòng nhập lý do bảo trì
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1190,6 +1237,19 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
           <div className="flex justify-end pt-4">
             <Button
               onClick={() => {
+                const newErrors = {
+                  date: !selectedDateObj,
+                  time: !time,
+                  reason: !maintenanceReason.trim(),
+                };
+
+                setErrors(newErrors);
+
+                if (newErrors.date || newErrors.time || newErrors.reason) {
+                  toast.error("Vui lòng nhập đầy đủ thông tin bắt buộc!");
+                  return;
+                }
+
                 setConfirmMode("confirm");
                 setConfirmOpen(true);
               }}

@@ -1,6 +1,7 @@
-// src/features/maintenance/MyScheduleSection.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ClockClockwise, Wrench, Archive } from "@phosphor-icons/react";
+import Branch from "@/components/common/Branch";
 import {
   UserCircle2,
   Search,
@@ -8,12 +9,12 @@ import {
   ChevronUp,
   Clock,
   MapPin,
-  Wrench,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   CalendarDays,
 } from "lucide-react";
+
 import MaintenanceRequestService from "@/services/MaintenanceRequestService";
 import {
   format,
@@ -29,6 +30,7 @@ import {
   isSameMonth,
 } from "date-fns";
 import { vi } from "date-fns/locale";
+console.log(">>> MyScheduleSection.jsx LOADED 1", Date.now());
 
 // =============== CONSTANTS & HELPERS ===============
 
@@ -90,7 +92,6 @@ const isScheduleVisible = (item) => {
 
 // Xác định lịch đã hoàn tất để chuyển sang xanh lá gạch sọc
 const isScheduleDone = (item) => {
-  // Lấy danh sách thiết bị trong lịch
   const unitsArr = Array.isArray(item.equipment_units)
     ? item.equipment_units
     : Array.isArray(item.units)
@@ -99,23 +100,14 @@ const isScheduleDone = (item) => {
 
   if (!unitsArr.length) return false;
 
-  // Map trạng thái thiết bị → done
   const DONE_STATUS = ["ready", "active"];
-  // active tạm xem là done vì backend của bạn đang trả active sau khi bảo trì xong
 
-  // Nếu tất cả thiết bị thuộc DONE_STATUS → lịch đã hoàn tất
   const allDone = unitsArr.every((u) => {
-    const su = (u.status || u.state || u.equipment_status || "")
-      .toString()
-      .toLowerCase();
-
+    const su = (u.status || u.state || "").toString().toLowerCase().trim();
     return DONE_STATUS.includes(su);
   });
 
-  if (allDone) return true;
-
-  // KO DONE
-  return false;
+  return allDone;
 };
 
 // Chip trạng thái hiển thị trong list (history / month)
@@ -216,9 +208,52 @@ const StatCard = ({ icon: Icon, label, value, sub }) => (
     {sub && <span className="mt-2 text-[11px] text-slate-500">{sub}</span>}
   </div>
 );
+// const techStatsMap = useMemo(() => {
+//   const map = {};
+//   technicianGroups.forEach((g) => {
+//     const items = g.items;
+
+//     let filtered = items;
+
+//     if (viewMode === "week") {
+//       const start = currentWeek;
+//       const end = addDays(currentWeek, 6);
+
+//       filtered = items.filter((i) => {
+//         const d = new Date(i.start_date);
+//         return d >= start && d <= end;
+//       });
+//     }
+
+//     if (viewMode === "month") {
+//       filtered = items.filter((i) => {
+//         return isSameMonth(new Date(i.start_date), currentMonth);
+//       });
+//     }
+
+//     // Calculate stats
+//     let active = 0;
+//     let done = 0;
+
+//     filtered.forEach((i) => {
+//       if (isScheduleDone(i)) done++;
+//       else active++;
+//     });
+
+//     map[g.technician_id] = { active, done, total: filtered.length };
+//   });
+//   return map;
+// }, [technicianGroups, viewMode, currentWeek, currentMonth]);
 
 // Card kỹ thuật viên trong thanh ngang
-const TechnicianCard = ({ group, selected, onClick, isMe }) => {
+const TechnicianCard = ({
+  group,
+  selected,
+  onClick,
+  isMe,
+  techStats,
+  viewMode,
+}) => {
   const initials = group.technician_name
     .split(" ")
     .slice(-2)
@@ -254,17 +289,31 @@ const TechnicianCard = ({ group, selected, onClick, isMe }) => {
           <p className="text-[11px] text-slate-500">
             {group.branch_count} chi nhánh · {group.total} lịch
           </p>
+
+          {/* ➕ HIỂN THỊ CHI NHÁNH LÀM VIỆC */}
+          {group.working_branch && (
+            <div className="mt-1">
+              <Branch id={group.working_branch} />
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex w-full items-center justify-between text-[11px] text-slate-600">
+        {/* Lịch mở theo tuần/tháng/history */}
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-full bg-emerald-500" />
-          <span>{group.active}</span> mở
+          <span>{techStats?.active ?? group.active}</span> Chưa xong
+          {/* {viewMode === "week" && <span className="text-[10px]">/ tuần</span>}
+          {viewMode === "month" && <span className="text-[10px]">/ tháng</span>} */}
         </span>
+
+        {/* Lịch xong theo tuần/tháng/history */}
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-full border border-emerald-700 bg-emerald-100" />
-          <span>{group.done}</span> xong
+          <span>{techStats?.done ?? group.done}</span> Đã xong
+          {/* {viewMode === "week" && <span className="text-[10px]">/ tuần</span>}
+          {viewMode === "month" && <span className="text-[10px]">/ tháng</span>} */}
         </span>
       </div>
 
@@ -276,14 +325,48 @@ const TechnicianCard = ({ group, selected, onClick, isMe }) => {
     </motion.button>
   );
 };
+const BRANCH_MAP = {
+  "FitX Gym Gò Vấp": "GV",
+  "FitX Gym GV": "GV",
+  GV: "GV",
+
+  "FitX Gym Quận 3": "Q3",
+  "FitX Gym Q3": "Q3",
+  Q3: "Q3",
+};
 
 // =====================================================
 //                 MAIN COMPONENT
 // =====================================================
 export default function MyScheduleSection() {
+  console.log("🔵 RENDER: MyScheduleSection ĐANG ĐƯỢC SỬ DỤNG");
   const [loading, setLoading] = useState(true);
   const [rawData, setRawData] = useState([]);
   const [hoverItem, setHoverItem] = useState(null); // giữ lại logic cũ (dù hiện tại chưa dùng)
+  const [currentUserBranch, setCurrentUserBranch] = useState(null);
+  // ➕ THU NHỎ HEADER (TECH BAR + STAT CARDS)
+  const [collapsedHeader, setCollapsedHeader] = useState(false);
+  const [collapseTechBar, setCollapseTechBar] = useState(false);
+  const [collapseStats, setCollapseStats] = useState(false);
+
+  useEffect(() => {
+    try {
+      const auth = JSON.parse(localStorage.getItem("ftc_auth"));
+      if (!auth) return;
+
+      const attrs = auth.userAttributes || auth.attributes || auth || {};
+
+      const branch =
+        BRANCH_MAP[attrs.branch] ||
+        BRANCH_MAP[attrs.branch_id] ||
+        BRANCH_MAP[attrs.branch_name] ||
+        null;
+
+      setCurrentUserBranch(branch);
+    } catch (err) {
+      console.warn("LỖI LẤY BRANCH:", err);
+    }
+  }, []);
 
   const [selectedTech, setSelectedTech] = useState(null);
   const [searchTech, setSearchTech] = useState("");
@@ -292,6 +375,25 @@ export default function MyScheduleSection() {
   // 🔐 Lấy user hiện tại từ localStorage (ftc_auth → sub)
   const [currentUserId, setCurrentUserId] = useState(null);
   const [currentUserName, setCurrentUserName] = useState("");
+  useEffect(() => {
+    try {
+      const auth = JSON.parse(localStorage.getItem("ftc_auth"));
+      if (!auth) return;
+
+      const attrs = auth.userAttributes || auth.attributes || auth || {};
+
+      const sub = attrs.sub || attrs["sub"] || auth.sub || null;
+
+      const name = attrs.name || attrs["name"] || auth.username || "Tài khoản";
+
+      setCurrentUserId(sub);
+      setCurrentUserName(name);
+
+      console.log(">>> USER HIỆN TẠI:", sub, name);
+    } catch (err) {
+      console.warn("LỖI LẤY USER:", err);
+    }
+  }, []);
 
   const [selectedWeekDate, setSelectedWeekDate] = useState(null);
   const [expandedDayKey, setExpandedDayKey] = useState(null); // giữ lại cho DayGroup nếu cần
@@ -304,25 +406,6 @@ export default function MyScheduleSection() {
   const [expandedRequest, setExpandedRequest] = useState(null);
 
   const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
-
-  // ===== Lấy user từ localStorage =====
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("ftc_auth");
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      setCurrentUserId(parsed?.sub || null);
-      setCurrentUserName(
-        parsed?.userAttributes?.name ||
-          parsed?.name ||
-          parsed?.username ||
-          parsed?.email ||
-          ""
-      );
-    } catch (e) {
-      console.warn("Không đọc được ftc_auth:", e);
-    }
-  }, []);
 
   // 📥 Fetch maintenance requests (card xanh lá)
   useEffect(() => {
@@ -423,11 +506,15 @@ export default function MyScheduleSection() {
       const key = techName;
       const techId = getItemTechnicianId(item);
 
+      // Nếu chưa có entry → tạo mới
       if (!map[key]) {
         map[key] = {
           technician_name: techName,
           technician_id: techId,
+          branch_count: 0,
           branch_ids: new Set(),
+          branch_counter: {}, // <--- thêm cái này
+          working_branch: null,
           total: 0,
           active: 0,
           done: 0,
@@ -435,21 +522,47 @@ export default function MyScheduleSection() {
         };
       }
 
-      map[key].branch_ids.add(item.branch_id);
+      // ===== Thêm branch =====
+      const br =
+        item.branch_id ||
+        BRANCH_MAP[item.branch] ||
+        BRANCH_MAP[item.branch_name] ||
+        BRANCH_MAP[item.branch_id] ||
+        BRANCH_MAP[unit?.branch_name] ||
+        "N/A";
 
-      map[key].total += 1;
-      if (isScheduleDone(item)) map[key].done += 1;
-      else map[key].active += 1;
+      map[key].branch_ids.add(br);
 
+      if (!map[key].branch_counter[br]) {
+        map[key].branch_counter[br] = 0;
+      }
+      map[key].branch_counter[br]++;
+
+      // ===== Đếm lịch =====
+      map[key].total++;
+      if (isScheduleDone(item)) map[key].done++;
+      else map[key].active++;
+
+      // ===== Lưu item =====
       map[key].items.push(item);
     });
 
-    return Object.values(map)
-      .map((g) => ({
-        ...g,
-        branch_count: g.branch_ids.size,
-      }))
-      .sort((a, b) => a.technician_name.localeCompare(b.technician_name));
+    // Tính số chi nhánh + chi nhánh làm việc
+    const list = Object.values(map).map((g) => {
+      g.branch_count = g.branch_ids.size;
+
+      // Lấy chi nhánh xuất hiện nhiều nhất → working branch
+      const sortedBranches = Object.entries(g.branch_counter).sort(
+        (a, b) => b[1] - a[1]
+      );
+      g.working_branch = sortedBranches[0]?.[0] || null;
+
+      return g;
+    });
+
+    return list.sort((a, b) =>
+      a.technician_name.localeCompare(b.technician_name)
+    );
   }, [scheduleData]);
 
   // 🔍 Lọc theo tên kỹ thuật viên
@@ -460,7 +573,42 @@ export default function MyScheduleSection() {
       g.technician_name.toLowerCase().includes(q)
     );
   }, [technicianGroups, searchTech]);
+  const techStatsMap = useMemo(() => {
+    const map = {};
+    technicianGroups.forEach((g) => {
+      const items = g.items;
 
+      let filtered = items;
+
+      if (viewMode === "week") {
+        const start = currentWeek;
+        const end = addDays(currentWeek, 6);
+
+        filtered = items.filter((i) => {
+          const d = new Date(i.start_date);
+          return d >= start && d <= end;
+        });
+      }
+
+      if (viewMode === "month") {
+        filtered = items.filter((i) => {
+          return isSameMonth(new Date(i.start_date), currentMonth);
+        });
+      }
+
+      // Calculate stats
+      let active = 0;
+      let done = 0;
+
+      filtered.forEach((i) => {
+        if (isScheduleDone(i)) done++;
+        else active++;
+      });
+
+      map[g.technician_id] = { active, done, total: filtered.length };
+    });
+    return map;
+  }, [technicianGroups, viewMode, currentWeek, currentMonth]);
   // Auto chọn technician (ưu tiên chính user hiện tại nếu có)
   useEffect(() => {
     if (!technicianGroups.length) return;
@@ -616,6 +764,101 @@ export default function MyScheduleSection() {
       (a, b) => new Date(a.start_date) - new Date(b.start_date)
     );
   }, [selectedWeekDate, weeklyMap]);
+  // Items tương ứng theo ngày đã chọn (tự động theo viewMode)
+  const dayItems = useMemo(() => {
+    if (viewMode === "week") return selectedWeekItems;
+    if (viewMode === "month") return selectedDateItems;
+    return [];
+  }, [viewMode, selectedWeekItems, selectedDateItems]);
+
+  // ===== Tính thống kê theo NGÀY được chọn =====
+  const dayStats = useMemo(() => {
+    const items = dayItems || [];
+
+    let totalSchedules = items.length;
+    let doneSchedules = 0;
+    let doingMachines = 0;
+    let doneMachines = 0;
+
+    items.forEach((item) => {
+      const units = item.units || item.equipment_units || [];
+      // Đếm trạng thái từng thiết bị
+      const statusCount = units.reduce(
+        (acc, u) => {
+          const s = (u.status || u.state || "").toLowerCase().trim();
+
+          acc.total++;
+
+          if (s === "active") acc.active++;
+          else if (s === "ready") acc.ready++;
+          else if (s === "failed") acc.failed++;
+          else if (s === "in progress" || s === "processing" || s === "doing")
+            acc.inprogress++;
+          else acc.other++;
+
+          return acc;
+        },
+        { total: 0, active: 0, ready: 0, failed: 0, inprogress: 0, other: 0 }
+      );
+
+      const isDone =
+        isScheduleDone(item) ||
+        units.every((u) =>
+          ["ready", "active"].includes(
+            (u.status || u.state || "").toString().toLowerCase()
+          )
+        );
+
+      if (isDone) doneSchedules++;
+
+      units.forEach((u) => {
+        const su = (u.status || u.state || "").toLowerCase();
+
+        if (
+          [
+            "in_progress",
+            "in-progress",
+            "in progress",
+            "doing",
+            "processing",
+            "executed",
+          ].includes(su)
+        )
+          doingMachines++;
+
+        if (["ready", "active"].includes(su)) doneMachines++;
+      });
+    });
+
+    return {
+      totalSchedules,
+      doneSchedules,
+      doingMachines,
+      doneMachines,
+    };
+  }, [dayItems]);
+  // ===== Summary trạng thái thiết bị trong NGÀY =====
+  const dayStatusSummary = useMemo(() => {
+    const counts = { active: 0, ready: 0, failed: 0, inprogress: 0 };
+
+    dayItems.forEach((item) => {
+      const units = item.units || item.equipment_units || [];
+
+      units.forEach((u) => {
+        const s = (u.status || u.state || "").toLowerCase().trim();
+
+        if (s === "active") counts.active++;
+        else if (s === "ready") counts.ready++;
+        else if (s === "failed") counts.failed++;
+        else if (
+          ["in progress", "in_progress", "processing", "doing"].includes(s)
+        )
+          counts.inprogress++;
+      });
+    });
+
+    return counts;
+  }, [dayItems]);
 
   // =====================================================
   //                       RENDER
@@ -623,51 +866,71 @@ export default function MyScheduleSection() {
   return (
     <div
       id="myschedule-panel"
-      className="relative flex max-h-[82vh] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50/80 shadow-[0_18px_45px_rgba(15,23,42,0.25)] dark:border-slate-800 dark:bg-slate-950"
+      className="relative flex max-h-[82vh] flex-col overflow-y-auto rounded-3xl border bg-slate-50/80"
     >
-      {/* ===== 1) HEADER nhỏ gọn ===== */}
-      <div className="flex h-[64px] items-center justify-between border-b border-slate-200 bg-white px-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-            <CalendarDays className="h-5 w-5" />
-          </div>
-          <div className="flex flex-col">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Lịch bảo trì theo kỹ thuật viên
-            </h2>
-            <span className="text-[11px] text-slate-500">
-              Theo dõi lịch bảo trì của từng kỹ thuật viên (card xanh lá)
-            </span>
+      {/* ===== HEADER PREMIUM — PHOSPHOR ICON ===== */}
+      <div className="flex min-h-[100px] max-h-[100px] items-center justify-between border-b border-slate-200 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 px-8 shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+        {/* LEFT */}
+        <div className="flex items-center gap-5">
+          {/* ICON PREMIUM */}
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <ClockClockwise
+                size={42}
+                weight="duotone"
+                className="text-white drop-shadow-xl"
+              />
+              <div className="absolute inset-0 blur-xl bg-white/40 -z-10"></div>
+            </div>
+
+            <div className="flex flex-col text-white drop-shadow-sm">
+              <h1 className="text-3xl font-bold tracking-wide">
+                Lịch bảo trì theo kỹ thuật viên
+              </h1>
+              <p className="mt-1 text-[13px] opacity-90">
+                Theo dõi – quản lý – giám sát lịch bảo trì
+              </p>
+            </div>
+            {/* ➕ CHI NHÁNH LÀM VIỆC — THÊM TẠI ĐÂY */}
+            {currentUserBranch && (
+              <div className="flex items-center gap-2 mt-1 text-[12px] text-white">
+                <MapPin className="w-3 h-3 opacity-90" />
+                <Branch id={currentUserBranch} />
+              </div>
+            )}
           </div>
         </div>
 
-        <div className="inline-flex items-center rounded-full bg-slate-100 p-1">
+        {/* RIGHT — MODE SWITCH */}
+        <div className="inline-flex items-center rounded-full bg-white/30 backdrop-blur-md p-1 shadow-md">
           <button
             onClick={() => setViewMode("history")}
-            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1 rounded-full px-5 py-2 text-[12px] font-semibold transition-all ${
               viewMode === "history"
-                ? "bg-white text-emerald-700 shadow-sm"
-                : "text-slate-600"
+                ? "bg-white text-emerald-700 shadow"
+                : "text-white/90 hover:bg-white/20"
             }`}
           >
             📋 Lịch sử
           </button>
+
           <button
             onClick={() => setViewMode("week")}
-            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1 rounded-full px-5 py-2 text-[12px] font-semibold transition-all ${
               viewMode === "week"
-                ? "bg-white text-emerald-700 shadow-sm"
-                : "text-slate-600"
+                ? "bg-white text-emerald-700 shadow"
+                : "text-white/90 hover:bg-white/20"
             }`}
           >
             📅 Tuần
           </button>
+
           <button
             onClick={() => setViewMode("month")}
-            className={`flex items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1 rounded-full px-5 py-2 text-[12px] font-semibold transition-all ${
               viewMode === "month"
-                ? "bg-white text-emerald-700 shadow-sm"
-                : "text-slate-600"
+                ? "bg-white text-emerald-700 shadow"
+                : "text-white/90 hover:bg-white/20"
             }`}
           >
             🗓️ Tháng
@@ -675,99 +938,161 @@ export default function MyScheduleSection() {
         </div>
       </div>
 
-      {/* ===== 2) TECH-BAR ngang ===== */}
-      <div className="border-b border-slate-200 bg-slate-50/80 px-4 py-2.5">
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Kỹ thuật viên
-            </span>
-            <div className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600">
-              <Search className="h-3.5 w-3.5 text-slate-400" />
-              <input
-                value={searchTech}
-                onChange={(e) => setSearchTech(e.target.value)}
-                placeholder="Tìm theo tên..."
-                className="w-[150px] bg-transparent text-[11px] outline-none placeholder:text-slate-400"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
-            <span>
-              {technicianGroups.length} kỹ thuật viên · {scheduleData.length}{" "}
-              lịch thẻ xanh lá
-            </span>
-            {myStats && (
-              <div className="hidden items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 md:flex">
-                <UserCircle2 className="h-3.5 w-3.5" />
-                <span className="max-w-[140px] truncate">
-                  {currentUserName || "Bạn"}
-                </span>
-                <span>· {myStats.total} lịch</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-1 pt-1">
-          {loading ? (
-            <div className="flex min-h-[60px] flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-[11px] text-slate-500">
-              Đang tải dữ liệu lịch bảo trì...
-            </div>
-          ) : visibleTechnicians.length === 0 ? (
-            <div className="flex min-h-[60px] flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-[11px] text-slate-500">
-              Chưa có dữ liệu kỹ thuật viên.
-            </div>
-          ) : (
-            visibleTechnicians.map((g) => (
-              <TechnicianCard
-                key={g.technician_name}
-                group={g}
-                selected={selectedTech === g.technician_name}
-                onClick={() => {
-                  setSelectedTech(g.technician_name);
-                  setSelectedWeekDate(null);
-                  setExpandedRequest(null);
-                }}
-                isMe={currentUserId && g.technician_id === currentUserId}
-              />
-            ))
-          )}
-        </div>
-      </div>
-
       {/* ===== 3) STATS + LỊCH ===== */}
       <div className="flex flex-1 flex-col gap-3 overflow-hidden px-4 pb-4 pt-3">
-        {/* Stats row */}
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <StatCard
-            icon={CalendarDays}
-            label="Tổng số lịch"
-            value={stats.total}
-            sub="Theo kỹ thuật viên đang chọn"
-          />
+        {/* ===== HEADER PANEL COLLAPSIBLE ===== */}
+        <div
+          className={`relative border-b border-slate-200 bg-slate-50/80 transition-all duration-300
+  ${collapsedHeader ? "h-[48px] overflow-hidden" : "h-auto"}`}
+        >
+          {/* NÚT THU GỌN / MỞ RỘNG */}
+          <button
+            onClick={() => setCollapsedHeader((v) => !v)}
+            className="absolute right-3 top-3 z-10 p-1 rounded-full bg-white shadow text-slate-600 hover:bg-slate-100"
+          >
+            {collapsedHeader ? (
+              <ChevronDown size={16} />
+            ) : (
+              <ChevronUp size={16} />
+            )}
+          </button>
 
-          <StatCard
-            icon={Clock}
-            label="Đang mở"
-            value={stats.open}
-            sub="Chưa hoàn tất"
-          />
+          {/* ======= HEADER PANEL (2 PANEL COLLAPSE RIÊNG) ======= */}
+          <div className="bg-slate-50/80">
+            {/* ===================== PANEL 1: TECH BAR ===================== */}
+            <div className="relative py-3 px-4 border-b border-slate-200">
+              {/* Toggle nút */}
+              <button
+                onClick={() => setCollapseTechBar((v) => !v)}
+                className="absolute right-3 top-3 z-10 p-1 rounded-full bg-white shadow text-slate-600 hover:bg-slate-100"
+              >
+                {collapseTechBar ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronUp size={16} />
+                )}
+              </button>
 
-          <StatCard
-            icon={CheckCircle2}
-            label="Đã hoàn thành"
-            value={stats.done}
-            sub="Thiết bị đã hoạt động lại"
-          />
+              {/* --- Khi thu gọn --- */}
+              {collapseTechBar ? (
+                <div
+                  className="font-bold text-[13px] text-slate-700 py-1 cursor-pointer"
+                  onClick={() => setCollapseTechBar(false)}
+                >
+                  Các kỹ thuật viên
+                </div>
+              ) : (
+                /* --- Khi mở rộng --- */
+                <div className="mt-1">
+                  {/* HEADER LINE: label + search + tổng số */}
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    {/* LEFT: Label + Search */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        KỸ THUẬT VIÊN
+                      </span>
 
-          <StatCard
-            icon={Wrench}
-            label="Lịch thẻ xanh lá"
-            value={stats.green}
-            sub="Đã được xác nhận"
-          />
+                      {/* SEARCH */}
+                      <div className="flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2 py-1 text-[11px]">
+                        <Search className="h-3.5 w-3.5 text-slate-400" />
+                        <input
+                          value={searchTech}
+                          onChange={(e) => setSearchTech(e.target.value)}
+                          placeholder="Tìm theo tên..."
+                          className="w-[150px] bg-transparent text-[11px] outline-none placeholder:text-slate-400"
+                        />
+                      </div>
+                    </div>
+
+                    {/* RIGHT: Tổng số kỹ thuật viên */}
+                    <div className="text-[11px] font-medium text-slate-500 pr-8">
+                      Tổng số:{" "}
+                      <span className="font-semibold text-slate-800">
+                        {visibleTechnicians.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* LIST TECHNICIANS */}
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {visibleTechnicians.map((g) => (
+                      <TechnicianCard
+                        key={g.technician_name}
+                        group={g}
+                        selected={selectedTech === g.technician_name}
+                        onClick={() => {
+                          setSelectedTech(g.technician_name);
+                          setSelectedWeekDate(null);
+                          setExpandedRequest(null);
+                        }}
+                        isMe={
+                          currentUserId && g.technician_id === currentUserId
+                        }
+                        techStats={techStatsMap[g.technician_id]}
+                        viewMode={viewMode}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ===================== PANEL 2: STAT BAR ===================== */}
+            <div className="relative py-3 px-4 border-b border-slate-200">
+              {/* Toggle */}
+              <button
+                onClick={() => setCollapseStats((v) => !v)}
+                className="absolute right-3 top-3 z-10 p-1 rounded-full bg-white shadow text-slate-600 hover:bg-slate-100"
+              >
+                {collapseStats ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronUp size={16} />
+                )}
+              </button>
+
+              {/* Khi thu gọn */}
+              {collapseStats ? (
+                <div
+                  className="font-bold text-[13px] text-slate-700 py-1 cursor-pointer"
+                  onClick={() => setCollapseStats(false)}
+                >
+                  Trạng thái theo lịch ngày
+                </div>
+              ) : (
+                /* Khi mở rộng */
+                <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <StatCard
+                    icon={CalendarDays}
+                    label="Tổng lịch đảm nhận"
+                    value={dayStats.totalSchedules}
+                    sub="Trong ngày đã chọn"
+                  />
+
+                  <StatCard
+                    icon={CheckCircle2}
+                    label="Lịch đã bảo trì"
+                    value={dayStats.doneSchedules}
+                    sub="Đã hoàn tất"
+                  />
+
+                  <StatCard
+                    icon={Wrench}
+                    label="Máy đang bảo trì"
+                    value={dayStats.doingMachines}
+                    sub="Đang thực hiện"
+                  />
+
+                  <StatCard
+                    icon={Clock}
+                    label="Máy đã bảo trì xong"
+                    value={dayStats.doneMachines}
+                    sub={`Hoạt động: ${dayStatusSummary.active} · Sẵn: ${dayStatusSummary.ready} · Lỗi: ${dayStatusSummary.failed}`}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* MAIN AREA */}
@@ -789,18 +1114,26 @@ export default function MyScheduleSection() {
                       .join("")
                       .toUpperCase()}
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {selectedGroup.technician_name}
+                  <div className="text-[11px] text-slate-600 leading-tight space-y-0.5">
+                    <p>
+                      Tổng số lịch trong tuần:
+                      <span className="font-semibold text-slate-800">
+                        {" "}
+                        {selectedGroup.total}
+                      </span>
                     </p>
-                    <p className="text-[11px] text-slate-500">
-                      {selectedGroup.total} lịch thẻ xanh lá ·{" "}
-                      <span className="text-emerald-600">
-                        {selectedGroup.active} đang mở
-                      </span>{" "}
-                      ·{" "}
-                      <span className="font-medium text-emerald-700">
-                        {selectedGroup.done} đã xong
+                    <p>
+                      Chưa xong:
+                      <span className="font-semibold text-red-600">
+                        {" "}
+                        {selectedGroup.active}
+                      </span>
+                    </p>
+                    <p>
+                      Đã xong:
+                      <span className="font-semibold text-emerald-700">
+                        {" "}
+                        {selectedGroup.done}
                       </span>
                     </p>
                   </div>
@@ -1027,7 +1360,7 @@ export default function MyScheduleSection() {
                     </div>
 
                     {/* RIGHT: Panel chi tiết ngày được chọn */}
-                    <div className="flex w-[340px] flex-shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-3">
+                    <div className="flex w-[380px] flex-shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-3">
                       {!selectedWeekDate ? (
                         <p className="text-[12px] text-slate-400 italic">
                           Chọn một ô ngày hoặc một block lịch bên trái để xem
@@ -1269,6 +1602,27 @@ function ScheduleItem({ item, isMine = false, expandedRequest }) {
 
   const units = item.units || item.equipment_units || [];
 
+  // 🟢 FIX LỖI QUAN TRỌNG: Tạo statusCount
+  const statusCount = units.reduce(
+    (acc, u) => {
+      const s = (u.status || u.state || "").toLowerCase().trim();
+
+      acc.total++;
+
+      if (s === "active") acc.active++;
+      else if (s === "ready") acc.ready++;
+      else if (s === "failed") acc.failed++;
+      else if (
+        ["in progress", "in_progress", "processing", "doing"].includes(s)
+      )
+        acc.inprogress++;
+      else acc.other++;
+
+      return acc;
+    },
+    { total: 0, active: 0, ready: 0, failed: 0, inprogress: 0, other: 0 }
+  );
+
   const u0 = units[0] || {};
   const imgSrc =
     item.image ||
@@ -1282,8 +1636,7 @@ function ScheduleItem({ item, isMine = false, expandedRequest }) {
   const isConfirmed =
     raw === "confirmed" || raw === "confirm" || item.is_confirmed === true;
 
-  // Fix: thiết bị Active / Ready => coi lịch đã hoàn tất
-  const allUnitsActive = (item.units || item.equipment_units || []).every((u) =>
+  const allUnitsActive = units.every((u) =>
     ["active", "ready"].includes(
       (u.status || u.state || "").toString().toLowerCase()
     )
