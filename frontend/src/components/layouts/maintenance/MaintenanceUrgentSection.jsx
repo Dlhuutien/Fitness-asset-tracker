@@ -354,37 +354,36 @@ export default function MaintenanceUrgentSection() {
           )}
         </div>
         <div className="flex items-center gap-2">
-  <Button
-    onClick={() => setShowSchedule(true)}
-    className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-sm"
-  >
-    🗓️ Xếp lịch bảo trì
-  </Button>
+          <Button
+            onClick={() => setShowSchedule(true)}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold shadow-sm"
+          >
+            Xếp lịch bảo trì
+          </Button>
 
-  {/* 👉 NÚT MỚI: Lịch của tôi */}
-  <Button
-    onClick={() => setShowMySchedule(true)}
-    className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold shadow-sm"
-  >
-    📅 Lịch của tôi
-  </Button>
+          {/* 👉 NÚT MỚI: Lịch của tôi */}
+          <Button
+            onClick={() => setShowMySchedule(true)}
+            className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold shadow-sm"
+          >
+            📅 Xem lịch đảm nhận
+          </Button>
 
-  <ColumnVisibilityButton
-    visibleColumns={visibleColumns}
-    setVisibleColumns={setVisibleColumns}
-    labels={{
-      id: "Mã định danh thiết bị",
-      image: "Ảnh",
-      name: "Tên thiết bị",
-      main_name: "Nhóm",
-      type_name: "Loại",
-      status: "Trạng thái",
-      vendor_name: "Nhà cung cấp",
-      branch_id: "Chi nhánh",
-    }}
-  />
-</div>
-
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              id: "Mã định danh thiết bị",
+              image: "Ảnh",
+              name: "Tên thiết bị",
+              main_name: "Nhóm",
+              type_name: "Loại",
+              status: "Trạng thái",
+              vendor_name: "Nhà cung cấp",
+              branch_id: "Chi nhánh",
+            }}
+          />
+        </div>
       </div>
 
       {/* ====== Table ====== */}
@@ -770,39 +769,38 @@ export default function MaintenanceUrgentSection() {
             </motion.div>
           </motion.div>
         </AnimatePresence>
-
       )}
-{/* === Overlay: Lịch của tôi === */}
-{showMySchedule && (
-  <AnimatePresence>
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-[9999] flex items-center justify-center
+      {/* === Overlay: Lịch của tôi === */}
+      {showMySchedule && (
+        <AnimatePresence>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center
                  bg-black/60 backdrop-blur-[6px]"
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        transition={{ type: 'spring', duration: 0.4 }}
-        className="relative w-[95vw] max-w-[1350px] max-h-[92vh]
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="relative w-[95vw] max-w-[1350px] max-h-[92vh]
                    overflow-visible rounded-3xl bg-white
                    shadow-[0_12px_40px_rgba(0,0,0,0.2)]"
-      >
-        {/* 📅 MyScheduleSection */}
-        <MyScheduleSection />
+            >
+              {/* 📅 MyScheduleSection */}
+              <MyScheduleSection />
 
-        {/* ❌ Nút đóng */}
-        <motion.button
-          whileHover={{
-            rotate: [0, -8, 8, -8, 0],
-            transition: { duration: 0.5 },
-          }}
-          onClick={() => setShowMySchedule(false)}
-          className="absolute -top-4 -right-4 w-12 h-12 rounded-full z-[10000]
+              {/* ❌ Nút đóng */}
+              <motion.button
+                whileHover={{
+                  rotate: [0, -8, 8, -8, 0],
+                  transition: { duration: 0.5 },
+                }}
+                onClick={() => setShowMySchedule(false)}
+                className="absolute -top-4 -right-4 w-12 h-12 rounded-full z-[10000]
                      bg-gradient-to-r from-red-500 to-rose-500 text-white 
                      flex items-center justify-center
                      shadow-[0_6px_22px_rgba(244,63,94,0.55)]
@@ -810,17 +808,16 @@ export default function MaintenanceUrgentSection() {
                      hover:scale-110 active:scale-95
                      border-[3px] border-white/90 ring-[3px] ring-white/70
                      transition-all duration-300 ease-out"
-          style={{
-            transform: "translate(6px, -6px)", // đẩy nhẹ ra mép
-          }}
-        >
-          <X className="w-5 h-5" />
-        </motion.button>
-      </motion.div>
-    </motion.div>
-  </AnimatePresence>
-)}
-
+                style={{
+                  transform: "translate(6px, -6px)", // đẩy nhẹ ra mép
+                }}
+              >
+                <X className="w-5 h-5" />
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>
+      )}
     </div>
   );
 }
