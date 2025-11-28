@@ -32,6 +32,8 @@ import AddScheduleSection from "./AddScheduleSection";
 import { X } from "lucide-react";
 import MaintenanceRequestService from "@/services/MaintenanceRequestService";
 import MaintainService from "@/services/MaintainService";
+import BranchService from "@/services/branchService";
+import useAuthRole from "@/hooks/useAuthRole";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -42,6 +44,13 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 /* 🎨 Style mapping trạng thái */
 const STATUS = {
@@ -138,6 +147,7 @@ const mapEvent = async (item) => {
 
 export default function SetScheduleSection() {
   const [events, setEvents] = useState([]);
+  const { isSuperAdmin } = useAuthRole();
   const [cursor, setCursor] = useState(() => new Date()); // mốc hiển thị
   const [selectedDate, setSelectedDate] = useState(new Date()); // ngày được chọn
   const [loading, setLoading] = useState(true);
@@ -153,6 +163,21 @@ export default function SetScheduleSection() {
 
   const [pendingGroups, setPendingGroups] = useState([]);
   const [confirmedGroups, setConfirmedGroups] = useState([]);
+
+  const [branches, setBranches] = useState([]);
+  const [activeBranch, setActiveBranch] = useState("all");
+
+  // load branch
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await BranchService.getAll();
+        setBranches(res || []);
+      } catch (err) {
+        toast.error("Không thể tải danh sách chi nhánh!");
+      }
+    })();
+  }, []);
 
   const handleAssign = async () => {
     try {
@@ -236,10 +261,10 @@ export default function SetScheduleSection() {
       // 🔹 Request Events (đã FIX 100% lỗi cancelled + ghost event)
       const requestEvents = requests
         .filter((r) => !!r.scheduled_at)
-        .filter((r) => {
-          const st = (r.status || "").trim().toLowerCase();
-          return !["cancel", "canceled", "cancelled"].includes(st);
-        })
+        // .filter((r) => {
+        //   const st = (r.status || "").trim().toLowerCase();
+        //   return !["cancel", "canceled", "cancelled"].includes(st);
+        // })
         .map((r) => {
           const status = String(r.status || "")
             .trim()
@@ -251,6 +276,7 @@ export default function SetScheduleSection() {
             id: r.id,
             requestId: r.id,
             type: "request",
+            branchId: r.branch_id,
 
             units: r.units || [],
             image: r.units?.[0]?.equipment_image,
@@ -310,6 +336,11 @@ export default function SetScheduleSection() {
   const filteredEvents = useMemo(() => {
     return events
       .filter((e) => {
+        if (e.type === "plan") return true; // giữ plan cho mọi chi nhánh
+        return activeBranch === "all" || e.branchId === activeBranch;
+      })
+
+      .filter((e) => {
         // ⭐ GIỮ LỊCH VÀNG (plan)
         if (e.type === "plan") return true;
 
@@ -319,16 +350,16 @@ export default function SetScheduleSection() {
           const st2 = (e.status || "").toLowerCase(); // 🟩 THÊM DÒNG NÀY
 
           // ⭐ Loại bỏ tuyệt đối cancelled (UI lẫn API)
-          if (
-            ["cancel", "canceled", "cancelled"].includes(st) ||
-            ["cancel", "canceled", "cancelled"].includes(st2)
-          ) {
-            return false; // 🟩 KHÔNG CHO CANCELLED XUẤT HIỆN
-          }
+          // if (
+          //   ["cancel", "canceled", "cancelled"].includes(st) ||
+          //   ["cancel", "canceled", "cancelled"].includes(st2)
+          // ) {
+          //   return false; // 🟩 KHÔNG CHO CANCELLED XUẤT HIỆN
+          // }
           // ❌ LOẠI LUÔN executed khỏi calendar
-          if (st === "executed" || st2 === "executed") {
-            return false;
-          }
+          // if (st === "executed" || st2 === "executed") {
+          //   return false;
+          // }
 
           // ⭐ Không có ngày → bỏ
           if (!e.start) return false;
@@ -349,7 +380,7 @@ export default function SetScheduleSection() {
 
         return true;
       });
-  }, [events, eventFilter]);
+  }, [events, activeBranch, eventFilter]);
 
   const eventsOfDay = (day) => {
     return filteredEvents
@@ -423,8 +454,10 @@ export default function SetScheduleSection() {
   }, [filteredEvents, inCurrentView, eventFilter]);
 
   const confirmedInView = useMemo(() => {
-    let base = events.filter((e) => {
+    let base = filteredEvents.filter((e) => {
       const st = (e.requestStatus || "").toLowerCase();
+      // 🔥 Filter theo chi nhánh
+      if (activeBranch !== "all" && e.branchId !== activeBranch) return false;
       return (
         e.type === "request" &&
         st === "confirmed" &&
@@ -438,19 +471,21 @@ export default function SetScheduleSection() {
     if (eventFilter === "confirmed") return base;
 
     return base;
-  }, [events, inCurrentView, eventFilter]);
+  }, [filteredEvents, inCurrentView, eventFilter, activeBranch]);
 
   const historyInView = useMemo(() => {
-    return events.filter((e) => {
+    return filteredEvents.filter((e) => {
       const st = (e.requestStatus || "").toLowerCase();
+
+      if (activeBranch !== "all" && e.branchId !== activeBranch) return false;
+
       return (
         e.type === "request" &&
-        st === "executed" && // lịch sử
-        !["cancel", "canceled", "cancelled"].includes(st) &&
+        (st === "executed" || st === "cancelled" || st === "canceled") &&
         inCurrentView(e)
       );
     });
-  }, [events, inCurrentView]);
+  }, [filteredEvents, inCurrentView, activeBranch]);
 
   // 🔹 Tab đang chọn ("pending" hoặc "confirmed")
   const [activeTab, setActiveTab] = useState("pending");
@@ -516,13 +551,10 @@ export default function SetScheduleSection() {
 
       // 🟩 Xóa toàn bộ event cùng ngày
       setEvents((prev) =>
-        prev.filter(
-          (e) =>
-            !(
-              e.type === "request" &&
-              e.start &&
-              isSameDay(e.start, cancelledDate)
-            )
+        prev.map((e) =>
+          e.id === requestId
+            ? { ...e, requestStatus: "cancelled", status: "cancelled" }
+            : e
         )
       );
 
@@ -642,6 +674,38 @@ export default function SetScheduleSection() {
             Hôm nay
           </button>
         </div>
+        {/* === Chi nhánh === */}
+        {isSuperAdmin && (
+          <div className="ml-3">
+            <Select
+              onValueChange={(v) => setActiveBranch(v)}
+              defaultValue="all"
+            >
+              <SelectTrigger className="h-9 w-40 text-sm bg-white text-slate-700 border border-white/40">
+                <SelectValue placeholder="Chi nhánh" />
+              </SelectTrigger>
+
+              <SelectContent className="z-[9999] bg-white border border-gray-200 shadow-lg">
+                <SelectItem
+                  value="all"
+                  className="bg-white hover:bg-gray-100 text-slate-700"
+                >
+                  Tất cả chi nhánh
+                </SelectItem>
+
+                {branches.map((b) => (
+                  <SelectItem
+                    key={b.id}
+                    value={b.id}
+                    className="bg-white hover:bg-gray-100 text-slate-700"
+                  >
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {/* Right: View switch + Create */}
         <div className="flex items-center gap-2 mt-3 md:mt-0">
@@ -1238,155 +1302,214 @@ export default function SetScheduleSection() {
                         </div>
                       ) : (
                         groupedPending
-                          .sort((a, b) => a.start - b.start)
+                          .sort((a, b) => {
+                            const now = new Date();
+
+                            const aStart = new Date(a.start);
+                            const bStart = new Date(b.start);
+
+                            const aExpired = aStart < now;
+                            const bExpired = bStart < now;
+
+                            // 1️⃣ Việc còn hạn luôn ở trên → quá hạn xuống cuối
+                            if (aExpired && !bExpired) return 1;
+                            if (!aExpired && bExpired) return -1;
+
+                            // 2️⃣ Hai việc đều còn hạn → cái nào gần hết hạn hơn lên trước
+                            const diffA = Math.abs(aStart - now);
+                            const diffB = Math.abs(bStart - now);
+
+                            return diffA - diffB;
+                          })
                           .map((group) => (
                             <motion.div
                               id={`card-${group.id}`}
                               whileHover={{ scale: 1.02 }}
                               key={group.id}
-                              className={`relative p-3 rounded-xl border bg-white hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition ${
-                                group.requestStatus === "pending"
-                                  ? "border-cyan-300"
-                                  : "border-emerald-300"
-                              }`}
+                              className="relative"
                             >
-                              <div className="flex flex-col gap-2">
-                                {/* ID */}
-                                <div className="text-cyan-700 font-semibold text-sm">
-                                  {group.id}
-                                </div>
-
-                                {/* số lượng + chip */}
-                                <div className="flex items-center justify-between">
-                                  <div className="text-xs text-slate-600">
-                                    ({group.units?.length || 1} thiết bị)
-                                  </div>
-
-                                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
-                                    ⏳ Chờ đảm nhận
-                                  </span>
-                                </div>
-
-                                {/* image + info */}
-                                <div className="flex items-start gap-3 mt-1">
-                                  <img
-                                    src={group.image}
-                                    className="w-12 h-12 rounded-lg border object-cover"
-                                  />
-
-                                  <div className="text-[12px] flex flex-col gap-1 text-slate-600">
-                                    <div>
-                                      🕒{" "}
-                                      {format(group.start, "dd/MM/yyyy HH:mm", {
-                                        locale: vi,
-                                      })}
-                                    </div>
-                                    <div>
-                                      📌 {group.maintenance_reason || "—"}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Buttons */}
-                                <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedRequest(group);
-                                        setAssignMode("confirm");
-                                        setAssignOpen(true);
-                                      }}
-                                      disabled={
-                                        new Date(group.start) < new Date()
-                                      }
-                                      className={`text-white text-xs font-medium px-3 py-1
-                                      ${
-                                        new Date(group.start) < new Date()
-                                          ? "bg-slate-300 cursor-not-allowed"
-                                          : "bg-cyan-500 hover:bg-cyan-600"
-                                      }
-                                    `}
-                                    >
-                                      🧰 Đảm nhận
-                                    </Button>
-
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setEditingRequest(group);
-                                        setShowForm(true);
-                                      }}
-                                      className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium px-3 py-1"
-                                    >
-                                      ✏️ Cập nhật
-                                    </Button>
-
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedRequest(group);
-                                        setCancelMode("confirm");
-                                        setCancelOpen(true);
-                                      }}
-                                      className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-3 py-1"
-                                    >
-                                      Hủy lịch
-                                    </Button>
-                                  </div>
-
-                                  <button
-                                    onClick={() =>
-                                      setExpandedRequest((prev) =>
-                                        prev === group.id ? null : group.id
-                                      )
-                                    }
-                                    className="text-xs text-slate-600 hover:text-cyan-600 underline transition"
-                                  >
-                                    {expandedRequest === group.id
-                                      ? "Ẩn chi tiết thiết bị ▲"
-                                      : "Chi tiết các thiết bị ▼"}
-                                  </button>
-                                </div>
-
-                                {/* DETAIL TABLE */}
-                                {expandedRequest === group.id && (
-                                  <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
-                                    <table className="w-full text-xs border-collapse">
-                                      <thead className="bg-cyan-100/70 text-slate-700 font-semibold">
-                                        <tr>
-                                          <th className="px-3 py-2 text-left">
-                                            Mã định danh
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Trạng thái
-                                          </th>
-                                          <th className="px-3 py-2 text-left">
-                                            Bảo trì gần nhất
-                                          </th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {(group.units || []).map((u) => (
-                                          <tr
-                                            key={u.id}
-                                            className="border-t hover:bg-cyan-50 transition"
-                                          >
-                                            <td className="px-3 py-2 font-medium">
-                                              {u.id}
-                                            </td>
-                                            <td className="px-3 py-2">
-                                              {u.status || "—"}
-                                            </td>
-                                            <td className="px-3 py-2 text-slate-600">
-                                              {u.lastMaintenance || "—"}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
+                              {/* ⭐ Viền pulse khi còn <= 3 giờ nữa đến hạn ⭐ */}
+                              {new Date(group.start) - new Date() <=
+                                3 * 60 * 60 * 1000 &&
+                                new Date(group.start) > new Date() && (
+                                  <div className="absolute inset-0 rounded-xl ring-2 ring-red-400 animate-[pulse_1.4s_ease-in-out_infinite] pointer-events-none"></div>
                                 )}
+
+                              {/* ⭐ CARD CHÍNH – không pulse ⭐ */}
+                              <div
+                                className={`
+                                  relative p-3 rounded-xl border bg-white 
+                                  hover:bg-cyan-50/60 shadow-sm hover:shadow-md transition
+                                  ${
+                                    group.requestStatus === "pending"
+                                      ? "border-cyan-300"
+                                      : "border-emerald-300"
+                                  }
+                                `}
+                              >
+                                <div className="flex flex-col gap-2">
+                                  {/* ID */}
+                                  <div className="text-cyan-700 font-semibold text-sm">
+                                    {group.id}
+                                  </div>
+
+                                  {/* số lượng + chip */}
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-xs text-slate-600">
+                                      ({group.units?.length || 1} thiết bị)
+                                    </div>
+
+                                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">
+                                      ⏳ Chờ đảm nhận
+                                    </span>
+                                  </div>
+
+                                  {/* ảnh + info */}
+                                  <div className="flex items-start gap-3 mt-1">
+                                    <img
+                                      src={group.image}
+                                      className="w-12 h-12 rounded-lg border object-cover"
+                                    />
+
+                                    <div className="text-[12px] flex flex-col gap-1 text-slate-600">
+                                      <div className="font-semibold text-emerald-700">
+                                        📍 Chi nhánh:{" "}
+                                        {group.branchId || group.branch || "—"}
+                                      </div>
+
+                                      <div
+                                        className={
+                                          new Date(group.start) - new Date() <=
+                                            3 * 60 * 60 * 1000 &&
+                                          new Date(group.start) > new Date()
+                                            ? "text-red-500 font-semibold"
+                                            : "text-slate-600"
+                                        }
+                                      >
+                                        🕒{" "}
+                                        {format(
+                                          group.start,
+                                          "dd/MM/yyyy HH:mm",
+                                          { locale: vi }
+                                        )}
+                                        {new Date(group.start) - new Date() <=
+                                          3 * 60 * 60 * 1000 &&
+                                          new Date(group.start) >
+                                            new Date() && (
+                                            <span className="ml-1 text-red-500 font-semibold">
+                                              (Sắp đến hạn)
+                                            </span>
+                                          )}
+                                      </div>
+
+                                      <div>
+                                        📌 {group.maintenance_reason || "—"}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Buttons */}
+                                  <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                                    <div className="flex items-center gap-2">
+                                      {/* ❌ Nếu đã quá thời hạn */}
+                                      {new Date(group.start) < new Date() ? (
+                                        <div
+                                          className="flex items-center gap-1 text-red-500 text-xs font-semibold cursor-not-allowed"
+                                          title="Đã quá thời hạn"
+                                        >
+                                          ❌ Đã quá thời hạn
+                                        </div>
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            setSelectedRequest(group);
+                                            setAssignMode("confirm");
+                                            setAssignOpen(true);
+                                          }}
+                                          className="bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-medium px-3 py-1"
+                                        >
+                                          🧰 Đảm nhận
+                                        </Button>
+                                      )}
+
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingRequest(group);
+                                          setShowForm(true);
+                                        }}
+                                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium px-3 py-1"
+                                      >
+                                        ✏️ Cập nhật
+                                      </Button>
+
+                                      <Button
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedRequest(group);
+                                          setCancelMode("confirm");
+                                          setCancelOpen(true);
+                                        }}
+                                        className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-3 py-1"
+                                      >
+                                        Hủy lịch
+                                      </Button>
+                                    </div>
+
+                                    <button
+                                      onClick={() =>
+                                        setExpandedRequest((prev) =>
+                                          prev === group.id ? null : group.id
+                                        )
+                                      }
+                                      className="text-xs text-slate-600 hover:text-cyan-600 underline transition"
+                                    >
+                                      {expandedRequest === group.id
+                                        ? "Ẩn chi tiết thiết bị ▲"
+                                        : "Chi tiết các thiết bị ▼"}
+                                    </button>
+                                  </div>
+
+                                  {/* DETAIL TABLE */}
+                                  {expandedRequest === group.id && (
+                                    <div className="mt-3 border border-cyan-200 rounded-lg overflow-hidden">
+                                      <table className="w-full text-xs border-collapse">
+                                        <thead className="bg-cyan-100/70 text-slate-700 font-semibold">
+                                          <tr>
+                                            <th className="px-3 py-2 text-left">
+                                              Mã định danh
+                                            </th>
+                                            <th className="px-3 py-2 text-left">
+                                              Trạng thái
+                                            </th>
+                                            <th className="px-3 py-2 text-left">
+                                              Bảo trì gần nhất
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {(group.units || []).map((u) => (
+                                            <tr
+                                              key={u.id}
+                                              className="border-t hover:bg-cyan-50 transition"
+                                            >
+                                              <td className="px-3 py-2 font-medium">
+                                                {u.id}
+                                              </td>
+                                              <td className="px-3 py-2">
+                                                {u.status || "—"}
+                                              </td>
+                                              <td className="px-3 py-2 text-slate-600">
+                                                {u.lastMaintenance || "—"}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </motion.div>
                           ))
@@ -1435,6 +1558,10 @@ export default function SetScheduleSection() {
                                 />
 
                                 <div className="flex flex-col gap-1 text-[12px] text-slate-600">
+                                  <div className="font-semibold text-emerald-700">
+                                    📍 Chi nhánh:{" "}
+                                    {group.branchId || group.branch || "—"}
+                                  </div>
                                   <div>
                                     👨‍🔧{" "}
                                     {group.confirmed_by_name ||
@@ -1526,9 +1653,13 @@ export default function SetScheduleSection() {
                             id={`card-${group.id}`}
                             whileHover={{ scale: 1.02 }}
                             key={group.id}
-                            className="relative p-3 rounded-xl border bg-white 
-                  border-purple-300 hover:bg-purple-50/60
-                  shadow-sm hover:shadow-md transition"
+                            className={`relative p-3 rounded-xl border bg-white shadow-sm hover:shadow-md transition
+  ${
+    group.requestStatus === "cancelled" || group.status === "cancelled"
+      ? "border-red-300 hover:bg-red-50/60"
+      : "border-purple-300 hover:bg-purple-50/60"
+  }
+`}
                           >
                             <div className="flex flex-col gap-2">
                               <div className="text-purple-700 font-semibold text-sm">
@@ -1540,8 +1671,20 @@ export default function SetScheduleSection() {
                                   ({group.units?.length || 1} thiết bị)
                                 </div>
 
-                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 border border-purple-200">
-                                  ✔️ Đã đảm nhận
+                                <span
+                                  className={`text-[11px] px-2 py-0.5 rounded-md border
+                                  ${
+                                    group.requestStatus === "cancelled" ||
+                                    group.status === "cancelled"
+                                      ? "bg-red-100 text-red-700 border-red-300"
+                                      : "bg-purple-100 text-purple-700 border-purple-200"
+                                  }
+                                `}
+                                >
+                                  {group.requestStatus === "cancelled" ||
+                                  group.status === "cancelled"
+                                    ? "❌ Đã hủy lịch"
+                                    : "✔️ Đã đảm nhận"}
                                 </span>
                               </div>
 
@@ -1552,12 +1695,28 @@ export default function SetScheduleSection() {
                                 />
 
                                 <div className="flex flex-col text-[12px] text-slate-600 gap-1">
-                                  <div>
-                                    👨‍🔧{" "}
-                                    {group.confirmed_by_name ||
-                                      group.candidate_tech_name ||
-                                      "—"}
+                                  <div className="font-semibold text-emerald-700">
+                                    📍 Chi nhánh:{" "}
+                                    {group.branchId || group.branch || "—"}
                                   </div>
+                                  {![
+                                    "cancelled",
+                                    "canceled",
+                                    "cancel",
+                                  ].includes(
+                                    (
+                                      group.requestStatus ||
+                                      group.status ||
+                                      ""
+                                    ).toLowerCase()
+                                  ) && (
+                                    <div>
+                                      👨‍🔧{" "}
+                                      {group.confirmed_by_name ||
+                                        group.candidate_tech_name ||
+                                        "—"}
+                                    </div>
+                                  )}
 
                                   <div>
                                     🕒{" "}
@@ -1579,7 +1738,14 @@ export default function SetScheduleSection() {
                                       prev === group.id ? null : group.id
                                     )
                                   }
-                                  className="text-xs text-slate-600 hover:text-purple-600 underline transition"
+                                  className={`text-xs underline transition
+                                    ${
+                                      group.requestStatus === "cancelled" ||
+                                      group.status === "cancelled"
+                                        ? "text-slate-600 hover:text-red-600"
+                                        : "text-slate-600 hover:text-purple-600"
+                                    }
+                                  `}
                                 >
                                   {expandedRequest === group.id
                                     ? "Ẩn chi tiết thiết bị ▲"
@@ -1603,6 +1769,7 @@ export default function SetScheduleSection() {
                                         </th>
                                       </tr>
                                     </thead>
+
                                     <tbody>
                                       {(group.units || []).map((u) => (
                                         <tr
@@ -1612,11 +1779,14 @@ export default function SetScheduleSection() {
                                           <td className="px-3 py-2 font-medium">
                                             {u.id}
                                           </td>
+
                                           <td className="px-3 py-2">
                                             {u.status || "—"}
                                           </td>
+
                                           <td className="px-3 py-2 text-slate-600">
-                                            {u.lastMaintenance || "—"}
+                                            {/* ⭐ giống Chờ nhận — load đúng lastMaintenance */}
+                                            {u.lastMaintenance || "Chưa có"}
                                           </td>
                                         </tr>
                                       ))}
