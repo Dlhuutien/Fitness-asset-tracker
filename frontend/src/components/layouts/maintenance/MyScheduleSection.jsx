@@ -14,8 +14,15 @@ import {
   ChevronRight,
   CalendarDays,
 } from "lucide-react";
-
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import MaintenanceRequestService from "@/services/MaintenanceRequestService";
+import BranchService from "@/services/branchService";
 import {
   format,
   startOfWeek,
@@ -31,6 +38,7 @@ import {
 } from "date-fns";
 import { vi } from "date-fns/locale";
 console.log(">>> MyScheduleSection.jsx LOADED 1", Date.now());
+import useAuthRole from "@/hooks/useAuthRole";
 
 // =============== CONSTANTS & HELPERS ===============
 
@@ -349,6 +357,21 @@ export default function MyScheduleSection() {
   const [collapseTechBar, setCollapseTechBar] = useState(false);
   const [collapseStats, setCollapseStats] = useState(false);
 
+  const [branches, setBranches] = useState([]);
+  const [activeBranch, setActiveBranch] = useState("all");
+  const { isSuperAdmin } = useAuthRole();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await BranchService.getAll();
+        setBranches(res || []);
+      } catch (err) {
+        console.warn("Không thể tải danh sách chi nhánh");
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     try {
       const auth = JSON.parse(localStorage.getItem("ftc_auth"));
@@ -432,42 +455,52 @@ export default function MyScheduleSection() {
   const scheduleData = useMemo(() => {
     if (!Array.isArray(rawData)) return [];
 
-    return rawData
-      .filter(isScheduleVisible)
-      .map((item) => {
-        const unit =
-          Array.isArray(item.units) && item.units.length > 0
-            ? item.units[0]
-            : null;
+    return (
+      rawData
+        .filter(isScheduleVisible)
+        .map((item) => {
+          const unit =
+            Array.isArray(item.units) && item.units.length > 0
+              ? item.units[0]
+              : null;
 
-        const start =
-          item.start_date || item.scheduled_at || item.created_at || null;
+          const start =
+            item.start_date || item.scheduled_at || item.created_at || null;
 
-        return {
-          ...item,
-          start_date: start,
-          end_date: item.end_date || null,
-          equipment_name:
-            item.equipment_name ||
-            unit?.equipment_name ||
-            unit?.equipment_line_name ||
-            null,
-          equipment_unit_id:
-            item.equipment_unit_id ||
-            unit?.id ||
-            unit?.equipment_unit_id ||
-            null,
-          branch_id:
-            item.branch_id || unit?.branch_id || unit?.branch_name || null,
-          technician_name:
-            item.technician_name ||
-            item.confirmed_by_name ||
-            item.candidate_tech_name ||
-            "Chưa có thông tin",
-        };
-      })
-      .filter((i) => i.start_date);
-  }, [rawData]);
+          const realBranchId = unit?.branch_id || item.branch_id || null;
+
+          return {
+            ...item,
+            start_date: start,
+            end_date: item.end_date || null,
+            equipment_name:
+              item.equipment_name ||
+              unit?.equipment_name ||
+              unit?.equipment_line_name ||
+              null,
+            equipment_unit_id:
+              item.equipment_unit_id ||
+              unit?.id ||
+              unit?.equipment_unit_id ||
+              null,
+
+            // ⭐ Gán branch_id CHUẨN ở đây
+            branch_id: realBranchId,
+
+            technician_name:
+              item.technician_name ||
+              item.confirmed_by_name ||
+              item.candidate_tech_name ||
+              "Chưa có thông tin",
+          };
+        })
+
+        // ⭐ Lọc CHI NHÁNH Ở ĐÂY — SAU MAP
+        .filter((i) => activeBranch === "all" || i.branch_id === activeBranch)
+
+        .filter((i) => i.start_date)
+    );
+  }, [rawData, activeBranch]);
 
   // 👤 Thống kê lịch mà chính user hiện tại phụ trách (toàn hệ thống)
   const myStats = useMemo(() => {
@@ -866,7 +899,7 @@ export default function MyScheduleSection() {
   return (
     <div
       id="myschedule-panel"
-      className="relative flex max-h-[82vh] flex-col overflow-y-auto rounded-3xl border bg-slate-50/80"
+      className="relative flex h-[82vh] flex-col overflow-y-auto overflow-x-hidden rounded-3xl border bg-slate-50/80"
     >
       {/* ===== HEADER PREMIUM — PHOSPHOR ICON ===== */}
       <div className="flex min-h-[100px] max-h-[100px] items-center justify-between border-b border-slate-200 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 px-8 shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
@@ -899,6 +932,39 @@ export default function MyScheduleSection() {
               </div>
             )}
           </div>
+
+          {/* === Dropdown chọn chi nhánh giống SetSchedule === */}
+          {isSuperAdmin && (
+            <div className="ml-5">
+              <Select
+                onValueChange={(v) => setActiveBranch(v)}
+                defaultValue="all"
+              >
+                <SelectTrigger className="h-8 w-40 text-sm bg-white text-slate-700 border border-white/40">
+                  <SelectValue placeholder="Chi nhánh" />
+                </SelectTrigger>
+
+                <SelectContent className="z-[9999] bg-white border border-gray-200 shadow-lg">
+                  <SelectItem
+                    value="all"
+                    className="bg-white hover:bg-gray-100 text-slate-700"
+                  >
+                    Tất cả chi nhánh
+                  </SelectItem>
+
+                  {branches.map((b) => (
+                    <SelectItem
+                      key={b.id}
+                      value={b.id}
+                      className="bg-white hover:bg-gray-100 text-slate-700"
+                    >
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         {/* RIGHT — MODE SWITCH */}
@@ -939,7 +1005,8 @@ export default function MyScheduleSection() {
       </div>
 
       {/* ===== 3) STATS + LỊCH ===== */}
-      <div className="flex flex-1 flex-col gap-3 overflow-hidden px-4 pb-4 pt-3">
+      {/* <div className="flex flex-1 flex-col gap-3 overflow-hidden px-4 pb-4 pt-3"> */}
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-3">
         {/* ===== HEADER PANEL COLLAPSIBLE ===== */}
         <div
           className={`relative border-b border-slate-200 bg-slate-50/80 transition-all duration-300
@@ -1096,7 +1163,7 @@ export default function MyScheduleSection() {
         </div>
 
         {/* MAIN AREA */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1">
           {!selectedGroup ? (
             <div className="flex h-full items-center justify-center text-xs text-slate-400">
               Chọn một kỹ thuật viên ở thanh bên trên để xem lịch bảo trì.
