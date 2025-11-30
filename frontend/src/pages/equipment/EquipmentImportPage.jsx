@@ -215,7 +215,7 @@ export default function EquipmentImportPage({
       }
     } catch (err) {
       console.error("❌ Lỗi nhập hàng:", err);
-      toast.error("Không thể tạo hóa đơn nhập hàng!");
+      toast.error("Không thể tạo phiếu nhập hàng!");
       setOverlayOpen(false);
     } finally {
       setLoadingSubmit(false);

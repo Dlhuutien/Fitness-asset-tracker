@@ -401,6 +401,55 @@ const equipmentTransferService = {
     return { transfer, details };
   },
 
+  cancelTransfer: async (id, description_cancelled, userSub) => {
+    const existing = await equipmentTransferRepository.findById(id);
+    if (!existing) throw new Error("EquipmentTransfer not found");
+
+    if (existing.status === "Completed") {
+      throw new Error("Cannot cancel a completed transfer");
+    }
+    if (existing.status === "Cancelled") {
+      throw new Error("Already cancelled");
+    }
+
+    const transfer = await equipmentTransferRepository.cancel(
+      id,
+      description_cancelled,
+      userSub
+    );
+
+    return transfer;
+  },
+
+  confirmCancelTransfer: async (id, userSub) => {
+    const existing = await equipmentTransferRepository.findById(id);
+    if (!existing) throw new Error("EquipmentTransfer not found");
+
+    if (existing.status !== "CancelRequested") {
+      throw new Error("Transfer not waiting for cancel confirmation");
+    }
+
+    // Lấy toàn bộ chi tiết
+    const details = await equipmentTransferDetailRepository.findByTransferId(
+      id
+    );
+
+    // Trả từng unit từ Moving → In Stock
+    for (const d of details) {
+      await equipmentUnitRepository.update(d.equipment_unit_id, {
+        status: "In Stock",
+      });
+    }
+
+    // Cập nhật transfer → Cancelled
+    const transfer = await equipmentTransferRepository.confirmCancel(
+      id,
+      userSub
+    );
+
+    return { transfer, details };
+  },
+
   // ===================================================
   // 🗑 DELETE TRANSFER
   // ===================================================

@@ -105,6 +105,56 @@ const EquipmentTransferModel = {
     return result.Attributes;
   },
 
+  cancelTransfer: async (id, description_cancelled, receiverId) => {
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: tableName,
+        Key: { id },
+        UpdateExpression:
+          "set #s = :status, #dc = :desc_cancel, #cancel_at = :cancelAt, #recv = :receiver",
+        ExpressionAttributeNames: {
+          "#s": "status",
+          "#dc": "description_cancelled",
+          "#cancel_at": "cancel_requested_at",
+          "#recv": "receiver_id",
+        },
+        ExpressionAttributeValues: {
+          ":status": "CancelRequested",
+          ":desc_cancel": description_cancelled || null,
+          ":cancelAt": new Date().toISOString(),
+          ":receiver": receiverId,
+        },
+        ReturnValues: "ALL_NEW",
+      })
+    );
+
+    return result.Attributes;
+  },
+
+  confirmCancelTransfer: async (id, userSub) => {
+    const result = await dynamodb.send(
+      new UpdateCommand({
+        TableName: tableName,
+        Key: { id },
+        UpdateExpression:
+          "set #s = :status, #cancelBy = :cancelBy, #cancelAt = :cancelAt",
+        ExpressionAttributeNames: {
+          "#s": "status",
+          "#cancelBy": "cancelled_by",
+          "#cancelAt": "cancelled_at",
+        },
+        ExpressionAttributeValues: {
+          ":status": "Cancelled",
+          ":cancelBy": userSub,
+          ":cancelAt": new Date().toISOString(),
+        },
+        ReturnValues: "ALL_NEW",
+      })
+    );
+
+    return result.Attributes;
+  },
+
   // DELETE
   deleteTransfer: async (id) => {
     await dynamodb.send(

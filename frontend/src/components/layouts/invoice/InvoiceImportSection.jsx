@@ -278,7 +278,7 @@ export default function InvoiceImportSection() {
         }, {});
         setInvoices(Object.values(grouped));
       } catch (err) {
-        console.error("❌ Lỗi khi load danh sách hóa đơn:", err);
+        console.error("❌ Lỗi khi load danh sách phiếu nhập:", err);
       } finally {
         setLoading(false);
       }
@@ -385,7 +385,7 @@ export default function InvoiceImportSection() {
   if (loading)
     return (
       <div className="text-center py-10 text-gray-500">
-        Đang tải danh sách hóa đơn...
+        Đang tải danh sách phiếu nhập...
       </div>
     );
 
@@ -396,7 +396,7 @@ export default function InvoiceImportSection() {
         <div className="flex items-center gap-2">
           <FileText className="text-emerald-500" />
           <h2 className="text-lg font-semibold text-emerald-600">
-            📦 Danh sách hóa đơn nhập
+            📦 Danh sách phiếu nhập thiết bị
           </h2>
         </div>
 
@@ -415,7 +415,7 @@ export default function InvoiceImportSection() {
             visibleColumns={visibleColumns}
             setVisibleColumns={setVisibleColumns}
             labels={{
-              id: "Mã hóa đơn",
+              id: "Mã phiếu",
               user: "Người tạo",
               branch: "Chi nhánh",
               total: "Tổng tiền",
@@ -488,7 +488,7 @@ export default function InvoiceImportSection() {
               {visibleColumns.id && (
                 <TableHead>
                   <HeaderFilter
-                    label="Mã hóa đơn"
+                    label="Mã phiếu"
                     values={allIds}
                     selected={filterId}
                     onChange={setFilterId}
@@ -554,7 +554,7 @@ export default function InvoiceImportSection() {
                   colSpan={7}
                   className="text-center py-4 text-gray-500"
                 >
-                  Không tìm thấy hóa đơn nào.
+                  Không tìm thấy phiếu nhập nào.
                 </TableCell>
               </TableRow>
             ) : (

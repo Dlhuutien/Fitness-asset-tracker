@@ -795,7 +795,6 @@ export default function EquipmentDisposalPage() {
       {showSuccessModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 animate-fadeIn">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 w-[420px] text-center">
-            {/* 🎉 Icon đơn giản */}
             <div className="text-5xl mb-3 animate-bounce">🎉</div>
 
             <h2 className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
