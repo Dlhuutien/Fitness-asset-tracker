@@ -37,6 +37,18 @@ router.put(
   equipmentTransferController.completeTransfer
 );
 
+router.put(
+  "/:id/cancel",
+  verifyAccessToken,
+  equipmentTransferController.cancelTransfer
+);
+
+router.put(
+  "/:id/cancel/confirm",
+  verifyAccessToken,
+  equipmentTransferController.confirmCancelTransfer
+);
+
 // DELETE
 router.delete(
   "/:id",

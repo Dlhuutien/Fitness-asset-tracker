@@ -35,6 +35,7 @@ const ITEMS_PER_PAGE = 8;
 
 const STATUS_BADGE = {
   pending: "Đang điều chuyển",
+  cancelrequested: "Chờ xác nhận hủy",
   completed: "Đã hoàn tất",
 };
 const UNIT_STATUS_LABELS = {
@@ -61,6 +62,13 @@ export default function TransferPendingSection() {
   const [refreshing, setRefreshing] = useState(false);
   const { isSuperAdmin, branchId } = useAuthRole();
 
+  const [showReceiveForm, setShowReceiveForm] = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmCancelling, setConfirmCancelling] = useState(false);
+
   // excel tools
   const controller = useGlobalFilterController();
   const [filters, setFilters] = useState({
@@ -86,9 +94,10 @@ export default function TransferPendingSection() {
         EquipmentTransferService.getAll(),
         BranchService.getAll(),
       ]);
-      const list = (t || []).filter(
-        (x) => (x.status || "").toLowerCase() !== "completed"
-      );
+      const list = (t || []).filter((x) => {
+        const st = (x.status || "").toLowerCase();
+        return st === "pending" || st === "cancelrequested";
+      });
       setTransfers(list);
       setFiltered(list);
       setBranches(b || []);
@@ -213,6 +222,27 @@ export default function TransferPendingSection() {
       setTimeout(() => setErrorMsg(""), 5000);
     } finally {
       setCompleting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      setCancelling(true);
+
+      await EquipmentTransferService.cancel(selected.id, cancelReason);
+
+      toast.success("❌ Đã hủy điều chuyển!");
+
+      setSelected(null);
+      setShowReceiveForm(false);
+      setShowCancelForm(false);
+      setCancelReason("");
+
+      loadData(true);
+    } catch (err) {
+      toast.error(err.error || "Hủy điều chuyển thất bại");
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -343,7 +373,12 @@ export default function TransferPendingSection() {
                 return (
                   <TableRow
                     key={row.id}
-                    onClick={() => setSelected(row)}
+                    onClick={() => {
+                      setSelected(row);
+                      setShowReceiveForm(false);
+                      setShowCancelForm(false);
+                      setCancelReason("");
+                    }}
                     className={`cursor-pointer transition ${
                       selected?.id === row.id
                         ? "bg-emerald-50 dark:bg-emerald-900/30"
@@ -524,58 +559,162 @@ export default function TransferPendingSection() {
             </div>
           </div>
 
-          {/* Ngày hoàn tất + Nút hoàn tất */}
-          {(isSuperAdmin ||
-            selected.to_branch_id === branchId) && (
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Ngày hoàn tất điều chuyển:
-                </label>
-                <input
-                  type="datetime-local"
-                  value={selected.move_receive_date || ""}
-                  min={
-                    selected.move_start_date
-                      ? new Date(selected.move_start_date)
-                          .toISOString()
-                          .slice(0, 16) // ✅ ISO → yyyy-MM-ddTHH:mm
-                      : undefined
-                  }
-                  onChange={(e) =>
-                    setSelected((prev) => ({
-                      ...prev,
-                      move_receive_date: e.target.value,
-                    }))
-                  }
-                  className="mt-1 w-full border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none"
-                />
-                {selected.move_start_date && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Ngày bắt đầu:{" "}
-                    {new Date(selected.move_start_date).toLocaleString("vi-VN")}
-                  </p>
-                )}
-              </div>
+          {/* ==== NÚT NHẬN / HỦY ===== */}
+          {selected.status?.toLowerCase() === "pending" && (
+            <div className="flex gap-3 mt-4">
+              <Button
+                onClick={() => {
+                  setShowReceiveForm(true);
+                  setShowCancelForm(false);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+              >
+                Nhận thiết bị
+              </Button>
 
               <Button
-                onClick={() =>
-                  handleComplete({
-                    id: selected.id,
-                    move_receive_date:
-                      selected.move_receive_date || new Date().toISOString(),
-                  })
-                }
-                disabled={completing}
-                className="w-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white"
+                onClick={() => {
+                  setShowCancelForm(true);
+                  setShowReceiveForm(false);
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white flex-1"
               >
-                {completing ? (
+                Hủy nhận thiết bị
+              </Button>
+            </div>
+          )}
+
+          {/* ==== GHI CHÚ + NÚT XÁC NHẬN HỦY (DÀNH CHO CHI NHÁNH GỬI) ==== */}
+          {selected.status?.toLowerCase() === "cancelrequested" &&
+            (isSuperAdmin || selected.from_branch_id === branchId) && (
+              <div className="mt-4 space-y-3 border-l-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-md">
+                <div className="text-sm text-yellow-800 dark:text-yellow-300 font-medium">
+                  Thiết bị đã được chi nhánh nhận yêu cầu hủy với lý do:
+                </div>
+
+                <div className="text-sm italic text-gray-800 dark:text-gray-200 bg-white/70 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700">
+                  {selected.description_cancelled || "Không có lý do"}
+                </div>
+
+                <div className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                  Vui lòng xác nhận để thiết bị quay về kho của chi nhánh.
+                </div>
+
+                <Button
+                  onClick={async () => {
+                    try {
+                      setConfirmCancelling(true);
+
+                      await EquipmentTransferService.confirmCancel(selected.id);
+
+                      toast.success(
+                        "Đã xác nhận hủy. Thiết bị đã quay về kho."
+                      );
+                      setSelected(null);
+                      loadData(true);
+                    } catch (e) {
+                      toast.error(e?.error || "Xác nhận hủy thất bại.");
+                    } finally {
+                      setConfirmCancelling(false);
+                    }
+                  }}
+                  disabled={confirmCancelling}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white w-full flex items-center justify-center"
+                >
+                  {confirmCancelling ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Đang xác nhận...
+                    </>
+                  ) : (
+                    "Xác nhận hủy điều chuyển"
+                  )}
+                </Button>
+              </div>
+            )}
+
+          {showReceiveForm && (
+            <div className="mt-4 space-y-3 border-l-4 border-blue-500 pl-4">
+              {/* Y CHANG FORM CŨ — GIỮ NGUYÊN */}
+              {/* Ngày hoàn tất + Nút hoàn tất */}
+              {(isSuperAdmin || selected.to_branch_id === branchId) && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Ngày hoàn tất điều chuyển:
+                    </label>
+
+                    <input
+                      type="datetime-local"
+                      value={selected.move_receive_date || ""}
+                      min={
+                        selected.move_start_date
+                          ? new Date(selected.move_start_date)
+                              .toISOString()
+                              .slice(0, 16)
+                          : undefined
+                      }
+                      onChange={(e) =>
+                        setSelected((prev) => ({
+                          ...prev,
+                          move_receive_date: e.target.value,
+                        }))
+                      }
+                      className="mt-1 w-full border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 outline-none"
+                    />
+                  </div>
+
+                  <Button
+                    onClick={() =>
+                      handleComplete({
+                        id: selected.id,
+                        move_receive_date:
+                          selected.move_receive_date ||
+                          new Date().toISOString(),
+                      })
+                    }
+                    disabled={completing}
+                    className="w-full flex items-center justify-center bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    {completing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Đang xác nhận...
+                      </>
+                    ) : (
+                      "Đã điều chuyển thành công"
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {showCancelForm && (
+            <div className="mt-4 space-y-3 border-l-4 border-red-500 pl-4">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Lý do hủy điều chuyển:
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                className="w-full border border-gray-300 dark:border-gray-700 rounded-md px-3 py-2 text-sm bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none"
+                placeholder="Nhập lý do hủy..."
+              ></textarea>
+
+              <Button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="bg-red-600 hover:bg-red-700 text-white w-full flex items-center justify-center"
+              >
+                {cancelling ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Đang xác nhận...
+                    Đang hủy...
                   </>
                 ) : (
-                  "✅ Đã điều chuyển thành công"
+                  "Xác nhận hủy"
                 )}
               </Button>
             </div>

@@ -175,7 +175,7 @@ export default function NotificationScreen() {
           className="px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-800 text-sm"
         >
           <option value="all">Tất cả loại</option>
-          <option value="invoice">Hóa đơn</option>
+          <option value="invoice">Nhập thiết bị</option>
           <option value="maintenance">Bảo trì</option>
           <option value="transfer">Vận chuyển</option>
         </select>

@@ -91,6 +91,36 @@ const equipmentTransferController = {
     }
   },
 
+  cancelTransfer: async (req, res) => {
+    try {
+      const { description } = req.body;
+
+      const transfer = await equipmentTransferService.cancelTransfer(
+        req.params.id,
+        description,
+        req.user.sub
+      );
+
+      res.json({ message: "Transfer cancelled", transfer });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
+  confirmCancelTransfer: async (req, res) => {
+    try {
+      const { transfer, details } =
+        await equipmentTransferService.confirmCancelTransfer(
+          req.params.id,
+          req.user.sub
+        );
+
+      res.json({ message: "Transfer fully cancelled", transfer, details });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  },
+
   deleteTransfer: async (req, res) => {
     try {
       await equipmentTransferService.deleteTransfer(req.params.id);

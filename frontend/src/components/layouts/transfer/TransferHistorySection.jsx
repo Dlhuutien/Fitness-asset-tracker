@@ -71,7 +71,12 @@ export default function TransferHistory() {
   useEffect(() => {
     const fetchTransfers = async () => {
       try {
-        const data = await EquipmentTransferService.getByStatus("Completed");
+        const all = await EquipmentTransferService.getAll();
+
+        const data = (all || []).filter((x) =>
+          ["completed", "cancelled"].includes((x.status || "").toLowerCase())
+        );
+
         setTransfers(data);
       } catch (err) {
         console.error("❌ Lỗi tải danh sách điều chuyển:", err);
@@ -169,7 +174,7 @@ export default function TransferHistory() {
               from_branch_id: "Từ chi nhánh",
               to_branch_id: "Đến chi nhánh",
               approved_by_name: "Người yêu cầu",
-              receiver_name: "Người nhận",
+              receiver_name: "Người xác nhận",
               move_start_date: "Ngày bắt đầu",
               move_receive_date: "Ngày hoàn tất",
             }}
@@ -191,13 +196,16 @@ export default function TransferHistory() {
                   from_branch_id: "Từ chi nhánh",
                   to_branch_id: "Đến chi nhánh",
                   approved_by_name: "Người yêu cầu",
-                  receiver_name: "Người nhận",
+                  receiver_name: "Người xác nhận",
                   move_start_date: "Ngày bắt đầu",
                   move_receive_date: "Ngày hoàn tất",
                 };
 
                 // ❌ Không filter cho các cột ngày
-                const noFilterColumns = ["move_start_date", "move_receive_date"];
+                const noFilterColumns = [
+                  "move_start_date",
+                  "move_receive_date",
+                ];
 
                 return (
                   <TableHead key={key}>
@@ -270,9 +278,15 @@ export default function TransferHistory() {
                     )}
                     {visibleColumns.move_receive_date && (
                       <TableCell>
-                        {t.move_receive_date
-                          ? new Date(t.move_receive_date).toLocaleString("vi-VN")
-                          : "—"}
+                        {t.status?.toLowerCase() === "cancelled" ? (
+                          <span className="text-red-600 font-semibold">
+                            Hủy nhận điều chuyển
+                          </span>
+                        ) : t.move_receive_date ? (
+                          new Date(t.move_receive_date).toLocaleString("vi-VN")
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                     )}
                     <TableCell className="text-center">
