@@ -58,7 +58,8 @@ export default function EquipmentUnitListSection() {
   const navigate = useNavigate();
   const { isSuperAdmin } = useAuthRole();
   const [openImport, setOpenImport] = useState(false);
-  const { isTechnician } = useAuthRole();
+  const { isTechnician, isOperator } = useAuthRole();
+  
 
   // ⚙️ Dữ liệu thiết bị
   const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
@@ -340,7 +341,7 @@ export default function EquipmentUnitListSection() {
 
         {/* 📥 Nút Nhập thiết bị + Hiển thị cột */}
         <div className="flex items-center gap-3">
-          {!isTechnician && (
+          {!isTechnician && !isOperator && (
             <Button
               onClick={() => setOpenImport(true)}
               className="flex items-center gap-2 h-9 px-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium rounded-lg shadow hover:opacity-90 hover:-translate-y-[1px] transition-all"

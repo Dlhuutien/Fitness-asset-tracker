@@ -402,32 +402,34 @@ export default function EquipmentProfilePage() {
                   )}
 
                   {/* ✏️ Nút Sửa / Hủy / Lưu */}
-                  {!editMode ? (
-                    <Button
-                      onClick={() => setEditMode(true)}
-                      variant="outline"
-                      className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all font-semibold"
-                    >
-                      ✏️ Sửa thông tin
-                    </Button>
-                  ) : (
-                    <>
+                  {!isOperator ? (
+                    !editMode ? (
                       <Button
-                        onClick={() => setEditMode(false)}
+                        onClick={() => setEditMode(true)}
                         variant="outline"
-                        className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
+                        className="px-5 py-3 rounded-xl border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-all font-semibold"
                       >
-                        Hủy
+                        ✏️ Sửa thông tin
                       </Button>
-                      <Button
-                        onClick={handleSave}
-                        disabled={loading}
-                        className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
-                      >
-                        💾 Lưu thay đổi
-                      </Button>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <Button
+                          onClick={() => setEditMode(false)}
+                          variant="outline"
+                          className="px-5 py-3 rounded-xl border-gray-300 text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-all font-semibold"
+                        >
+                          Hủy
+                        </Button>
+                        <Button
+                          onClick={handleSave}
+                          disabled={loading}
+                          className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
+                        >
+                          💾 Lưu thay đổi
+                        </Button>
+                      </>
+                    )
+                  ) : null}
                 </div>
               )}
             </div>

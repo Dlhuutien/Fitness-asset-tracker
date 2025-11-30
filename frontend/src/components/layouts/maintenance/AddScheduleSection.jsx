@@ -23,6 +23,7 @@ import UserService from "@/services/UserService";
 import MaintenanceRequestService from "@/services/MaintenanceRequestService";
 import useAuthRole from "@/hooks/useAuthRole";
 import BranchService from "@/services/branchService";
+import Status from "@/components/common/Status";
 import {
   Select,
   SelectTrigger,
@@ -78,6 +79,19 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
     start: startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 }),
     end: endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 }),
   });
+
+  const STATUS_MAP = {
+    active: "Hoạt động",
+    inactive: "Ngưng sử dụng",
+    "temporary urgent": "Ngừng tạm thời",
+    "in progress": "Đang bảo trì",
+    ready: "Bảo trì thành công",
+    failed: "Bảo trì thất bại",
+    moving: "Đang điều chuyển",
+    "in stock": "Thiết bị trong kho",
+    deleted: "Đã xóa",
+    disposed: "Đã thanh lý",
+  };
 
   // ===== Kế hoạch bảo trì định kỳ =====
   useEffect(() => {
@@ -641,7 +655,17 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                                       {unit.equipment?.name}
                                     </span>
                                   </td>
-                                  <td className="px-3 py-2">{unit.status}</td>
+                                  <td className="px-3 py-2">
+                                    <Status
+                                      status={
+                                        STATUS_MAP[
+                                          unit.status?.toLowerCase()
+                                        ] ||
+                                        unit.status ||
+                                        "—"
+                                      }
+                                    />
+                                  </td>
                                   <td className="px-3 py-2 text-slate-600">
                                     {unit.lastMaintenance}
                                   </td>
@@ -788,7 +812,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                         if (!isPast) setSelectedDateObj(day);
                       }}
                       className={`p-2 rounded-xl border text-[12px] min-h-[85px] transition-all flex flex-col justify-between cursor-pointer
-        ${selected ? "border-emerald-500 bg-emerald-50" : highlightColor}
+        ${selected ? "border-amber-500 bg-amber-100" : highlightColor}
         ${!inMonth ? "opacity-50" : ""}
         ${isPast ? "opacity-40 pointer-events-none" : ""}
       `}
