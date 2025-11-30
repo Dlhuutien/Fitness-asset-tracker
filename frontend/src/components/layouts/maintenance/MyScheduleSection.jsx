@@ -39,6 +39,7 @@ import {
 import { vi } from "date-fns/locale";
 console.log(">>> MyScheduleSection.jsx LOADED 1", Date.now());
 import useAuthRole from "@/hooks/useAuthRole";
+import Status from "@/components/common/Status";
 
 // =============== CONSTANTS & HELPERS ===============
 
@@ -342,7 +343,23 @@ const BRANCH_MAP = {
   "FitX Gym Q3": "Q3",
   Q3: "Q3",
 };
+const UNIT_STATUS_MAP = {
+  active: "Hoạt động",
+  inactive: "Ngưng sử dụng",
+  "temporary urgent": "Ngừng tạm thời",
+  "in progress": "Đang bảo trì",
+  ready: "Bảo trì thành công",
+  failed: "Bảo trì thất bại",
+  moving: "Đang điều chuyển",
+  "in stock": "Thiết bị trong kho",
+  deleted: "Đã xóa",
+  disposed: "Đã thanh lý",
+};
 
+const convertUnitStatus = (status) => {
+  if (!status) return "Không xác định";
+  return UNIT_STATUS_MAP[status.toLowerCase()] || "Không xác định";
+};
 // =====================================================
 //                 MAIN COMPONENT
 // =====================================================
@@ -1006,7 +1023,7 @@ export default function MyScheduleSection() {
 
       {/* ===== 3) STATS + LỊCH ===== */}
       {/* <div className="flex flex-1 flex-col gap-3 overflow-hidden px-4 pb-4 pt-3"> */}
-        <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-3">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 pb-4 pt-3">
         {/* ===== HEADER PANEL COLLAPSIBLE ===== */}
         <div
           className={`relative border-b border-slate-200 bg-slate-50/80 transition-all duration-300
@@ -1666,31 +1683,41 @@ function DayGroup({ day, currentUserId }) {
 // =====================================================
 function ScheduleItem({ item, isMine = false, expandedRequest }) {
   const [open, setOpen] = React.useState(false);
+  const [unitsWithHistory, setUnitsWithHistory] = React.useState([]);
 
   const units = item.units || item.equipment_units || [];
 
-  // 🟢 FIX LỖI QUAN TRỌNG: Tạo statusCount
-  const statusCount = units.reduce(
-    (acc, u) => {
-      const s = (u.status || u.state || "").toLowerCase().trim();
+  // 🔥 Load lịch bảo trì gần nhất (y như SetScheduleSection)
+  useEffect(() => {
+    let mounted = true;
 
-      acc.total++;
+    const load = async () => {
+      const result = await Promise.all(
+        units.map(async (u) => {
+          try {
+            const latest = await MaintainService.getLatestHistory(u.id);
+            return {
+              ...u,
+              lastMaintenance: latest
+                ? latest.start_date.split("T")[0]
+                : "Chưa có",
+            };
+          } catch {
+            return { ...u, lastMaintenance: "Chưa có" };
+          }
+        })
+      );
 
-      if (s === "active") acc.active++;
-      else if (s === "ready") acc.ready++;
-      else if (s === "failed") acc.failed++;
-      else if (
-        ["in progress", "in_progress", "processing", "doing"].includes(s)
-      )
-        acc.inprogress++;
-      else acc.other++;
+      if (mounted) setUnitsWithHistory(result);
+    };
 
-      return acc;
-    },
-    { total: 0, active: 0, ready: 0, failed: 0, inprogress: 0, other: 0 }
-  );
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, [item.id]);
 
-  const u0 = units[0] || {};
+  const u0 = unitsWithHistory[0] || units[0] || {};
   const imgSrc =
     item.image ||
     u0.image ||
@@ -1703,7 +1730,9 @@ function ScheduleItem({ item, isMine = false, expandedRequest }) {
   const isConfirmed =
     raw === "confirmed" || raw === "confirm" || item.is_confirmed === true;
 
-  const allUnitsActive = units.every((u) =>
+  const allUnitsActive = (
+    unitsWithHistory.length > 0 ? unitsWithHistory : units
+  ).every((u) =>
     ["active", "ready"].includes(
       (u.status || u.state || "").toString().toLowerCase()
     )
@@ -1788,18 +1817,22 @@ function ScheduleItem({ item, isMine = false, expandedRequest }) {
                 </tr>
               </thead>
               <tbody>
-                {units.map((u, idx) => (
-                  <tr
-                    key={u.id || idx}
-                    className="border-t transition hover:bg-emerald-50"
-                  >
-                    <td className="px-3 py-2 font-medium">{u.id}</td>
-                    <td className="px-3 py-2">{u.status || "—"}</td>
-                    <td className="px-3 py-2 text-slate-600">
-                      {u.lastMaintenance || "—"}
-                    </td>
-                  </tr>
-                ))}
+                {(unitsWithHistory.length > 0 ? unitsWithHistory : units).map(
+                  (u, idx) => (
+                    <tr
+                      key={u.id || idx}
+                      className="border-t transition hover:bg-emerald-50"
+                    >
+                      <td className="px-3 py-2 font-medium">{u.id}</td>
+                      <td className="px-3 py-2">
+                        <Status status={convertUnitStatus(u.status)} />
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {u.lastMaintenance || "—"}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>

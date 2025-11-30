@@ -51,6 +51,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import Status from "@/components/common/Status";
 
 /* 🎨 Style mapping trạng thái */
 const STATUS = {
@@ -147,7 +148,7 @@ const mapEvent = async (item) => {
 
 export default function SetScheduleSection() {
   const [events, setEvents] = useState([]);
-  const { isSuperAdmin } = useAuthRole();
+  const { isSuperAdmin, isAdmin } = useAuthRole();
   const [cursor, setCursor] = useState(() => new Date()); // mốc hiển thị
   const [selectedDate, setSelectedDate] = useState(new Date()); // ngày được chọn
   const [loading, setLoading] = useState(true);
@@ -166,6 +167,28 @@ export default function SetScheduleSection() {
 
   const [branches, setBranches] = useState([]);
   const [activeBranch, setActiveBranch] = useState("all");
+
+  // Convert BE → status tiếng Việt đúng theo Status.jsx
+  const UNIT_STATUS_MAP = {
+    active: "Hoạt động",
+    inactive: "Ngưng sử dụng",
+    "temporary urgent": "Ngừng tạm thời",
+    "in progress": "Đang bảo trì",
+    ready: "Bảo trì thành công",
+    failed: "Bảo trì thất bại",
+    moving: "Đang điều chuyển",
+    "in stock": "Thiết bị trong kho",
+    deleted: "Đã xóa",
+    disposed: "Đã thanh lý",
+  };
+
+  const convertUnitStatus = (status) => {
+    if (!status) return "Không xác định";
+    return UNIT_STATUS_MAP[status.toLowerCase()] || "Không xác định";
+  };
+
+  const auth = JSON.parse(localStorage.getItem("fitx_auth") || "{}");
+  const currentUserSub = auth?.user?.sub || "";
 
   // load branch
   useEffect(() => {
@@ -277,6 +300,7 @@ export default function SetScheduleSection() {
             requestId: r.id,
             type: "request",
             branchId: r.branch_id,
+            assigned_by: r.assigned_by,
 
             units: r.units || [],
             image: r.units?.[0]?.equipment_image,
@@ -745,15 +769,17 @@ export default function SetScheduleSection() {
             </button>
           </div>
 
-          <Button
-            onClick={() => {
-              setEditingRequest(null); // reset để form load chế độ tạo mới
-              setShowForm(true);
-            }}
-            className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold shadow-md flex items-center gap-1"
-          >
-            <Plus className="w-4 h-4" /> Tạo kế hoạch
-          </Button>
+          {(isSuperAdmin || isAdmin) && (
+            <Button
+              onClick={() => {
+                setEditingRequest(null); // reset để form load chế độ tạo mới
+                setShowForm(true);
+              }}
+              className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold shadow-md flex items-center gap-1"
+            >
+              <Plus className="w-4 h-4" /> Tạo kế hoạch
+            </Button>
+          )}
 
           <AnimatePresence>
             {showForm && (
@@ -1433,28 +1459,37 @@ export default function SetScheduleSection() {
                                         </Button>
                                       )}
 
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          setEditingRequest(group);
-                                          setShowForm(true);
-                                        }}
-                                        className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium px-3 py-1"
-                                      >
-                                        ✏️ Cập nhật
-                                      </Button>
-
-                                      <Button
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedRequest(group);
-                                          setCancelMode("confirm");
-                                          setCancelOpen(true);
-                                        }}
-                                        className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-3 py-1"
-                                      >
-                                        Hủy lịch
-                                      </Button>
+                                      {(isSuperAdmin ||
+                                        (isAdmin &&
+                                          group.assigned_by ===
+                                            currentUserSub)) && (
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            setEditingRequest(group);
+                                            setShowForm(true);
+                                          }}
+                                          className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium px-3 py-1"
+                                        >
+                                          ✏️ Cập nhật
+                                        </Button>
+                                      )}
+                                      {(isSuperAdmin ||
+                                        (isAdmin &&
+                                          group.assigned_by ===
+                                            currentUserSub)) && (
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            setSelectedRequest(group);
+                                            setCancelMode("confirm");
+                                            setCancelOpen(true);
+                                          }}
+                                          className="bg-red-500 hover:bg-red-600 text-white text-xs font-medium px-3 py-1"
+                                        >
+                                          Hủy lịch
+                                        </Button>
+                                      )}
                                     </div>
 
                                     <button
@@ -1498,7 +1533,11 @@ export default function SetScheduleSection() {
                                                 {u.id}
                                               </td>
                                               <td className="px-3 py-2">
-                                                {u.status || "—"}
+                                                <Status
+                                                  status={convertUnitStatus(
+                                                    u.status
+                                                  )}
+                                                />
                                               </td>
                                               <td className="px-3 py-2 text-slate-600">
                                                 {u.lastMaintenance || "—"}
@@ -1623,7 +1662,11 @@ export default function SetScheduleSection() {
                                             {u.id}
                                           </td>
                                           <td className="px-3 py-2">
-                                            {u.status || "—"}
+                                            <Status
+                                              status={convertUnitStatus(
+                                                u.status
+                                              )}
+                                            />
                                           </td>
                                           <td className="px-3 py-2 text-slate-600">
                                             {u.lastMaintenance || "—"}
@@ -1781,7 +1824,11 @@ export default function SetScheduleSection() {
                                           </td>
 
                                           <td className="px-3 py-2">
-                                            {u.status || "—"}
+                                            <Status
+                                              status={convertUnitStatus(
+                                                u.status
+                                              )}
+                                            />
                                           </td>
 
                                           <td className="px-3 py-2 text-slate-600">
