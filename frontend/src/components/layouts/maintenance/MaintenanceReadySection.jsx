@@ -55,12 +55,68 @@ export default function MaintenanceReadySection() {
   const [activeBranch, setActiveBranch] = useState("all");
 
   const { isSuperAdmin, branchId } = useAuthRole();
+const [bulkSelectAll, setBulkSelectAll] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [bulkMode, setBulkMode] = useState(null);
+  // "success" | "fail" | null
+
+  const [checkedMap, setCheckedMap] = useState({});
+  // { "EQID123": true, "EQID124": false }
+  const handleBulkConfirm = async () => {
+    const selectedIds = Object.keys(checkedMap).filter((id) => checkedMap[id]);
+
+    if (selectedIds.length === 0) {
+      toast.error("Vui lòng chọn ít nhất 1 thiết bị!");
+      return;
+    }
+
+    setPanel({
+      open: true,
+      loading: true,
+      message: "",
+    });
+
+    try {
+      for (const id of selectedIds) {
+        await EquipmentUnitService.update(id, {
+          status: bulkMode === "success" ? "Active" : "Inactive",
+        });
+      }
+
+      setTimeout(() => {
+        setPanel({
+          open: true,
+          loading: false,
+          message:
+            bulkMode === "success"
+              ? "Đã phê duyệt: Hoạt động lại máy"
+              : "Đã phê duyệt: Ngưng hoạt động máy",
+        });
+
+        // xóa device có id đã chọn
+        setEquipments((prev) =>
+          prev.filter((eq) => !selectedIds.includes(eq.id))
+        );
+      }, 500);
+    } catch (err) {
+      setPanel({
+        open: true,
+        loading: false,
+        message: "Có lỗi xảy ra khi phê duyệt!",
+      });
+    }
+  };
+
+  const [panel, setPanel] = useState({
+    open: false,
+    loading: true,
+    message: "",
+  });
 
   // ===== Excel Table Tools =====
   const controller = useGlobalFilterController();
@@ -328,21 +384,72 @@ export default function MaintenanceReadySection() {
           )}
         </div>
 
-        {/* Hiển thị cột */}
-        <ColumnVisibilityButton
-          visibleColumns={visibleColumns}
-          setVisibleColumns={setVisibleColumns}
-          labels={{
-            id: "Mã định danh",
-            image: "Ảnh",
-            name: "Tên thiết bị",
-            main_name: "Nhóm",
-            type_name: "Loại",
-            status: "Trạng thái",
-            vendor_name: "Nhà cung cấp",
-            branch_id: "Chi nhánh",
-          }}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            className="bg-emerald-600 text-white"
+            onClick={() => {
+  setBulkMode("success");
+
+  // Toggle trạng thái
+  setBulkSelectAll((prev) => {
+    const newState = !prev;
+    const m = {};
+
+    filteredByColumn.forEach((row) => {
+      if (row.status?.toLowerCase() === "ready") {
+        m[row.id] = newState; // true = chọn hết, false = bỏ hết
+      }
+    });
+
+    setCheckedMap(newState ? m : {});
+    return newState;
+  });
+}}
+
+          >
+            Phê duyệt thành công
+          </Button>
+
+          <Button
+            className="bg-rose-600 text-white"
+            onClick={() => {
+  setBulkMode("fail");
+
+  setBulkSelectAll((prev) => {
+    const newState = !prev;
+    const m = {};
+
+    filteredByColumn.forEach((row) => {
+      if (row.status?.toLowerCase() === "failed") {
+        m[row.id] = newState;
+      }
+    });
+
+    setCheckedMap(newState ? m : {});
+    return newState;
+  });
+}}
+
+          >
+            Phê duyệt thất bại
+          </Button>
+
+          {/* Di chuyển Hiển thị cột xuống đây */}
+          <ColumnVisibilityButton
+            visibleColumns={visibleColumns}
+            setVisibleColumns={setVisibleColumns}
+            labels={{
+              id: "Mã định danh",
+              image: "Ảnh",
+              name: "Tên thiết bị",
+              main_name: "Nhóm",
+              type_name: "Loại",
+              status: "Trạng thái",
+              vendor_name: "Nhà cung cấp",
+              branch_id: "Chi nhánh",
+            }}
+          />
+        </div>
       </div>
 
       {/* Main content */}
@@ -352,6 +459,9 @@ export default function MaintenanceReadySection() {
             <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-600">
               <TableHeader>
                 <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
+                  {bulkMode && (
+                    <TableHead className="text-center">Chọn</TableHead>
+                  )}
                   <TableHead>#</TableHead>
                   {visibleColumns.id && (
                     <TableHead>
@@ -470,6 +580,21 @@ export default function MaintenanceReadySection() {
                         loadHistory(row.id);
                       }}
                     >
+                      {bulkMode && (
+                        <TableCell className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={checkedMap[row.id] || false}
+                            onChange={(e) =>
+                              setCheckedMap((prev) => ({
+                                ...prev,
+                                [row.id]: e.target.checked,
+                              }))
+                            }
+                            className="w-4 h-4"
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="text-center">
                         {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                       </TableCell>
@@ -570,6 +695,23 @@ export default function MaintenanceReadySection() {
             </div>
           </div>
         </div>
+        {bulkMode && (
+          <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow border">
+            <Button
+              className="
+    w-full py-4 
+    bg-gradient-to-r from-blue-600 to-indigo-600 
+    hover:opacity-90 
+    text-white text-base font-bold 
+    rounded-xl shadow-lg
+    transition-all
+  "
+              onClick={handleBulkConfirm}
+            >
+              ✔ Xác nhận phê duyệt
+            </Button>
+          </div>
+        )}
 
         {/* Panel chi tiết */}
         {selected && (
@@ -594,8 +736,7 @@ export default function MaintenanceReadySection() {
                     <strong>Tên:</strong> {selected.equipment?.name}
                   </p>
                   <p>
-                    <strong>Nhà cung cấp:</strong>{" "}
-                    {selected.vendor_name}
+                    <strong>Nhà cung cấp:</strong> {selected.vendor_name}
                   </p>
                   <p>
                     <strong>Chi nhánh:</strong> {selected.branch_id}
@@ -722,6 +863,67 @@ export default function MaintenanceReadySection() {
           </div>
         )}
       </div>
+      {panel.open && (
+        <div className="fixed inset-0 z-[99999] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+          <div
+            className="
+      bg-white dark:bg-gray-800 
+      p-7 
+      rounded-3xl 
+      shadow-2xl 
+      w-[380px] 
+      text-center 
+      space-y-5 
+      border dark:border-gray-700
+      transform scale-100 animate-[fadeIn_0.25s_ease]
+    "
+          >
+            {panel.loading ? (
+              <>
+                <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
+                <p className="text-gray-700 dark:text-gray-300 text-base">
+                  Đang xử lý phê duyệt...
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="text-3xl">
+                  {bulkMode === "success" ? "🎉" : "⚠️"}
+                </div>
+
+                <p className="text-xl font-bold">
+                  {bulkMode === "success"
+                    ? "Đã phê duyệt thành công"
+                    : "Đã phê duyệt thất bại"}
+                </p>
+
+                <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
+                  Các thiết bị đã được chuyển sang trạng thái <br />
+                  <span className="font-semibold text-blue-600">
+                    {bulkMode === "success" ? "Hoạt động" : "Ngưng hoạt động"}
+                  </span>
+                </p>
+
+                <Button
+                  className="
+              w-full 
+              bg-blue-600 hover:bg-blue-700 
+              text-white font-semibold 
+              rounded-xl py-3
+            "
+                  onClick={() => {
+                    setPanel({ open: false, loading: false, message: "" });
+                    setBulkMode(null);
+                    setCheckedMap({});
+                  }}
+                >
+                  Đóng
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

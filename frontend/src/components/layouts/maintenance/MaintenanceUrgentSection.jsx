@@ -61,6 +61,8 @@ export default function MaintenanceUrgentSection() {
   const [loading, setLoading] = useState(true);
   const [loadingStart, setLoadingStart] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
+  const [centralLoading, setCentralLoading] = useState(false);
+const [bulkSelectAll, setBulkSelectAll] = useState(false);
 
   const [search, setSearch] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
@@ -68,6 +70,20 @@ export default function MaintenanceUrgentSection() {
   const [branches, setBranches] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showMySchedule, setShowMySchedule] = useState(false);
+  const [resultPanel, setResultPanel] = useState({
+    open: false,
+    loading: true,
+    message: "",
+  });
+  const [bulkMode, setBulkMode] = useState(null); // success | fail | null
+  const [checkedMap, setCheckedMap] = useState({});
+  const [commonNote, setCommonNote] = useState("");
+
+  const [bulkPanel, setBulkPanel] = useState({
+    open: false,
+    loading: true,
+    message: "",
+  });
 
   const { isSuperAdmin } = useAuthRole();
   const [showSchedule, setShowSchedule] = useState(false);
@@ -98,6 +114,7 @@ export default function MaintenanceUrgentSection() {
     vendor_name: true,
     branch_id: true,
   });
+  const [bulkCost, setBulkCost] = useState({});
 
   // 🧭 Load dữ liệu
   useEffect(() => {
@@ -215,8 +232,104 @@ export default function MaintenanceUrgentSection() {
   );
 
   const checkWarranty = (equipment) => {
-    const today = new Date();
-    return new Date(equipment.warranty_end_date) > today;
+    if (!equipment || !equipment.warranty_end_date) return true;
+    const date = new Date(equipment.warranty_end_date);
+    if (isNaN(date)) return true;
+    return date > new Date();
+  };
+
+  const [bulkError, setBulkError] = useState("");
+
+  const handleBulkFinish = async () => {
+    const selectedIds = Object.keys(checkedMap).filter((id) => checkedMap[id]);
+
+    if (selectedIds.length === 0) {
+      toast.error("Vui lòng chọn ít nhất 1 thiết bị!");
+      return;
+    }
+
+    if (!commonNote.trim()) {
+      toast.error("Cần nhập ghi chú chung!");
+      return;
+    }
+
+    // 🔍 Chỉ check chi phí khi BẢO TRÌ THÀNH CÔNG
+    if (bulkMode === "success") {
+      let missing = [];
+
+      selectedIds.forEach((id) => {
+        const item = equipments.find((eq) => eq.id === id);
+        if (!item) return;
+
+        const isExpired = !checkWarranty(item);
+
+        // DÙNG CHÍNH XÁC GIÁ NGƯỜI DÙNG NHẬP
+        const raw = bulkCost[id];
+        const numeric = raw === undefined || raw === "" ? null : Number(raw);
+
+        if (isExpired && (!numeric || numeric <= 0)) {
+          missing.push({
+            id: item.id,
+            name: item.equipment?.name,
+          });
+        }
+      });
+
+      if (missing.length > 0) {
+        setBulkError(
+          "⚠️ Thiết bị chưa nhập giá:\n" +
+            missing.map((m) => `• ${m.name} (ID: ${m.id})`).join("\n")
+        );
+        return; // ❗ NGĂN API, NGĂN XÁC NHẬN
+      } else {
+        setBulkError(""); // xoá lỗi khi đủ giá
+      }
+    }
+
+    // ✅ Qua được hết validation → gọi API
+    setBulkPanel({ open: true, loading: true, message: "" });
+
+    try {
+      for (const id of selectedIds) {
+        const m = await MaintainService.getByUnit(id);
+        if (!m) continue;
+
+        const item = equipments.find((eq) => eq.id === id);
+        const isExpired = !checkWarranty(item);
+
+        const costValue =
+          bulkMode === "success"
+            ? isExpired
+              ? Number(bulkCost[id] || 0)
+              : 0
+            : 0;
+
+        await MaintainService.complete(m.id, {
+          status: bulkMode === "success" ? "Ready" : "Failed",
+          cost: costValue,
+          maintenance_detail: commonNote,
+        });
+      }
+
+      setTimeout(() => {
+        setBulkPanel({
+          open: true,
+          loading: false,
+          message: "Các thiết bị đã được chuyển sang Chờ phê duyệt",
+        });
+
+        setEquipments((prev) =>
+          prev.filter((eq) => !selectedIds.includes(eq.id))
+        );
+      }, 600);
+    } catch (err) {
+      console.error("Bulk finish error:", err);
+      setBulkPanel({
+        open: true,
+        loading: false,
+        message: "Có lỗi khi hoàn tất bảo trì hàng loạt!",
+      });
+    }
   };
 
   // 🟦 Bắt đầu bảo trì
@@ -246,14 +359,35 @@ export default function MaintenanceUrgentSection() {
     }
   };
 
-  // 🟩 Hoàn tất bảo trì
   const finishMaintenance = async (result) => {
     if (!selected) return;
+
+    // 🔒 Nếu bảo trì thành công + hết bảo hành -> bắt buộc có cost
+    if (result === "Bảo trì thành công" && !checkWarranty(selected)) {
+      const numericCost = Number(cost);
+      if (!numericCost || numericCost <= 0) {
+        toast.error(
+          `Thiết bị ${selected.equipment?.name} (ID: ${selected.id}) đã hết bảo hành, vui lòng nhập chi phí bảo trì.`
+        );
+        return;
+      }
+    }
+
+    // mở panel + trạng thái loading
+    setResultPanel({
+      open: true,
+      loading: true,
+      message: "",
+    });
+
     try {
-      setLoadingComplete(true);
       const m = await MaintainService.getByUnit(selected.id);
       if (!m) {
-        toast.error("Không tìm thấy maintenance để hoàn tất!");
+        setResultPanel({
+          open: true,
+          loading: false,
+          message: "Không tìm thấy maintenance để hoàn tất!",
+        });
         return;
       }
 
@@ -263,23 +397,19 @@ export default function MaintenanceUrgentSection() {
         maintenance_detail: note,
       };
 
-      const resultStatus = result === "Bảo trì thành công" ? "Ready" : "Failed";
       await MaintainService.complete(m.id, payload);
 
-      toast.success(
-        resultStatus === "Ready"
-          ? "🎉 Bảo trì thành công — Thiết bị đã cập nhật trạng thái!"
-          : "⚠️ Bảo trì thất bại — Đã ghi nhận kết quả!"
-      );
-
-      setTimeout(() => {
-        setEquipments((prev) => prev.filter((eq) => eq.id !== selected.id));
-        setSelected(null);
-      }, 2000);
+      setResultPanel({
+        open: true,
+        loading: false,
+        message: "Thiết bị đã được chuyển sang Chờ phê duyệt",
+      });
     } catch {
-      toast.error("Không thể hoàn tất bảo trì");
-    } finally {
-      setLoadingComplete(false);
+      setResultPanel({
+        open: true,
+        loading: false,
+        message: "Đã xảy ra lỗi khi hoàn tất bảo trì",
+      });
     }
   };
 
@@ -368,6 +498,72 @@ export default function MaintenanceUrgentSection() {
           >
             📅 Xem lịch đảm nhận
           </Button>
+          <Button
+  onClick={() => {
+    setBulkMode("success");
+
+    // 🔥 Toggle chọn hết ↔ bỏ hết
+    setBulkSelectAll((prev) => {
+      const newState = !prev; // đảo trạng thái
+      const m = {};
+
+      // Chỉ chọn thiết bị đang "in progress"
+      filteredByColumn.forEach((row) => {
+        if (row.status?.toLowerCase() === "in progress") {
+          m[row.id] = newState;
+        }
+      });
+
+      // Nếu newState = true → chọn hết
+      // Nếu newState = false → bỏ hết
+      setCheckedMap(newState ? m : {});
+
+      // Reset ghi chú khi toggle
+      setCommonNote("");
+
+      return newState;
+    });
+  }}
+  className={`
+    transition-all duration-200
+    ${
+      bulkMode === "success"
+        ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg scale-105 ring-2 ring-emerald-300"
+        : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm"
+    }
+  `}
+>
+  ✔ Bảo trì thành công
+</Button>
+
+
+          <Button
+            onClick={() => {
+              if (bulkMode === "fail") {
+                setBulkMode(null);
+                setCheckedMap({});
+                setCommonNote("");
+              } else {
+                setBulkMode("fail");
+                const m = {};
+                filteredByColumn.forEach((row) => {
+                  if (row.status?.toLowerCase() === "in progress")
+                    m[row.id] = true;
+                });
+                setCheckedMap(m);
+              }
+            }}
+            className={`
+    transition-all duration-200
+    ${
+      bulkMode === "fail"
+        ? "bg-rose-600 hover:bg-rose-700 text-white shadow-lg scale-105 ring-2 ring-rose-300"
+        : "bg-rose-500 hover:bg-rose-600 text-white shadow-sm"
+    }
+  `}
+          >
+            ✖ Bảo trì thất bại
+          </Button>
 
           <ColumnVisibilityButton
             visibleColumns={visibleColumns}
@@ -392,7 +588,12 @@ export default function MaintenanceUrgentSection() {
           <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-700">
             <TableHeader>
               <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
+                {/* ✅ Cột Chọn nằm ngoài map, đúng chỗ */}
+                {bulkMode && (
+                  <TableHead className="text-center">Chọn</TableHead>
+                )}
                 <TableHead>#</TableHead>
+
                 {Object.entries(visibleColumns).map(([key, visible]) => {
                   if (!visible) return null;
 
@@ -407,7 +608,6 @@ export default function MaintenanceUrgentSection() {
                     branch_id: "Chi nhánh",
                   };
 
-                  // 🧩 Bỏ filter cho cột "image"
                   const noFilterColumns = ["image"];
 
                   return (
@@ -439,11 +639,23 @@ export default function MaintenanceUrgentSection() {
                 return (
                   <TableRow
                     key={row.id}
-                    className={`cursor-pointer transition ${
-                      selected?.id === row.id
-                        ? "bg-emerald-50 dark:bg-emerald-900/30"
-                        : "hover:bg-gray-50 dark:hover:bg-gray-700"
-                    }`}
+                    className={`
+    cursor-pointer transition
+    ${
+      selected?.id === row.id
+        ? "bg-emerald-50 dark:bg-emerald-900/30"
+        : "hover:bg-gray-50 dark:hover:bg-gray-700"
+    }
+    ${
+      // ❗ Highlight lỗi khi: bulkMode success + tick chọn + hết bảo hành + chưa nhập giá
+      bulkMode === "success" &&
+      checkedMap[row.id] &&
+      !checkWarranty(row || {}) &&
+      (!bulkCost[row.id] || Number(bulkCost[row.id]) <= 0)
+        ? "bg-red-50 dark:bg-red-900/20 ring-2 ring-red-300"
+        : ""
+    }
+  `}
                     onClick={async () => {
                       setSelected(row);
                       const m = await MaintainService.getByUnit(row.id);
@@ -463,10 +675,28 @@ export default function MaintenanceUrgentSection() {
                       }
                     }}
                   >
+                    {bulkMode && (
+                      <TableCell className="text-center">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-blue-600"
+                          checked={checkedMap[row.id] || false}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            setCheckedMap((prev) => ({
+                              ...prev,
+                              [row.id]: e.target.checked,
+                            }))
+                          }
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="text-center">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
                     </TableCell>
+
                     {visibleColumns.id && <TableCell>{row.id}</TableCell>}
+
                     {visibleColumns.image && (
                       <TableCell>
                         <img
@@ -476,6 +706,7 @@ export default function MaintenanceUrgentSection() {
                         />
                       </TableCell>
                     )}
+
                     {visibleColumns.name && (
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -493,20 +724,25 @@ export default function MaintenanceUrgentSection() {
                         </div>
                       </TableCell>
                     )}
+
                     {visibleColumns.main_name && (
                       <TableCell>{row.equipment?.main_name}</TableCell>
                     )}
+
                     {visibleColumns.type_name && (
                       <TableCell>{row.equipment?.type_name}</TableCell>
                     )}
+
                     {visibleColumns.status && (
                       <TableCell>
                         <Status status={translated} />
                       </TableCell>
                     )}
+
                     {visibleColumns.vendor_name && (
                       <TableCell>{row.vendor_name}</TableCell>
                     )}
+
                     {visibleColumns.branch_id && (
                       <TableCell>{row.branch_id}</TableCell>
                     )}
@@ -516,6 +752,158 @@ export default function MaintenanceUrgentSection() {
             </TableBody>
           </Table>
         </div>
+        {bulkMode && (
+          <div
+            className={`
+      mt-4 p-5 rounded-2xl border shadow-md space-y-5 transition-all
+      ${
+        bulkMode === "success"
+          ? "bg-emerald-50 border-emerald-300 dark:bg-emerald-900/20"
+          : "bg-rose-50 border-rose-300 dark:bg-rose-900/20"
+      }
+    `}
+          >
+            {/* HEADER */}
+            <div className="flex items-center gap-3">
+              <div
+                className={`
+          w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow 
+          ${
+            bulkMode === "success"
+              ? "bg-emerald-500 text-white"
+              : "bg-rose-500 text-white"
+          }
+        `}
+              >
+                {bulkMode === "success" ? "✔" : "✖"}
+              </div>
+
+              <div>
+                <h3
+                  className={`
+            text-lg font-semibold 
+            ${bulkMode === "success" ? "text-emerald-700" : "text-rose-700"}
+          `}
+                >
+                  {bulkMode === "success"
+                    ? "Xác nhận bảo trì thành công"
+                    : "Xác nhận bảo trì thất bại"}
+                </h3>
+                <p className="text-gray-600 text-sm dark:text-gray-300">
+                  {bulkMode === "success"
+                    ? "Vui lòng nhập ghi chú & chi phí cho thiết bị đã hết hạn bảo hành."
+                    : "Vui lòng nhập ghi chú chung trước khi hoàn tất bảo trì thất bại."}
+                </p>
+              </div>
+            </div>
+
+            {/* NOTE INPUT */}
+            <div>
+              <label className="text-sm font-medium flex items-center gap-1">
+                Ghi chú chung <span className="text-red-500">*</span>
+              </label>
+
+              <Input
+                placeholder="Nhập ghi chú chung cho toàn bộ thiết bị"
+                value={commonNote}
+                onChange={(e) => setCommonNote(e.target.value)}
+                className={`mt-1 w-full ${
+                  bulkError && !commonNote.trim()
+                    ? "border-red-500 ring-1 ring-red-400"
+                    : ""
+                }`}
+              />
+            </div>
+
+            {/* 🔥 SHOW LỖI CHUNG */}
+            {bulkError && (
+              <div className="mt-2 text-red-600 text-sm whitespace-pre-line font-medium p-3 bg-red-100 border border-red-300 rounded-lg shadow-sm">
+                {bulkError}
+              </div>
+            )}
+
+            {/* COST INPUTS (For Success Mode Only) */}
+            {bulkMode === "success" && (
+              <div className="space-y-4">
+                <h4 className="font-semibold text-sm text-gray-700 dark:text-gray-200">
+                  Nhập giá bảo trì cho các thiết bị hết hạn:
+                </h4>
+
+                {Object.keys(checkedMap)
+                  .filter((id) => checkedMap[id])
+                  .map((id) => {
+                    const eq = equipments.find((e) => e.id === id);
+                    const expired = !checkWarranty(eq || {});
+                    if (!expired) return null;
+
+                    return (
+                      <div
+                        key={id}
+                        className={`
+                  p-4 rounded-xl flex items-center justify-between
+                  border shadow-sm transition-all
+                  ${
+                    !bulkCost[id]
+                      ? "bg-red-50 border-red-300 dark:bg-red-900/20"
+                      : "bg-white border-gray-300 dark:bg-gray-800"
+                  }
+                `}
+                      >
+                        <div className="text-sm">
+                          <p className="font-medium text-gray-800 dark:text-gray-200">
+                            {eq.equipment?.name}
+                          </p>
+                          <span className="text-xs text-gray-500">
+                            (ID: {eq.id})
+                          </span>
+                        </div>
+
+                        <Input
+                          type="number"
+                          placeholder="Nhập giá..."
+                          className={`
+                    h-10 w-40 rounded-lg
+                    ${
+                      !bulkCost[id] || Number(bulkCost[id]) < 0
+                        ? "border-red-500 ring-1 ring-red-400"
+                        : ""
+                    }
+                  `}
+                          value={bulkCost[id] || ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+
+                            // NGĂN SỐ ÂM
+                            if (val === "" || Number(val) >= 0) {
+                              setBulkCost((prev) => ({
+                                ...prev,
+                                [id]: val,
+                              }));
+                            }
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* SUBMIT BUTTON */}
+            <Button
+              className={`
+        w-full py-3 text-white rounded-xl font-semibold shadow-md mt-3
+        ${
+          bulkMode === "success"
+            ? "bg-emerald-600 hover:bg-emerald-700"
+            : "bg-rose-600 hover:bg-rose-700"
+        }
+      `}
+              onClick={handleBulkFinish}
+            >
+              Xác nhận hoàn tất bảo trì hàng loạt
+            </Button>
+          </div>
+        )}
 
         {/* Pagination */}
         <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700 text-sm">
@@ -607,11 +995,9 @@ export default function MaintenanceUrgentSection() {
               <p>
                 <strong>Bảo hành:</strong>{" "}
                 {checkWarranty(selected) ? (
-                  <span className="text-green-600 font-semibold">
-                    ✅ Còn hạn
-                  </span>
+                  <span className="text-green-600 font-semibold">Còn hạn</span>
                 ) : (
-                  <span className="text-red-600 font-semibold">❌ Hết hạn</span>
+                  <span className="text-red-600 font-semibold">Hết hạn</span>
                 )}
               </p>
             </div>
@@ -720,6 +1106,44 @@ export default function MaintenanceUrgentSection() {
           </div>
         </motion.div>
       )}
+      {resultPanel.open && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 w-[360px] p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 text-center space-y-4">
+            {resultPanel.loading ? (
+              <>
+                <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mx-auto" />
+                <p className="text-gray-700 dark:text-gray-300 font-medium">
+                  Đang xử lý, vui lòng đợi...
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold text-emerald-600">
+                  {resultPanel.message}
+                </p>
+
+                <Button
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white w-full mt-3"
+                  onClick={() => {
+                    setResultPanel({
+                      open: false,
+                      loading: false,
+                      message: "",
+                    });
+                    // Xóa thiết bị khỏi danh sách
+                    setEquipments((prev) =>
+                      prev.filter((eq) => eq.id !== selected.id)
+                    );
+                    setSelected(null);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* === Overlay FitX Calendar (1 lớp, tối nền, nút X lộ góc ngoài) === */}
       {showSchedule && (
@@ -817,6 +1241,68 @@ export default function MaintenanceUrgentSection() {
             </motion.div>
           </motion.div>
         </AnimatePresence>
+      )}
+      {bulkPanel.open && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[99999] flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 w-[380px] p-7 rounded-2xl shadow-2xl border text-center space-y-5">
+            {bulkPanel.loading ? (
+              <>
+                <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
+                <p className="text-gray-700 dark:text-gray-300 text-base font-medium">
+                  Đang xử lý bảo trì hàng loạt...
+                </p>
+              </>
+            ) : (
+              <>
+                {/* ICON */}
+                <div className="text-4xl">
+                  {bulkMode === "success" ? "🎉" : "⚠️"}
+                </div>
+
+                {/* TIÊU ĐỀ */}
+                <p className="text-xl font-bold">
+                  {bulkMode === "success"
+                    ? "Bảo trì thành công"
+                    : "Bảo trì thất bại"}
+                </p>
+
+                {/* MÔ TẢ */}
+                <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
+                  Các thiết bị đã được chuyển sang trang{" "}
+                  <span className="font-semibold">Chờ phê duyệt</span>.
+                </p>
+
+                {/* THÔNG ĐIỆP TỪ bulkPanel.message */}
+                <p
+                  className={`text-lg font-semibold ${
+                    bulkMode === "success"
+                      ? "text-emerald-600"
+                      : "text-rose-600"
+                  }`}
+                >
+                  {bulkPanel.message}
+                </p>
+
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold"
+                  onClick={() => {
+                    setBulkPanel({ open: false, loading: false, message: "" });
+
+                    // TẮT panel chi tiết thiết bị
+                    setSelected(null);
+
+                    // reset chế độ hàng loạt
+                    setTimeout(() => setBulkMode(null), 150);
+                    setCheckedMap({});
+                    setCommonNote("");
+                  }}
+                >
+                  Đóng
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

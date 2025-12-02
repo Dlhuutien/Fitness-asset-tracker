@@ -248,26 +248,30 @@ export default function EquipmentDisposalPage() {
   const [inputErrors, setInputErrors] = useState({});
 
   const handleValueChange = (id, value) => {
-    const num = Number(value) || 0;
+    const num = Number(value);
+
+    // cập nhật value
     setSelected((prev) => ({
       ...prev,
-      [id]: { ...prev[id], value_recovered: num },
+      [id]: { ...prev[id], value_recovered: isNaN(num) ? "" : num },
     }));
 
-    // 🚫 Kiểm tra giá trị ngay khi nhập
     const target = units.find((u) => u.id === id);
-    if (target && target.cost && num > target.cost) {
-      setInputErrors((prev) => ({
-        ...prev,
-        [id]: "Giá thanh lý không được lớn hơn giá gốc",
-      }));
-    } else {
-      setInputErrors((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
+
+    let error = "";
+
+    if (value === "" || value === null) {
+      error = "Phải nhập giá thu hồi";
+    } else if (num < 0) {
+      error = "Giá thu hồi không được âm";
+    } else if (target && target.cost && num > target.cost) {
+      error = "Giá thanh lý không được lớn hơn giá gốc";
     }
+
+    setInputErrors((prev) => ({
+      ...prev,
+      [id]: error,
+    }));
   };
 
   // ===== Gửi yêu cầu tạo thanh lý =====
@@ -285,12 +289,31 @@ export default function EquipmentDisposalPage() {
       return;
     }
 
-    // ⚠️ Kiểm tra: Giá thanh lý không được lớn hơn giá gốc
+    // ⚠️ Kiểm tra: Tất cả thiết bị phải nhập giá thu hồi
+    const emptyValueItems = selectedItems.filter(
+      (i) => i.value_recovered === "" || i.value_recovered === null
+    );
+
+    if (emptyValueItems.length > 0) {
+      toast.error(
+        "❌ Vui lòng nhập đầy đủ giá trị thu hồi cho tất cả thiết bị."
+      );
+      return;
+    }
+
+    // ⚠️ Kiểm tra giá âm
+    const negativeItems = selectedItems.filter((i) => i.value_recovered < 0);
+    if (negativeItems.length > 0) {
+      toast.error("❌ Giá thu hồi không được âm.");
+      return;
+    }
+
+    // ⚠️ Kiểm tra giá > giá gốc
     const invalidItems = selectedItems.filter(
       (i) => i.value_recovered > (i.cost || 0)
     );
     if (invalidItems.length > 0) {
-      toast.error("❌ Giá thanh lý không được lớn hơn giá gốc.");
+      toast.error("❌ Giá thu hồi không được lớn hơn giá gốc.");
       return;
     }
 
@@ -552,12 +575,23 @@ export default function EquipmentDisposalPage() {
 
           <Button
             onClick={() => {
-              setNoteTouched(true); // ⚡ bật flag khi ấn nút
+              setNoteTouched(true);
               handleCreateDisposal();
             }}
-            disabled={creating || Object.keys(inputErrors).length > 0}
+            disabled={
+              creating ||
+              !note.trim() ||
+              Object.values(inputErrors).some((e) => e) ||
+              selectedItems.some(
+                (i) => i.value_recovered === "" || i.value_recovered === null
+              )
+            }
             className={`flex items-center text-white ${
-              Object.keys(inputErrors).length > 0 || !note.trim()
+              !note.trim() ||
+              Object.values(inputErrors).some((e) => e) ||
+              selectedItems.some(
+                (i) => i.value_recovered === "" || i.value_recovered === null
+              )
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-rose-500 hover:bg-rose-600"
             }`}

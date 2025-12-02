@@ -39,7 +39,8 @@ export default function EquipmentProfilePage() {
     periodic_frequency_type: "", // 🆕 Tuần / Tháng / Năm
     periodic_frequency_interval: "", // 🆕 Số lần lặp (VD: 2 => 2 tuần/lần)
   });
-
+  const [showMaintPanel, setShowMaintPanel] = useState(false);
+  const [showAllMaint, setShowAllMaint] = useState(false);
   const [allAttributes, setAllAttributes] = useState([]);
   const [selectedAttrs, setSelectedAttrs] = useState({});
   const [searchAttr, setSearchAttr] = useState("");
@@ -49,6 +50,71 @@ export default function EquipmentProfilePage() {
   const [spinClearInputs, setSpinClearInputs] = useState(false);
   // 🧩 Kế hoạch bảo trì hiện tại
   const [currentPlan, setCurrentPlan] = useState(null);
+  // 🗓️ Lưu toàn bộ lịch bảo trì được tính từ ngày bắt đầu
+  const [allMaintDates, setAllMaintDates] = useState([]);
+
+  // 🔔 Kỳ bảo trì kế tiếp
+  const [nextMaintDate, setNextMaintDate] = useState(null);
+
+  // ⏰ Ngày nhắc nhở
+  const [remindDate, setRemindDate] = useState(null);
+
+  // ====== HELPERS LỊCH BẢO TRÌ ======
+
+  /** Tạo danh sách các ngày bảo trì dựa trên:
+   *  - startDate: ngày bắt đầu plan
+   *  - type: "week" | "month" | "year"
+   *  - interval: số tuần / tháng / năm mỗi lần
+   *  - limit: số kỳ tối đa muốn tính (vd: 50 kỳ)
+   *
+   *  QUAN TRỌNG: ngày đầu tiên trong list = startDate + 1 interval
+   *  (giống trong UI của bạn: bắt đầu 8/11, kỳ 1 là 15/11)
+   */
+  function generateRecurringDates(startDate, type, interval, limit = 50) {
+    if (!startDate || !type || !interval) return [];
+
+    const dates = [];
+    let current = new Date(startDate);
+
+    for (let i = 0; i < limit; i++) {
+      // mỗi vòng lặp + thêm 1 bước
+      if (type === "week") {
+        current.setDate(current.getDate() + interval * 7);
+      } else if (type === "month") {
+        current.setMonth(current.getMonth() + interval);
+      } else if (type === "year") {
+        current.setFullYear(current.getFullYear() + interval);
+      } else {
+        // type lạ -> thoát cho an toàn
+        break;
+      }
+
+      dates.push(new Date(current)); // nhớ clone object
+      current = new Date(current);
+    }
+
+    return dates;
+  }
+
+  /** Tìm "kỳ bảo trì kế tiếp" so với hôm nay */
+  function findNextMaintenanceDate(dates) {
+    const today = new Date();
+    return dates.find((d) => d > today) || null;
+  }
+
+  /** Ngày nhắc nhở = nextDate - remindBeforeDays */
+  function getRemindDate(nextDate, remindBeforeDays = 3) {
+    if (!nextDate) return null;
+    const d = new Date(nextDate);
+    d.setDate(d.getDate() - remindBeforeDays);
+    return d;
+  }
+
+  /** Format nhanh dd/MM/yyyy (khỏi kéo thêm thư viện) */
+  function formatDateVi(date) {
+    if (!date) return "—";
+    return date.toLocaleDateString("vi-VN");
+  }
 
   useEffect(() => {
     (async () => {
@@ -62,6 +128,49 @@ export default function EquipmentProfilePage() {
       }
     })();
   }, [id]);
+  // 🧠 Tự động tính lịch bảo trì mỗi khi dữ liệu thay đổi
+  useEffect(() => {
+    const start =
+      formData.periodic_maintenance_date || currentPlan?.next_maintenance_date;
+
+    const type =
+      formData.periodic_frequency_type ||
+      (currentPlan?.frequency?.includes("week")
+        ? "week"
+        : currentPlan?.frequency?.includes("month")
+        ? "month"
+        : currentPlan?.frequency?.includes("year")
+        ? "year"
+        : "");
+
+    const interval =
+      Number(formData.periodic_frequency_interval) ||
+      Number(parseInt(currentPlan?.frequency) || 1);
+
+    if (!start || !type || !interval) {
+      setAllMaintDates([]);
+      setNextMaintDate(null);
+      setRemindDate(null);
+      return;
+    }
+
+    // 1️⃣ Tính toàn bộ ngày bảo trì
+    const dates = generateRecurringDates(start, type, interval, 50);
+    setAllMaintDates(dates);
+
+    // 2️⃣ Tìm kỳ kế tiếp
+    const next = findNextMaintenanceDate(dates);
+    setNextMaintDate(next);
+
+    // 3️⃣ Tính ngày nhắc nhở trước 3 ngày
+    const remind = getRemindDate(next, 3);
+    setRemindDate(remind);
+  }, [
+    formData.periodic_maintenance_date,
+    formData.periodic_frequency_type,
+    formData.periodic_frequency_interval,
+    currentPlan,
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -719,6 +828,64 @@ export default function EquipmentProfilePage() {
                 </div>
               );
             })()}
+
+          {/* ===== DANH SÁCH CÁC KỲ BẢO TRÌ (GỌN + SCROLL + COLLAPSE) ===== */}
+          <div className="mt-10 p-5 bg-white/70 dark:bg-gray-800/60 rounded-2xl border border-emerald-100 dark:border-gray-700 shadow-md">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-lg text-emerald-600">
+                📅 Lịch bảo trì dự kiến
+              </h3>
+
+              {/* Nút mở / đóng panel */}
+              <button
+                onClick={() => setShowMaintPanel((p) => !p)}
+                className="text-sm px-3 py-1 rounded-lg border bg-gray-100 dark:bg-gray-700 dark:text-white hover:bg-gray-200 transition"
+              >
+                {showMaintPanel ? "Đóng" : "Mở"}
+              </button>
+            </div>
+
+            {/* Panel */}
+            {showMaintPanel && (
+              <div className="mt-4 max-h-[200px] overflow-y-auto pr-1 custom-scroll">
+                {allMaintDates.length === 0 ? (
+                  <p className="text-gray-500 italic">Chưa có dữ liệu...</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(showAllMaint
+                      ? allMaintDates
+                      : allMaintDates.slice(0, 3)
+                    ).map((d, i) => (
+                      <li
+                        key={i}
+                        className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200 dark:border-gray-600"
+                      >
+                        <span className="font-semibold">{`Kỳ ${i + 1}: `}</span>
+                        {d.toLocaleDateString("vi-VN")}
+
+                        {nextMaintDate &&
+                          d.toDateString() === nextMaintDate.toDateString() && (
+                            <span className="ml-2 text-emerald-600 font-bold">
+                              ← Kỳ kế tiếp
+                            </span>
+                          )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* Nút "Xem thêm" */}
+                {allMaintDates.length > 3 && (
+                  <button
+                    onClick={() => setShowAllMaint((p) => !p)}
+                    className="mt-3 text-sm text-emerald-600 hover:text-emerald-700 font-semibold"
+                  >
+                    {showAllMaint ? "Thu gọn" : "Xem thêm..."}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* === Animation Shake Bounce (nhún nhẹ) === */}
           <style>
