@@ -641,7 +641,7 @@ export default function TransferPendingSection() {
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Ngày hoàn tất điều chuyển:
+                      Ngày hoàn tất điều chuyển: (Hệ thống sẽ lấy mặc định ngày, giờ hiện tại nếu bạn không chọn)
                     </label>
 
                     <input

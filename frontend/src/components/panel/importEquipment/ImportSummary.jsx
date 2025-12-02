@@ -21,25 +21,48 @@ export default function ImportSummary({
     [selectedItems]
   );
 
-  // ⚙️ Hàm cập nhật field trong selectedItems
-  const updateField = (id, field, value) => {
-    const parsed = field === "warranty_start_date" ? value : Number(value);
-    if (field !== "warranty_start_date" && isNaN(parsed)) return;
-
-    if (typeof parsed === "number" && parsed < 0) {
-      toast.warning("⚠️ Giá trị không được âm!");
-      setSelectedItems((prev) => ({
-        ...prev,
-        [id]: { ...prev[id], [field]: 0 },
-      }));
-      return;
-    }
-
+const updateField = (id, field, value) => {
+  // Nếu là ngày BH → không parse số
+  if (field === "warranty_start_date") {
     setSelectedItems((prev) => ({
       ...prev,
-      [id]: { ...prev[id], [field]: parsed },
+      [id]: { ...prev[id], [field]: value },
     }));
-  };
+    return;
+  }
+
+  const parsed = Number(value);
+
+  // Không cho nhập chữ
+  if (isNaN(parsed)) return;
+
+  // Không cho giá trị âm
+  if (parsed < 0) {
+    toast.warning("⚠️ Giá trị không được âm!");
+    setSelectedItems((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: 0 },
+    }));
+    return;
+  }
+
+  // ❗ RÀNG BUỘC SỐ LƯỢNG TỐI ĐA = 50
+  if (field === "qty" && parsed > 50) {
+    toast.error("❗ Số lượng tối đa cho phép là 50 máy / lần nhập!");
+    setSelectedItems((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], qty: 50 },
+    }));
+    return;
+  }
+
+  // Update bình thường
+  setSelectedItems((prev) => ({
+    ...prev,
+    [id]: { ...prev[id], [field]: parsed },
+  }));
+};
+
 
   // 💰 Tính tổng
   const totalBeforeTax = rows.reduce((sum, r) => {
@@ -99,7 +122,7 @@ export default function ImportSummary({
 
                     <div>
                       <Label className="text-xs text-gray-400">
-                        Số lượng
+                        Số lượng (tối đa 1 lần nhập được 50 thiết bị)
                       </Label>
                       <Input
                         type="number"
@@ -114,7 +137,7 @@ export default function ImportSummary({
 
                     <div>
                       <Label className="text-xs text-gray-400">
-                        Ngày bắt đầu BH
+                        Ngày bắt đầu bảo hành
                       </Label>
                       <Input
                         type="date"

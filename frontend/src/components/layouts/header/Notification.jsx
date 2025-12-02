@@ -13,11 +13,13 @@ import NotificationService from "@/services/NotificationService";
 
 const LAST_SEEN_KEY = "fitx_last_seen_notitime";
 
+/* 🔔 Hiệu ứng rung mượt */
 const ringOnce = {
-  rotate: [0, -32, 26, -18, 12, -6, 0],
-  transition: { duration: 1.05, ease: "easeInOut" },
+  rotate: [0, -26, 20, -12, 6, -3, 0],
+  transition: { duration: 0.9, ease: "easeInOut" },
 };
 
+/* 🎨 Icon theo loại */
 const typeIcon = {
   maintenance: <Wrench className="w-4 h-4 text-amber-500" />,
   equipment: <Dumbbell className="w-4 h-4 text-emerald-500" />,
@@ -72,7 +74,6 @@ export default function Notification() {
 
       const lastSeen = getLastSeen();
 
-      // Nếu có thông báo mới hơn
       if (newest > lastSeen && !hasNew) {
         setHasNew(true);
         controls.start(ringOnce);
@@ -100,7 +101,7 @@ export default function Notification() {
     };
   }, []);
 
-  // 👉 Khi rê chuột vào: dừng rung + đánh dấu đã xem để lần sau không rung lại
+  /* 🖱️ Hover chuông */
   const handleHoverBell = () => {
     setHasNew(false);
     controls.stop();
@@ -118,37 +119,43 @@ export default function Notification() {
 
   return (
     <div className="relative">
-      {/* 🔔 Nút chuông */}
+      {/* 🔔 Chuông Notification — phiên bản cao cấp */}
       <motion.button
-        whileHover={{ scale: 1.15 }}
+        whileHover={{ scale: 1.18 }}
         whileTap={{ scale: 0.9 }}
         onMouseEnter={handleHoverBell}
-        className="relative p-2 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 
-                   dark:from-gray-800 dark:to-gray-900 border border-gray-300/60 dark:border-gray-700/60 
-                   shadow-[0_2px_6px_rgba(0,0,0,0.15)] hover:shadow-[0_4px_10px_rgba(0,0,0,0.25)]
-                   transition-all backdrop-blur-sm"
-        aria-label="Notifications"
+        className="
+          relative p-2 rounded-full 
+          bg-gradient-to-br from-white to-gray-100 
+          dark:from-gray-800 dark:to-gray-900 
+          border border-gray-300/70 dark:border-gray-700/70 
+          shadow-[0_3px_12px_rgba(0,0,0,0.15)] 
+          hover:shadow-[0_6px_18px_rgba(0,0,0,0.25)]
+          transition-all backdrop-blur-md
+        "
       >
         <motion.div animate={controls}>
           <Bell
             className={`w-6 h-6 transition-all ${
               hasNew
-                ? "text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.6)]"
+                ? "text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.7)]"
                 : "text-gray-700 dark:text-gray-300"
             }`}
           />
         </motion.div>
 
+        {/* 🔴 Dot thông báo mới */}
         {hasNew && (
           <span
             className="absolute top-1 right-1 w-2.5 h-2.5 
-                           bg-gradient-to-r from-red-500 to-pink-500 rounded-full 
-                           shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse"
+              bg-gradient-to-r from-red-500 to-pink-500 
+              rounded-full shadow-[0_0_8px_rgba(239,68,68,0.9)] 
+              animate-ping"
           />
         )}
       </motion.button>
 
-      {/* 🧾 Popup thông báo */}
+      {/* 📌 Popup danh sách thông báo */}
       {showPopup && (
         <motion.div
           onMouseEnter={() => setShowPopup(true)}
@@ -157,28 +164,39 @@ export default function Notification() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.95 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
-          className="absolute right-0 mt-3 w-[360px] rounded-2xl border border-gray-300/60 dark:border-gray-700/60
-                     bg-white/95 dark:bg-gray-900/90 backdrop-blur-2xl
-                     shadow-[0_8px_25px_rgba(0,0,0,0.25)] noti-popup overflow-hidden z-50
-                     transition-shadow duration-200"
+          className="
+            absolute right-0 mt-4 w-[380px] rounded-2xl 
+            border border-gray-300/60 dark:border-gray-700/60
+            bg-white/90 dark:bg-gray-900/90 
+            backdrop-blur-2xl 
+            shadow-[0_10px_30px_rgba(0,0,0,0.25)]
+            overflow-hidden z-50 
+          "
         >
+          {/* Header */}
           <div
-            className="px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60
-                          font-semibold text-gray-800 dark:text-gray-100 flex justify-between items-center"
+            className="
+              px-4 py-3 border-b border-gray-200/70 dark:border-gray-700/60 
+              font-semibold text-gray-800 dark:text-gray-100 
+              flex justify-between items-center
+              bg-gradient-to-r from-gray-50 to-gray-100
+              dark:from-gray-800 dark:to-gray-850
+            "
           >
-            <span>🔔 Thông báo gần đây</span>
+            <span className="flex items-center gap-1">🔔 Thông báo gần đây</span>
             <button
               onClick={handleClickAll}
-              className="text-emerald-600 dark:text-emerald-400 text-xs hover:underline"
+              className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold hover:underline"
             >
               Xem tất cả
             </button>
           </div>
 
+          {/* Danh sách */}
           <ul className="max-h-80 overflow-y-auto divide-y divide-gray-200/80 dark:divide-gray-800/60">
             {previewNotis.length === 0 ? (
               <li className="p-5 text-center text-gray-500 dark:text-gray-400 text-sm">
-                Không có thông báo mới
+                Không có thông báo
               </li>
             ) : (
               previewNotis.map((n, i) => {
@@ -193,18 +211,22 @@ export default function Notification() {
                       setLastSeenToLatest();
                       navigate("/notifications");
                     }}
-                    className={`flex items-start gap-3 px-4 py-3 cursor-pointer relative transition-colors ${
-                      isNew
-                        ? "bg-gradient-to-r from-emerald-100/60 via-emerald-50/40 to-transparent " +
-                          "dark:from-emerald-900/40 dark:via-emerald-800/30 dark:to-transparent " +
-                          "before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1.5 before:bg-emerald-500 " +
-                          "ring-1 ring-emerald-400/25 rounded-sm"
-                        : "hover:bg-gray-100/80 dark:hover:bg-gray-800/40"
-                    }`}
+                    className={`
+                      flex items-start gap-3 px-4 py-3 cursor-pointer relative 
+                      transition-all duration-200
+                      ${
+                        isNew
+                          ? "bg-gradient-to-r from-emerald-100/70 via-emerald-50/50 to-transparent dark:from-emerald-900/40 dark:via-emerald-800/30 dark:to-transparent ring-1 ring-emerald-400/30 rounded-sm"
+                          : "hover:bg-gray-100/80 dark:hover:bg-gray-800/40"
+                      }
+                    `}
                   >
+                    {/* Icon */}
                     <div className="mt-1 flex-shrink-0">{icon}</div>
+
+                    {/* Nội dung */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                      <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
                         {n.title || "Thông báo mới"}
                       </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400 truncate mt-0.5">
