@@ -277,17 +277,21 @@ export default function StaffPage() {
         <div className="flex flex-wrap gap-2 items-center">
           {allRoles.map((role) => (
             <Button
-              key={role}
-              variant={selectedRole === role ? "default" : "outline"}
-              onClick={() => setSelectedRole(role)}
-              className={`px-4 py-2 text-sm rounded-lg ${
-                selectedRole === role
-                  ? "bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
-                  : "bg-white hover:bg-gray-100"
-              }`}
-            >
-              {role}
-            </Button>
+  key={role}
+  variant={selectedRole === role ? "default" : "outline"}
+  onClick={() => setSelectedRole(role)}
+  className={`
+    px-4 py-2 text-sm rounded-lg
+    text-black dark:text-gray-200
+    ${selectedRole === role
+      ? "bg-gradient-to-r from-emerald-500 to-cyan-500 dark:text-white"
+      : "bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
+    }
+  `}
+>
+  {role}
+</Button>
+
           ))}
         </div>
 
@@ -357,7 +361,7 @@ export default function StaffPage() {
       </AnimatePresence>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow overflow-hidden">
         {loading ? (
           <div className="flex justify-center py-10 text-gray-500">
             <Loader2 className="animate-spin mr-2" /> Đang tải danh sách...
@@ -366,7 +370,7 @@ export default function StaffPage() {
           <>
             <Table className="min-w-[950px]">
               <TableHeader>
-                <TableRow className="bg-gray-100 text-sm font-semibold">
+                <TableRow className="bg-gray-100 dark:bg-gray-800 text-sm font-semibold">
                   <TableHead>#</TableHead>
                   <TableHead>
                     <HeaderFilter
@@ -441,7 +445,7 @@ export default function StaffPage() {
                     <TableRow
                       key={u.username}
                       onClick={() => navigate(`/app/staff/${u.username}`)}
-                      className="hover:bg-emerald-50 cursor-pointer"
+                     className="hover:bg-emerald-50 dark:hover:bg-gray-700 cursor-pointer"
                     >
                       <TableCell>
                         {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
@@ -469,7 +473,7 @@ export default function StaffPage() {
             </Table>
 
             {/* Pagination */}
-            <div className="flex justify-between items-center border-t px-4 py-2 bg-gray-50">
+           <div className="flex justify-between items-center border-t dark:border-gray-700 px-4 py-2 bg-gray-50 dark:bg-gray-800">
               <div className="flex items-center gap-2 text-sm">
                 <span>Go to:</span>
                 <input

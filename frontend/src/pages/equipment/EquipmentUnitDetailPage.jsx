@@ -555,8 +555,9 @@ function FieldView({ icon, label, children }) {
     <div className="flex items-center gap-2">
       <div className="text-brand">{icon}</div>
       <div>
-        <p className="text-sm text-gray-500">{label}</p>
-        <p className="text-base font-medium text-gray-800">{children ?? "—"}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+<p className="text-base font-medium text-gray-800 dark:text-white">{children}</p>
+
       </div>
     </div>
   );
@@ -579,7 +580,8 @@ function FieldEdit({
       <div className="w-full">
         <p className="text-sm text-gray-500">{label}</p>
         {!editMode ? (
-          <p className="text-base font-medium text-gray-800">
+          <p className="text-base font-medium text-gray-800 dark:text-white">
+
             {children ?? "—"}
           </p>
         ) : type === "textarea" ? (
@@ -588,7 +590,9 @@ function FieldEdit({
             value={value ?? ""}
             placeholder={placeholder}
             onChange={(e) => onChange?.(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none"
+            className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none 
+           dark:bg-gray-800 dark:text-white dark:border-gray-700"
+
           />
         ) : (
           <input
@@ -607,12 +611,12 @@ function FieldEdit({
 /* ===== Thông số kỹ thuật ===== */
 function SpecSection({ showSpecs, setShowSpecs, eq }) {
   return (
-    <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
       <button
         onClick={() => setShowSpecs(!showSpecs)}
-        className="w-full flex justify-between items-center p-6 hover:bg-gray-50"
+        className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
-        <h2 className="text-lg font-semibold text-gray-800">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
           Thông số kỹ thuật
         </h2>
         <ChevronDown
@@ -633,13 +637,21 @@ function SpecSection({ showSpecs, setShowSpecs, eq }) {
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
               {eq.attributes.map((attr, i) => (
                 <div
-                  key={i}
-                  className="bg-gray-50 rounded-lg p-3 border hover:border-emerald-400/60 transition"
-                >
-                  <p className="text-xs text-gray-500">{attr.attribute}</p>
-                  <p className="text-sm font-medium text-gray-800">
-                    {attr.value || "—"}
-                  </p>
+  key={i}
+  className="
+    bg-gray-50 dark:bg-gray-800
+    border dark:border-gray-700
+    rounded-lg p-3 
+    hover:border-emerald-400/60 
+    transition
+  "
+>
+
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{attr.attribute}</p>
+<p className="text-sm font-medium text-gray-800 dark:text-white">
+  {attr.value || "—"}
+</p>
+
                 </div>
               ))}
             </div>
@@ -657,12 +669,13 @@ function SpecSection({ showSpecs, setShowSpecs, eq }) {
 /* ===== Lịch sử bảo trì ===== */
 function HistorySection({ historyOpen, setHistoryOpen, maintenanceHistory }) {
   return (
-    <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
+
       <button
         onClick={() => setHistoryOpen((p) => !p)}
-        className="w-full flex justify-between items-center p-6 hover:bg-gray-50"
+        className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
-        <h2 className="text-lg font-semibold text-gray-800">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
           Lịch sử bảo trì thiết bị
         </h2>
         <ChevronDown
@@ -682,19 +695,21 @@ function HistorySection({ historyOpen, setHistoryOpen, maintenanceHistory }) {
           {maintenanceHistory.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border">
-                <thead className="bg-gray-100">
+                <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
+
                   <tr>
-                    <th className="p-2 border">Chi nhánh</th>
-                    <th className="p-2 border">Bắt đầu</th>
-                    <th className="p-2 border">Kết thúc</th>
-                    <th className="p-2 border">Lý do</th>
-                    <th className="p-2 border">Chi phí</th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Chi nhánh</th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Bắt đầu</th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Kết thúc</th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Lý do</th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Chi phí</th>
                   </tr>
                 </thead>
                 <tbody>
                   {maintenanceHistory.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
-                      <td className="p-2 border text-center">
+                     <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
+
                         {item.branch_id || "—"}
                       </td>
                       <td className="p-2 border">
@@ -738,12 +753,13 @@ function TransferHistorySection({
   transferHistory,
 }) {
   return (
-    <div className="bg-white border rounded-xl shadow-md overflow-hidden">
+   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
+
       <button
         onClick={() => setTransferHistoryOpen((p) => !p)}
-        className="w-full flex justify-between items-center p-6 hover:bg-gray-50"
+       className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
-        <h2 className="text-lg font-semibold text-gray-800">
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
           Lịch sử điều chuyển thiết bị
         </h2>
         <ChevronDown
@@ -775,18 +791,22 @@ function TransferHistorySection({
                 <tbody>
                   {transferHistory.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
-                      <td className="p-2 border text-center">
+                      <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
+
                         {item.moved_at
                           ? new Date(item.moved_at).toLocaleString("vi-VN")
                           : "—"}
                       </td>
-                      <td className="p-2 border text-center">
+                     <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
+
                         {item.from_branch_name || item.from_branch_id || "—"}
                       </td>
-                      <td className="p-2 border text-center">
+                      <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
+
                         {item.to_branch_name || item.to_branch_id || "—"}
                       </td>
-                      <td className="p-2 border text-center">
+                     <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
+
                         {item.receiver_name || "—"}
                       </td>
                       <td className="p-2 border">{item.description || "—"}</td>
