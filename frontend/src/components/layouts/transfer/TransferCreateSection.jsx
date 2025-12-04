@@ -43,7 +43,7 @@ const STATUS_MAP = {
   "in progress": "Đang bảo trì",
   ready: "Bảo trì thành công",
   failed: "Bảo trì thất bại",
-  moving: "Đang di chuyển",
+  moving: "Đang điều chuyển",
   deleted: "Đã xóa",
 };
 

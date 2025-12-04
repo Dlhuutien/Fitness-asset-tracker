@@ -11,6 +11,8 @@ const statusColors = {
     "bg-blue-500/15 text-blue-700 border border-blue-400 dark:bg-blue-500/30 dark:text-blue-300 dark:border-blue-600",
   "Đang điều chuyển":
     "bg-gradient-to-r from-sky-400/20 to-indigo-500/20 text-indigo-700 border border-indigo-400 dark:from-sky-500/20 dark:to-indigo-600/20 dark:text-indigo-300 dark:border-indigo-500",
+  "Chờ xác nhận hủy":
+    "bg-gradient-to-r from-amber-300/20 to-orange-400/20 text-amber-700 border border-amber-400 dark:from-amber-400/20 dark:to-orange-500/20 dark:text-amber-300 dark:border-amber-500",
 
   // Bảo trì
   "Đang bảo trì":

@@ -12,7 +12,7 @@ export function getStatusVN(status) {
     inactive: "Ngưng hoạt động",
     ready: "Bảo trì thành công",
     failed: "Bảo trì thất bại",
-    moving: "Đang di chuyển",
+    moving: "Đang điều chuyển",
     "in stock": "Thiết bị trong kho",
     "temporary urgent": "Ngừng tạm thời",
     "in progress": "Đang bảo trì",
