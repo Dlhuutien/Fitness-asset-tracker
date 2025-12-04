@@ -15,7 +15,7 @@ export default function InvoicePage() {
       {/* Tabs */}
       <div className="flex gap-4 border-b pb-2 dark:border-gray-700">
         {[
-          { key: "import", label: "📦 Phiếu đơn nhập" },
+          { key: "import", label: "📦 Phiếu nhập thiết bị" },
           { key: "maintenance", label: "🧰Phiếu bảo trì" },
           { key: "disposal", label: "♻️ Hóa đơn thanh lý" },
         ].map((t) => (

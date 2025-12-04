@@ -560,29 +560,30 @@ export default function TransferPendingSection() {
           </div>
 
           {/* ==== NÚT NHẬN / HỦY ===== */}
-          {selected.status?.toLowerCase() === "pending" && (
-            <div className="flex gap-3 mt-4">
-              <Button
-                onClick={() => {
-                  setShowReceiveForm(true);
-                  setShowCancelForm(false);
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
-              >
-                Nhận thiết bị
-              </Button>
+          {selected.status?.toLowerCase() === "pending" &&
+            !(selected.from_branch_id === branchId && !isSuperAdmin) && (
+              <div className="flex gap-3 mt-4">
+                <Button
+                  onClick={() => {
+                    setShowReceiveForm(true);
+                    setShowCancelForm(false);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                >
+                  Nhận thiết bị
+                </Button>
 
-              <Button
-                onClick={() => {
-                  setShowCancelForm(true);
-                  setShowReceiveForm(false);
-                }}
-                className="bg-red-600 hover:bg-red-700 text-white flex-1"
-              >
-                Hủy nhận thiết bị
-              </Button>
-            </div>
-          )}
+                <Button
+                  onClick={() => {
+                    setShowCancelForm(true);
+                    setShowReceiveForm(false);
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white flex-1"
+                >
+                  Hủy nhận thiết bị
+                </Button>
+              </div>
+            )}
 
           {/* ==== GHI CHÚ + NÚT XÁC NHẬN HỦY (DÀNH CHO CHI NHÁNH GỬI) ==== */}
           {selected.status?.toLowerCase() === "cancelrequested" &&
@@ -641,7 +642,8 @@ export default function TransferPendingSection() {
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Ngày hoàn tất điều chuyển: (Hệ thống sẽ lấy mặc định ngày, giờ hiện tại nếu bạn không chọn)
+                      Ngày hoàn tất điều chuyển: (Hệ thống sẽ lấy mặc định ngày,
+                      giờ hiện tại nếu bạn không chọn)
                     </label>
 
                     <input

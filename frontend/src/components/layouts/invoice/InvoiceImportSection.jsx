@@ -40,6 +40,9 @@ const STATUS_MAP = {
   failed: "Bảo trì thất bại",
   "temporary urgent": "Ngừng tạm thời",
   "in stock": "Thiết bị trong kho",
+  "in progress": "Đang bảo trì",
+  disposed: "Đã thanh lý",
+  moving: "Đang điều chuyển",
 };
 
 /* ====== Bộ lọc khoảng tổng tiền ====== */

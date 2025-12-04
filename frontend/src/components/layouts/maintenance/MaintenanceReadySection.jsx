@@ -36,7 +36,7 @@ const STATUS_MAP = {
   inactive: "Ngưng hoạt động",
   ready: "Bảo trì thành công",
   failed: "Bảo trì thất bại",
-  moving: "Đang di chuyển",
+  moving: "Đang điều chuyển",
   "in stock": "Thiết bị trong kho",
   deleted: "Đã xóa",
 };
