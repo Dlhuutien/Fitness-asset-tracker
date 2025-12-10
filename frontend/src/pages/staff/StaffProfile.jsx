@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/buttonn";
 import UserService from "@/services/UserService";
 import { toast } from "sonner";
 import userGymImg from "@/assets/user_gym.png";
+import AuthService from "@/services/AuthService";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -38,6 +39,12 @@ export default function StaffProfile() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmRoleOpen, setConfirmRoleOpen] = useState(false);
   const [branches, setBranches] = useState([]);
+  const auth = AuthService.getAuth();
+  const currentUser = auth?.user || {};
+  const currentGroups = currentUser.groups || [];
+  const isSuperAdmin = currentGroups.includes("super-admin");
+  const ALLOWED_ROLES_FOR_ADMIN = ["technician", "operator"];
+  const ALL_ROLES = ["admin", "technician", "operator"];
 
   // 🔹 Load user by username
   useEffect(() => {
@@ -172,6 +179,10 @@ export default function StaffProfile() {
         </p>
       </div>
     );
+  // Danh sách quyền được phép hiển thị theo người đang đăng nhập
+  const roleOptions = isSuperAdmin
+    ? ALL_ROLES // super admin được đổi tất cả
+    : ALLOWED_ROLES_FOR_ADMIN; // admin chỉ đổi technician, operator
 
   return (
     <div className="p-6">
@@ -293,18 +304,24 @@ export default function StaffProfile() {
           <p>
             <strong>Chi nhánh:</strong>{" "}
             {editing ? (
-              <select
-                value={formData.branch_id}
-                onChange={(e) => handleChange("branch_id", e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
-              >
-                <option value="">— Chọn chi nhánh —</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+              isSuperAdmin ? (
+                <select
+                  value={formData.branch_id}
+                  onChange={(e) => handleChange("branch_id", e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="">— Chọn chi nhánh —</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-red-500 ml-2">
+                  (Chỉ người quản trị được phép đổi chi nhánh)
+                </span>
+              )
             ) : (
               <Branch id={formData.branch_id || "—"} />
             )}
@@ -331,24 +348,43 @@ export default function StaffProfile() {
           <label className="font-medium text-gray-700 dark:text-gray-300">
             Quyền:
           </label>
-
-          {/* Dropdown chọn quyền */}
-          <select
-            value={newRole}
-            onChange={(e) => setNewRole(e.target.value)}
-            className="px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
-          >
-            <option value="operator">Nhân viên trực phòng</option>
-            <option value="technician">Nhân viên kĩ thuật</option>
-            <option value="admin">Người quản lý</option>
-          </select>
-
+          {/* Role list theo quyền */}
+          {/* Nếu user mục tiêu là super-admin → khóa đổi quyền */}
+          {staff.roles?.includes("super-admin") ? (
+            <span className="text-red-500 ml-2">
+              (Không thể đổi quyền của người quản trị)
+            </span>
+          ) : (
+            <select
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+              disabled={!isSuperAdmin && !roleOptions.includes(newRole)}
+              className={`px-3 py-2 rounded-lg border dark:border-gray-600
+      ${
+        isSuperAdmin
+          ? "bg-gray-50 dark:bg-gray-800"
+          : "bg-gray-100 dark:bg-gray-700 cursor-pointer"
+      }
+      dark:text-white`}
+            >
+              {roleOptions.map((r) => (
+                <option key={r} value={r}>
+                  {convertRoleName(r)}
+                </option>
+              ))}
+            </select>
+          )}
           {/* Nút xác nhận có AlertDialog */}
           <AlertDialog open={confirmRoleOpen} onOpenChange={setConfirmRoleOpen}>
             <AlertDialogTrigger asChild>
               <Button
                 className="bg-amber-500 hover:bg-amber-600 text-white"
-                disabled={!newRole || newRole === staff.roles?.[0]}
+                disabled={
+                  !newRole ||
+                  newRole === staff.roles?.[0] ||
+                  (!isSuperAdmin &&
+                    !["technician", "operator"].includes(newRole))
+                }
               >
                 🔄 Cập nhật quyền
               </Button>
