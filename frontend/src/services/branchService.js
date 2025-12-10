@@ -11,7 +11,24 @@ const BranchService = {
       const res = await axios.get(`${API}branch`);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lấy danh sách branch:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy danh sách branch:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * Tạo chi nhánh mới
+   * POST /branch
+   */
+  async create(data) {
+    try {
+      const res = await axios.post(`${API}branch`, data);
+      return res.data;
+    } catch (err) {
+      console.error("❌ Lỗi tạo chi nhánh:", err.response?.data || err.message);
       throw err.response?.data || err;
     }
   },
@@ -25,7 +42,10 @@ const BranchService = {
       const res = await axios.get(`${API}branch/${id}`);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi lấy branch theo id:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi lấy branch theo id:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },
@@ -39,7 +59,10 @@ const BranchService = {
       const res = await axios.put(`${API}branch/${id}`, data);
       return res.data;
     } catch (err) {
-      console.error("❌ Lỗi khi cập nhật branch:", err.response?.data || err.message);
+      console.error(
+        "❌ Lỗi khi cập nhật branch:",
+        err.response?.data || err.message
+      );
       throw err.response?.data || err;
     }
   },

@@ -25,7 +25,9 @@ export function LoadingAlert({ open, setOpen }) {
               className="w-14 h-14 mx-auto mb-4 border-4 border-cyan-400 border-t-transparent rounded-full"
             />
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-xl text-white">Đang xử lý...</AlertDialogTitle>
+              <AlertDialogTitle className="text-xl text-white">
+                Đang xử lý...
+              </AlertDialogTitle>
               <AlertDialogDescription className="mt-2 text-gray-300">
                 Vui lòng chờ trong giây lát.
               </AlertDialogDescription>
@@ -52,9 +54,12 @@ export function SuccessAlert({ open, setOpen }) {
             <span className="text-white text-3xl font-bold">✔</span>
           </div>
           <AlertDialogHeader>
-            <AlertDialogTitle className="mt-4 text-2xl text-white">🎉 Đăng nhập thành công</AlertDialogTitle>
+            <AlertDialogTitle className="mt-4 text-2xl text-white">
+              🎉 Đăng nhập thành công
+            </AlertDialogTitle>
             <AlertDialogDescription className="mt-2 text-gray-300">
-              Chào mừng bạn quay lại <span className="text-cyan-400 font-semibold">FitX Gym</span>
+              Chào mừng bạn quay lại{" "}
+              <span className="text-cyan-400 font-semibold">FitX Gym</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
         </motion.div>
@@ -78,7 +83,9 @@ export function ErrorAlert({ open, setOpen }) {
             <span className="text-white text-3xl font-bold">✖</span>
           </div>
           <AlertDialogHeader>
-            <AlertDialogTitle className="mt-4 text-2xl text-white">❌ Đăng nhập thất bại</AlertDialogTitle>
+            <AlertDialogTitle className="mt-4 text-2xl text-white">
+              ❌ Đăng nhập thất bại
+            </AlertDialogTitle>
             <AlertDialogDescription className="mt-2 text-gray-300">
               Sai tài khoản hoặc mật khẩu. Vui lòng thử lại!
             </AlertDialogDescription>
@@ -139,6 +146,64 @@ export function DisabledUserAlert({ open, setOpen }) {
             <AlertDialogDescription className="mt-2 text-gray-300">
               Tài khoản của bạn hiện đang bị ngừng hoạt động. <br />
               Vui lòng liên hệ quản trị viên để được hỗ trợ.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </motion.div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+// Forgot Password Success
+export function ForgotSuccessAlert({ open, setOpen }) {
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogContent className="sm:max-w-md text-center p-0 bg-transparent border-0 shadow-none">
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="p-8 rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-black border border-white/10 shadow-[0_0_40px_rgba(34,197,94,0.4)]"
+        >
+          <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-green-500 shadow-lg">
+            <span className="text-white text-3xl font-bold">✔</span>
+          </div>
+
+          <AlertDialogHeader>
+            <AlertDialogTitle className="mt-4 text-2xl text-white">
+              🎉 Đặt lại mật khẩu thành công!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="mt-2 text-gray-300">
+              Bạn có thể đăng nhập lại với mật khẩu mới.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+        </motion.div>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+// First Login Password Change Success
+export function FirstLoginSuccessAlert({ open, setOpen }) {
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogContent className="sm:max-w-md text-center p-0 bg-transparent border-0 shadow-none">
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="p-8 rounded-3xl bg-gradient-to-br from-gray-900 via-gray-800 to-black
+                     border border-white/10 shadow-[0_0_40px_rgba(34,197,94,0.4)]"
+        >
+          <div className="w-16 h-16 mx-auto flex items-center justify-center rounded-full
+                          bg-gradient-to-r from-green-400 to-emerald-500 shadow-lg">
+            <span className="text-white text-3xl font-bold">✔</span>
+          </div>
+
+          <AlertDialogHeader>
+            <AlertDialogTitle className="mt-4 text-2xl text-white">
+              🎉 Đổi mật khẩu thành công!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="mt-2 text-gray-300">
+              Vui lòng đăng nhập lại bằng mật khẩu mới.
             </AlertDialogDescription>
           </AlertDialogHeader>
         </motion.div>

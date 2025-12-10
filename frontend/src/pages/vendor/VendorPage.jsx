@@ -1,4 +1,3 @@
-// src/pages/VendorPage.jsx
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/buttonn";
@@ -16,6 +15,7 @@ import {
   RefreshCw,
   PlusCircle,
   CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import VendorService from "@/services/vendorService";
 import PageContainer from "@/components/common/PageContainer";
@@ -28,6 +28,7 @@ import {
 import CountrySelect from "@/components/common/CountrySelect";
 import countryList from "react-select-country-list";
 import Flag from "react-world-flags";
+import { AnimatePresence, motion } from "framer-motion";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -47,6 +48,7 @@ export default function VendorPage() {
   const [editMode, setEditMode] = useState(false);
   const [saveMessage, setSaveMessage] = useState({ text: "", type: "" });
   const [formError, setFormError] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   // 🔍 Bộ lọc từng cột (Excel Filter)
   const [selectedName, setSelectedName] = useState([]);
@@ -206,6 +208,7 @@ export default function VendorPage() {
       description: vendor.description || "",
     });
     setEditMode(true);
+    setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -217,89 +220,10 @@ export default function VendorPage() {
   return (
     <PageContainer>
       <div className="space-y-5">
-        {/* Header */}
-        <div>
+        <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold text-emerald-600 flex items-center gap-2">
-            <Building2 className="w-5 h-5" /> Quản lý nhà cung cấp
+            <Building2 className="w-5 h-5" /> Quản lý thông tin nhà cung cấp
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Thêm, chỉnh sửa và xem danh sách các vendor thiết bị gym.
-          </p>
-        </div>
-
-        {/* Form */}
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow border border-emerald-100 dark:border-gray-700 space-y-4">
-          <h2 className="text-lg font-semibold text-emerald-600">
-            {editMode ? "✏️ Cập nhật nhà cung cấp" : "➕ Thêm nhà cung cấp mới"}
-          </h2>
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <Input
-              placeholder="Tên nhà cung cấp"
-              value={form.name}
-              onChange={(e) => handleChange("name", e.target.value)}
-              className="dark:bg-gray-700 dark:text-white"
-            />
-            <CountrySelect
-              value={form.origin}
-              onChange={(val) => handleChange("origin", val)}
-            />
-            <Input
-              placeholder="Mô tả ngắn (tùy chọn)"
-              value={form.description}
-              onChange={(e) => handleChange("description", e.target.value)}
-              className="dark:bg-gray-700 dark:text-white md:col-span-2"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            {editMode && (
-              <Button
-                variant="outline"
-                onClick={resetForm}
-                className="dark:border-gray-600 dark:text-gray-200"
-              >
-                Hủy
-              </Button>
-            )}
-            <Button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" /> Đang lưu...
-                </>
-              ) : editMode ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4" /> Cập nhật
-                </>
-              ) : (
-                <>
-                  <PlusCircle className="w-4 h-4" /> Thêm mới
-                </>
-              )}
-            </Button>
-          </div>
-          {saveMessage.text && (
-            <p
-              className={`text-sm mt-3 transition ${
-                saveMessage.type === "success"
-                  ? "text-emerald-600"
-                  : saveMessage.type === "error"
-                  ? "text-red-500"
-                  : "text-amber-500 animate-pulse"
-              }`}
-            >
-              {saveMessage.text}
-            </p>
-          )}
-          {formError && (
-            <p className="text-sm text-red-500 mt-2 animate-pulse">
-              {formError}
-            </p>
-          )}
         </div>
 
         {/* Bộ lọc */}
@@ -343,7 +267,28 @@ export default function VendorPage() {
           </div>
 
           {/* 👁️ Hiển thị cột */}
-          <div className="ml-auto">
+          <div className="flex ml-auto gap-3">
+            <Button
+              onClick={() => {
+                setShowForm((v) => !v);
+                resetForm();
+              }}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg ${
+                showForm
+                  ? "bg-red-500 hover:bg-red-600 text-white"
+                  : "bg-emerald-500 hover:bg-emerald-600 text-white"
+              }`}
+            >
+              {showForm ? (
+                <>
+                  <XCircle size={18} /> Hủy
+                </>
+              ) : (
+                <>
+                  <PlusCircle size={18} /> Thêm mới
+                </>
+              )}
+            </Button>
             <ColumnVisibilityButton
               visibleColumns={visibleColumns}
               setVisibleColumns={setVisibleColumns}
@@ -357,6 +302,89 @@ export default function VendorPage() {
             />
           </div>
         </div>
+
+        {/* Form */}
+        <AnimatePresence>
+          {showForm && (
+            <motion.div
+              key="vendor-form"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+              className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow border border-emerald-100 dark:border-gray-700 space-y-4"
+            >
+              <h2 className="text-lg font-semibold text-emerald-600">
+                {editMode
+                  ? "✏️ Cập nhật nhà cung cấp"
+                  : "➕ Thêm nhà cung cấp mới"}
+              </h2>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <Input
+                  placeholder="Tên nhà cung cấp"
+                  value={form.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className="dark:bg-gray-700 dark:text-white"
+                />
+
+                <CountrySelect
+                  value={form.origin}
+                  onChange={(val) => handleChange("origin", val)}
+                />
+
+                <Input
+                  placeholder="Mô tả ngắn (tùy chọn)"
+                  value={form.description}
+                  onChange={(e) => handleChange("description", e.target.value)}
+                  className="dark:bg-gray-700 dark:text-white md:col-span-2"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white flex items-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Đang lưu...
+                    </>
+                  ) : editMode ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" /> Cập nhật
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="w-4 h-4" /> Lưu
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {saveMessage.text && (
+                <p
+                  className={`text-sm mt-3 transition ${
+                    saveMessage.type === "success"
+                      ? "text-emerald-600"
+                      : saveMessage.type === "error"
+                      ? "text-red-500"
+                      : "text-amber-500 animate-pulse"
+                  }`}
+                >
+                  {saveMessage.text}
+                </p>
+              )}
+
+              {formError && (
+                <p className="text-sm text-red-500 mt-2 animate-pulse">
+                  {formError}
+                </p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Bảng dữ liệu */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
