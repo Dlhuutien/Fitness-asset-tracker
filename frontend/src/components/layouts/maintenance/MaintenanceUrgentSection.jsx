@@ -62,7 +62,7 @@ export default function MaintenanceUrgentSection() {
   const [loadingStart, setLoadingStart] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
   const [centralLoading, setCentralLoading] = useState(false);
-const [bulkSelectAll, setBulkSelectAll] = useState(false);
+  const [bulkSelectAll, setBulkSelectAll] = useState(false);
 
   const [search, setSearch] = useState("");
   const [activeGroup, setActiveGroup] = useState("all");
@@ -499,32 +499,26 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
             📅 Xem lịch đảm nhận
           </Button>
           <Button
-  onClick={() => {
-    setBulkMode("success");
+            onClick={() => {
+              if (bulkMode === "success") {
+                const newState = !bulkSelectAll;
+                setBulkSelectAll(newState);
 
-    // 🔥 Toggle chọn hết ↔ bỏ hết
-    setBulkSelectAll((prev) => {
-      const newState = !prev; // đảo trạng thái
-      const m = {};
+                const m = {};
+                filteredByColumn.forEach((row) => {
+                  if (row.status?.toLowerCase() === "in progress")
+                    m[row.id] = newState;
+                });
 
-      // Chỉ chọn thiết bị đang "in progress"
-      filteredByColumn.forEach((row) => {
-        if (row.status?.toLowerCase() === "in progress") {
-          m[row.id] = newState;
-        }
-      });
-
-      // Nếu newState = true → chọn hết
-      // Nếu newState = false → bỏ hết
-      setCheckedMap(newState ? m : {});
-
-      // Reset ghi chú khi toggle
-      setCommonNote("");
-
-      return newState;
-    });
-  }}
-  className={`
+                setCheckedMap(newState ? m : {});
+              } else {
+                setBulkMode("success");
+                setBulkSelectAll(false);
+                setCheckedMap({});
+                setCommonNote("");
+              }
+            }}
+            className={`
     transition-all duration-200
     ${
       bulkMode === "success"
@@ -532,25 +526,28 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
         : "bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm"
     }
   `}
->
-  ✔ Bảo trì thành công
-</Button>
-
+          >
+            {bulkMode === "success" ? "Chọn tất cả" : "✔ Bảo trì thành công"}
+          </Button>
 
           <Button
             onClick={() => {
               if (bulkMode === "fail") {
-                setBulkMode(null);
-                setCheckedMap({});
-                setCommonNote("");
-              } else {
-                setBulkMode("fail");
+                const newState = !bulkSelectAll;
+                setBulkSelectAll(newState);
+
                 const m = {};
                 filteredByColumn.forEach((row) => {
                   if (row.status?.toLowerCase() === "in progress")
-                    m[row.id] = true;
+                    m[row.id] = newState;
                 });
-                setCheckedMap(m);
+
+                setCheckedMap(newState ? m : {});
+              } else {
+                setBulkMode("fail");
+                setBulkSelectAll(false);
+                setCheckedMap({});
+                setCommonNote("");
               }
             }}
             className={`
@@ -562,8 +559,21 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
     }
   `}
           >
-            ✖ Bảo trì thất bại
+            {bulkMode === "fail" ? "Chọn tất cả" : "✖ Bảo trì thất bại"}
           </Button>
+          {bulkMode && (
+            <Button
+              onClick={() => {
+                setBulkMode(null);
+                setCheckedMap({});
+                setCommonNote("");
+                setBulkSelectAll(false);
+              }}
+              className="bg-gray-400 hover:bg-gray-500 text-white"
+            >
+              Hủy
+            </Button>
+          )}
 
           <ColumnVisibilityButton
             visibleColumns={visibleColumns}
@@ -1041,66 +1051,95 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
 
             {/* Step 2 */}
             {maintenanceSteps[selected.id] === 2 && (
-              <div className="space-y-3">
-                {checkWarranty(selected) ? (
-                  <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
-                    ✅ Còn bảo hành — Chi phí: 0đ
-                  </div>
-                ) : (
-                  <div>
-                    <p className="text-red-600 font-semibold mb-1 text-sm">
-                      Hết hạn bảo hành — nhập chi phí
-                    </p>
-                    <Input
-                      type="number"
-                      value={cost}
-                      onChange={(e) => setCost(e.target.value)}
-                      placeholder="Nhập chi phí"
-                      className="w-1/2"
-                    />
+              <div className="space-y-4">
+                {/* ----- 2 nút lựa chọn kết quả ----- */}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() =>
+                      setSelected((p) => ({ ...p, __result: "success" }))
+                    }
+                    className={`flex-1 ${
+                      selected.__result === "success"
+                        ? "bg-emerald-600"
+                        : "bg-emerald-500 hover:bg-emerald-600"
+                    } text-white`}
+                  >
+                    ✔ Bảo trì thành công
+                  </Button>
+
+                  <Button
+                    onClick={() =>
+                      setSelected((p) => ({ ...p, __result: "fail" }))
+                    }
+                    className={`flex-1 ${
+                      selected.__result === "fail"
+                        ? "bg-red-600"
+                        : "bg-red-500 hover:bg-red-600"
+                    } text-white`}
+                  >
+                    ✖ Bảo trì thất bại
+                  </Button>
+                </div>
+
+                {/* ----- Form khi chọn SUCCESS ----- */}
+                {selected.__result === "success" && (
+                  <div className="space-y-3 p-4 rounded-xl border border-emerald-300 bg-emerald-50">
+                    {checkWarranty(selected) ? (
+                      <div className="p-2 rounded bg-emerald-100 text-emerald-700 text-sm">
+                        ✓ Còn bảo hành → Chi phí = 0
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Chi phí bảo trì:
+                        </label>
+                        <Input
+                          type="number"
+                          value={cost}
+                          onChange={(e) => setCost(e.target.value)}
+                          placeholder="Nhập chi phí"
+                        />
+                      </div>
+                    )}
+
+                    {/* Ghi chú */}
+                    <div>
+                      <label className="text-sm font-medium">Ghi chú:</label>
+                      <Input
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        placeholder="Nhập ghi chú bảo trì"
+                      />
+                    </div>
+
+                    <Button
+                      onClick={() => finishMaintenance("Bảo trì thành công")}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      Xác nhận thành công
+                    </Button>
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-sm mb-1 text-gray-700 dark:text-gray-300">
-                    Ghi chú:
-                  </label>
-                  <Input
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Nhập ghi chú bảo trì"
-                  />
-                </div>
+                {/* ----- Form khi chọn FAIL ----- */}
+                {selected.__result === "fail" && (
+                  <div className="space-y-3 p-4 rounded-xl border border-red-300 bg-red-50">
+                    {/* Chỉ hiển thị ghi chú */}
+                    <label className="text-sm font-medium">Ghi chú:</label>
+                    <Input
+                      value={note}
+                      onChange={(e) => setNote(e.target.value)}
+                      placeholder="Nhập lý do thất bại"
+                    />
 
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => finishMaintenance("Bảo trì thành công")}
-                    disabled={loadingComplete}
-                    className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold flex items-center justify-center gap-2"
-                  >
-                    {loadingComplete ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Đang gửi...
-                      </>
-                    ) : (
-                      "✅ Bảo trì thành công"
-                    )}
-                  </Button>
-
-                  <Button
-                    onClick={() => finishMaintenance("Bảo trì thất bại")}
-                    disabled={loadingComplete}
-                    className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold flex items-center justify-center gap-2"
-                  >
-                    {loadingComplete ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Đang gửi...
-                      </>
-                    ) : (
-                      "❌ Bảo trì thất bại"
-                    )}
-                  </Button>
-                </div>
+                    <Button
+                      onClick={() => finishMaintenance("Bảo trì thất bại")}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Xác nhận thất bại
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>

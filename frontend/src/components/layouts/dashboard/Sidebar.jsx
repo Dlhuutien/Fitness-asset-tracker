@@ -65,7 +65,7 @@ export default function Sidebar() {
     },
     {
       key: "vendor",
-      label: "Quản lý nhà cung cấp",
+      label: "Quản lý thông tin nhà cung cấp",
       icon: Truck,
       path: "/app/vendor",
     },

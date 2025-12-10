@@ -27,7 +27,8 @@ export default function EquipmentProfilePage() {
   const [editing, setEditing] = useState(false);
   const [equipment, setEquipment] = useState(null);
   const [saveMessage, setSaveMessage] = useState({ type: "", text: "" });
-  const { isTechnician } = useAuthRole();
+  const { isTechnician, isSuperAdmin } = useAuthRole();
+
 
   const [formData, setFormData] = useState({
     name: "",
@@ -569,7 +570,7 @@ export default function EquipmentProfilePage() {
               <p className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500 text-base tracking-wide mb-1">
                 Thời gian bắt đầu
               </p>
-              {editing ? (
+              {editing && isSuperAdmin ? (
                 <Input
                   type="date"
                   value={formData.periodic_maintenance_date || ""}
@@ -595,7 +596,7 @@ export default function EquipmentProfilePage() {
               <p className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500 text-base tracking-wide mb-1">
                 Chu kỳ
               </p>
-              {editing ? (
+              {editing && isSuperAdmin ? (
                 <select
                   value={formData.periodic_frequency_type || ""}
                   onChange={(e) =>
@@ -629,7 +630,7 @@ export default function EquipmentProfilePage() {
               <p className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500 text-base tracking-wide mb-1">
                 Tần suất
               </p>
-              {editing ? (
+              {editing && isSuperAdmin ? (
                 <Input
                   type="number"
                   min={1}

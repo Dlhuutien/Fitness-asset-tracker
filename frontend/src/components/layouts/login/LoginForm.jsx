@@ -21,6 +21,8 @@ import {
   ErrorAlert,
   ServerErrorAlert,
   DisabledUserAlert,
+  ForgotSuccessAlert,
+  FirstLoginSuccessAlert,
 } from "./LoginAlert";
 import { toast } from "sonner";
 
@@ -63,6 +65,8 @@ export default function LoginForm() {
   const [forgotError, setForgotError] = useState("");
   const [showForgotNew, setShowForgotNew] = useState(false);
   const [showForgotConfirm, setShowForgotConfirm] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [firstLoginSuccess, setFirstLoginSuccess] = useState(false);
 
   const navigate = useNavigate();
 
@@ -126,12 +130,18 @@ export default function LoginForm() {
       );
       console.log("✅ Đổi mật khẩu lần đầu thành công:", result);
 
-      setAlert("success");
+      setFirstLoginSuccess(true);
+
+      // Tự đóng alert sau 3 giây
       setTimeout(() => {
-        toast.success("Vui lòng đăng nhập lại bằng mật khẩu mới.");
+        setFirstLoginSuccess(false);
+      }, 3000);
+
+      // Reset form & quay lại login sau 1 giây (để UX mượt)
+      setTimeout(() => {
         setNewUser(null);
-        setView("login"); // quay lại form login
-      }, 1800);
+        setView("login");
+      }, 1000);
     } catch (err) {
       console.error("❌ Lỗi đổi mật khẩu:", err);
       setAlert("error");
@@ -185,16 +195,20 @@ export default function LoginForm() {
         forgotForm.newPassword
       );
       toast.success(res.message || "Đặt lại mật khẩu thành công!");
-      console.log("✅ confirmForgotPassword response:", res);
-      setView("login");
-      setForgotStep(1);
-      setForgotForm({
-        username: "",
-        email: "",
-        code: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
+      setForgotSuccess(true); // mở popup
+      setTimeout(() => setForgotSuccess(false), 3000);
+
+      setTimeout(() => {
+        setView("login");
+        setForgotStep(1);
+        setForgotForm({
+          username: "",
+          email: "",
+          code: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      }, 1000);
     } catch (err) {
       console.error("❌ Lỗi xác nhận mã:", err);
 
@@ -514,6 +528,11 @@ export default function LoginForm() {
       <DisabledUserAlert
         open={alert === "disabled"}
         setOpen={() => setAlert(null)}
+      />
+      <ForgotSuccessAlert open={forgotSuccess} setOpen={setForgotSuccess} />
+      <FirstLoginSuccessAlert
+        open={firstLoginSuccess}
+        setOpen={setFirstLoginSuccess}
       />
     </>
   );

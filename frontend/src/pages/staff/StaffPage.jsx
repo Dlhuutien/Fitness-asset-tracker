@@ -28,6 +28,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import AuthService from "@/services/AuthService";
 import AddStaffPage from "@/pages/staff/AddStaffPage";
 import { PlusCircle } from "lucide-react";
+import useAuthRole from "@/hooks/useAuthRole";
 
 const ITEMS_PER_PAGE = 8;
 
@@ -171,16 +172,40 @@ export default function StaffPage() {
         setLoading(true);
         const data = await UserService.getAll();
 
+        // 👇 Lọc bỏ user hiện hành & super-admin
         // 👇 Lấy thông tin người hiện hành từ localStorage
         const auth = AuthService.getAuth();
-        const currentUsername = auth?.username;
+        const currentUser = auth?.user || {};
+        const currentUsername = currentUser.username;
+        const currentGroups = currentUser.groups || [];
+        const currentBranch = currentUser.userAttributes?.["custom:branch_id"];
 
-        // 👇 Lọc bỏ user hiện hành & super-admin
-        const filtered = data.filter(
-          (u) =>
-            u.username !== currentUsername && // bỏ người đang đăng nhập
-            !u.roles?.includes("super-admin") // bỏ tài khoản quản trị cấp cao
-        );
+        // Kiểm tra vai trò
+        const isSuperAdmin = currentGroups.includes("super-admin");
+        const isAdmin = currentGroups.includes("admin");
+
+        // ⭐ Lọc theo phân quyền
+        const filtered = data.filter((u) => {
+          // 1) Không hiển thị chính mình
+          if (u.username === currentUsername) return false;
+
+          // 2) Admin KHÔNG thấy super-admin
+          if (!isSuperAdmin && u.roles?.includes("super-admin")) return false;
+
+          // 3) Nếu là super-admin thì thấy tất cả
+          if (isSuperAdmin) return true;
+
+          // 4) Nếu là admin → chỉ xem được nhân viên cùng chi nhánh
+          if (isAdmin) {
+            return (
+              u.attributes?.["custom:branch_id"] &&
+              u.attributes["custom:branch_id"] === currentBranch
+            );
+          }
+
+          // 5) Các vai trò khác → không được xem danh sách nhân viên
+          return false;
+        });
 
         setUsers(filtered);
       } catch (err) {
@@ -277,21 +302,21 @@ export default function StaffPage() {
         <div className="flex flex-wrap gap-2 items-center">
           {allRoles.map((role) => (
             <Button
-  key={role}
-  variant={selectedRole === role ? "default" : "outline"}
-  onClick={() => setSelectedRole(role)}
-  className={`
+              key={role}
+              variant={selectedRole === role ? "default" : "outline"}
+              onClick={() => setSelectedRole(role)}
+              className={`
     px-4 py-2 text-sm rounded-lg
     text-black dark:text-gray-200
-    ${selectedRole === role
-      ? "bg-gradient-to-r from-emerald-500 to-cyan-500 dark:text-white"
-      : "bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
+    ${
+      selectedRole === role
+        ? "bg-gradient-to-r from-emerald-500 to-cyan-500 dark:text-white"
+        : "bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
     }
   `}
->
-  {role}
-</Button>
-
+            >
+              {role}
+            </Button>
           ))}
         </div>
 
@@ -437,7 +462,7 @@ export default function StaffPage() {
                 {currentData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-4">
-                      Không có dữ liệu
+                      Chưa có dữ liệu
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -445,7 +470,7 @@ export default function StaffPage() {
                     <TableRow
                       key={u.username}
                       onClick={() => navigate(`/app/staff/${u.username}`)}
-                     className="hover:bg-emerald-50 dark:hover:bg-gray-700 cursor-pointer"
+                      className="hover:bg-emerald-50 dark:hover:bg-gray-700 cursor-pointer"
                     >
                       <TableCell>
                         {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
@@ -473,7 +498,7 @@ export default function StaffPage() {
             </Table>
 
             {/* Pagination */}
-           <div className="flex justify-between items-center border-t dark:border-gray-700 px-4 py-2 bg-gray-50 dark:bg-gray-800">
+            <div className="flex justify-between items-center border-t dark:border-gray-700 px-4 py-2 bg-gray-50 dark:bg-gray-800">
               <div className="flex items-center gap-2 text-sm">
                 <span>Go to:</span>
                 <input
