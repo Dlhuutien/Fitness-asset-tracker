@@ -265,27 +265,35 @@ export default function TransferPendingSection() {
             className="h-9 w-72 border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-emerald-400 text-sm"
           />
 
-          <Select
-            onValueChange={(v) => {
-              setActiveBranch(v);
-              setCurrentPage(1);
-            }}
-            defaultValue="all"
-          >
-            <SelectTrigger className="h-9 w-44 border-gray-300 dark:border-gray-700 text-sm bg-gray-50 dark:bg-gray-800 focus:ring-emerald-400 transition">
-              <SelectValue placeholder="Lọc theo chi nhánh" />
-            </SelectTrigger>
-            <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md rounded-md">
-              <SelectItem value="all" className="text-sm">
-                Tất cả
-              </SelectItem>
-              {branches.map((b) => (
-                <SelectItem key={b.id} value={b.id} className="text-sm">
-                  {b.name}
+          {isSuperAdmin ? (
+            <Select
+              onValueChange={(v) => {
+                setActiveBranch(v);
+                setCurrentPage(1);
+              }}
+              defaultValue="all"
+            >
+              <SelectTrigger className="h-9 w-44 border-gray-300 dark:border-gray-700 text-sm bg-gray-50 dark:bg-gray-800">
+                <SelectValue placeholder="Lọc theo chi nhánh" />
+              </SelectTrigger>
+
+              <SelectContent className="z-[9999] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-md rounded-md">
+                <SelectItem value="all" className="text-sm">
+                  Tất cả
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id} className="text-sm">
+                    {b.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+              Chi nhánh: <Branch id={branchId} />
+            </div>
+          )}
         </div>
 
         <ColumnVisibilityButton
