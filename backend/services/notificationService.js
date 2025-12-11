@@ -474,6 +474,64 @@ Người phê duyệt: ${approverName}, Người nhận: ${receiverName}
     });
   },
 
+  /**
+   * Hủy yêu cầu chuyển thiết bị
+   */
+  async notifyTransferCancelled(transfer, admins, cancelledBy) {
+    const recipients = admins.map((u) => u.email);
+    if (!recipients.length) return;
+
+    const fromBranch = await branchRepository.findById(transfer.from_branch_id);
+    const toBranch = await branchRepository.findById(transfer.to_branch_id);
+    const canceller = cancelledBy
+      ? await userRepository.getUserBySub(cancelledBy)
+      : null;
+
+    const fromBranchName = fromBranch?.name || transfer.from_branch_id;
+    const toBranchName = toBranch?.name || transfer.to_branch_id;
+    const cancellerName =
+      canceller?.attributes?.name || canceller?.username || "Người dùng";
+
+    const cancelledAt = new Date().toLocaleString("vi-VN");
+
+    const subject = "Yêu cầu chuyển thiết bị đã bị hủy";
+    const html = `
+    <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
+                border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
+      ${buildHeader("Hủy chuyển thiết bị")}
+      <div style="padding:20px; color:#333;">
+        <p>Yêu cầu chuyển thiết bị đã bị <b>HỦY</b>.</p>
+        <p><b>Từ chi nhánh:</b> ${fromBranchName}</p>
+        <p><b>Đến chi nhánh:</b> ${toBranchName}</p>
+        <p><b>Người hủy:</b> ${cancellerName}</p>
+        <p><b>Thời điểm:</b> ${cancelledAt}</p>
+        ${
+          transfer.description_cancelled
+            ? `<p><b>Lý do:</b> ${transfer.description_cancelled}</p>`
+            : ""
+        }
+      </div>
+      ${buildFooter()}
+    </div>
+  `;
+
+    await sendNoReplyEmail(recipients, subject, html);
+
+    const receiverRoles = [...new Set(admins.flatMap((u) => u.roles))];
+    const receiverIds = admins.map((u) => u.sub).filter(Boolean);
+
+    // Ghi notification DB
+    return await notificationRepository.create({
+      type: "transfer",
+      title: "Hủy yêu cầu chuyển thiết bị",
+      message: `Yêu cầu chuyển thiết bị từ ${fromBranchName} sang ${toBranchName} đã bị hủy bởi ${cancellerName}.`,
+      transfer_id: transfer.id,
+      receiver_role: receiverRoles,
+      receiver_id: receiverIds,
+      created_by: cancelledBy,
+    });
+  },
+
   // =========================
   // Thanh lý thiết bị (Disposal)
   // =========================

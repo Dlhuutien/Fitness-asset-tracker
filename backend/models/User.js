@@ -189,7 +189,7 @@ const UserModel = {
 
   changePassword: async ({ accessToken, oldPassword, newPassword }) => {
     if (!accessToken || !oldPassword || !newPassword) {
-      throw new Error("accessToken, oldPassword, newPassword are required");
+      throw new Error("Bạn cần cung cấp accessToken, mật khẩu cũ và mật khẩu mới");
     }
 
     const resp = await cip.send(
@@ -205,7 +205,7 @@ const UserModel = {
 
   forgotPassword: async ({ username, email }) => {
     if (!username || !email) {
-      throw new Error("username and email are required");
+      throw new Error("Bạn cần cung cấp username và email");
     }
 
     // ⚙️ Kiểm tra xem email của user có khớp trong Cognito không
@@ -218,12 +218,12 @@ const UserModel = {
         })
       );
     } catch (err) {
-      throw new Error("User not found");
+      throw new Error("Không tìm thấy người dùng");
     }
 
     const emailAttr = userResp.UserAttributes.find((a) => a.Name === "email");
     if (!emailAttr || emailAttr.Value.toLowerCase() !== email.toLowerCase()) {
-      throw new Error("Email does not match this account");
+      throw new Error("Email không trùng khớp với tài khoản");
     }
 
     // ✅ Gửi mã đặt lại mật khẩu
@@ -243,7 +243,7 @@ const UserModel = {
 
   confirmForgotPassword: async ({ username, code, newPassword }) => {
     if (!username || !code || !newPassword) {
-      throw new Error("username, code, and newPassword are required");
+      throw new Error("Bạn cần cung cấp username, mã xác nhận và mật khẩu mới");
     }
     const params = {
       ClientId: CLIENT_ID,
