@@ -101,6 +101,17 @@ const equipmentTransferController = {
         req.user.sub
       );
 
+      // Gửi email cho admin
+      const admins = await userService.getUsersByRoles([
+        "admin",
+        "super-admin",
+      ]);
+      await notificationService.notifyTransferCancelled(
+        transfer,
+        admins,
+        req.user.sub
+      );
+
       res.json({ message: "Transfer cancelled", transfer });
     } catch (error) {
       res.status(400).json({ error: error.message });

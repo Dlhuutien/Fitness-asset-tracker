@@ -21,48 +21,66 @@ export default function ImportSummary({
     [selectedItems]
   );
 
-const updateField = (id, field, value) => {
-  // Nếu là ngày BH → không parse số
-  if (field === "warranty_start_date") {
+  const updateField = (id, field, value) => {
+    // Nếu là ngày BH → không parse số
+    if (field === "warranty_start_date") {
+      setSelectedItems((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          [field]: value,
+          [`${field}Error`]: value ? "" : "Vui lòng chọn ngày bảo hành",
+        },
+      }));
+      return;
+    }
+
+    const parsed = Number(value);
+
+    // Không cho nhập chữ
+    if (isNaN(parsed)) return;
+
+    // ❗ KIỂM TRA ÂM — GHI LỖI VÀ TRẢ VỀ
+    if (parsed < 0) {
+      let label = "";
+      if (field === "price") label = "Giá nhập";
+      if (field === "qty") label = "Số lượng";
+      if (field === "warranty_duration") label = "Số năm bảo hành";
+
+      setSelectedItems((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          [field]: 0,
+          [`${field}Error`]: `${label} không được nhỏ hơn 0`,
+        },
+      }));
+      return;
+    }
+
+    // ❗ RÀNG BUỘC SỐ LƯỢNG 50
+    if (field === "qty" && parsed > 50) {
+      setSelectedItems((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          qty: 50,
+          qtyError: "Số lượng tối đa là 50",
+        },
+      }));
+      return;
+    }
+
+    // Cập nhật bình thường (và xóa lỗi nếu hợp lệ)
     setSelectedItems((prev) => ({
       ...prev,
-      [id]: { ...prev[id], [field]: value },
+      [id]: {
+        ...prev[id],
+        [field]: parsed,
+        [`${field}Error`]: "",
+      },
     }));
-    return;
-  }
-
-  const parsed = Number(value);
-
-  // Không cho nhập chữ
-  if (isNaN(parsed)) return;
-
-  // Không cho giá trị âm
-  if (parsed < 0) {
-    toast.warning("⚠️ Giá trị không được âm!");
-    setSelectedItems((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], [field]: 0 },
-    }));
-    return;
-  }
-
-  // ❗ RÀNG BUỘC SỐ LƯỢNG TỐI ĐA = 50
-  if (field === "qty" && parsed > 50) {
-    toast.error("❗ Số lượng tối đa cho phép là 50 máy / lần nhập!");
-    setSelectedItems((prev) => ({
-      ...prev,
-      [id]: { ...prev[id], qty: 50 },
-    }));
-    return;
-  }
-
-  // Update bình thường
-  setSelectedItems((prev) => ({
-    ...prev,
-    [id]: { ...prev[id], [field]: parsed },
-  }));
-};
-
+  };
 
   // 💰 Tính tổng
   const totalBeforeTax = rows.reduce((sum, r) => {
@@ -72,6 +90,31 @@ const updateField = (id, field, value) => {
   }, 0);
   const taxAmount = Math.round(totalBeforeTax * 0.08);
   const totalWithTax = totalBeforeTax + taxAmount;
+
+  // ============================
+  // 🔒 RÀNG BUỘC ĐIỀU KIỆN BẮT BUỘC ĐỂ ĐƯỢC LƯU
+  // ============================
+  const canSave = (() => {
+    // ❗ Chưa chọn nhà cung cấp
+    if (!selectedVendor) return false;
+
+    // ❗ Chưa chọn chi nhánh
+    if (!branchId) return false;
+
+    // ❗ Không có thiết bị nào
+    if (rows.length === 0) return false;
+
+    // ❗ Kiểm tra từng dòng thiết bị
+    for (const item of rows) {
+      if (!item.price || Number(item.price) <= 0) return false;
+      if (!item.qty || Number(item.qty) <= 0) return false;
+      if (!item.warranty_start_date) return false;
+      if (!item.warranty_duration || Number(item.warranty_duration) <= 0)
+        return false;
+    }
+
+    return true;
+  })();
 
   return (
     <div className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm space-y-4">
@@ -118,6 +161,11 @@ const updateField = (id, field, value) => {
                         placeholder="VD: 12000000"
                         className="h-8 text-sm"
                       />
+                      {item.priceError && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {item.priceError}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -133,6 +181,11 @@ const updateField = (id, field, value) => {
                         placeholder="VD: 2"
                         className="h-8 text-sm"
                       />
+                      {item.qtyError && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {item.qtyError}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -171,6 +224,11 @@ const updateField = (id, field, value) => {
                         placeholder="VD: 2"
                         className="h-8 text-sm"
                       />
+                      {item.warranty_durationError && (
+                        <p className="text-red-500 text-xs mt-1">
+                          {item.warranty_durationError}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -204,11 +262,22 @@ const updateField = (id, field, value) => {
         </div>
 
         <Button
-          className="bg-gradient-to-r from-emerald-500 to-purple-500 hover:opacity-90 text-white font-semibold px-6 py-2 rounded-xl shadow-md transition"
-          disabled={!rows.length}
-          onClick={onConfirm}
+          className={
+            "font-semibold px-6 py-2 rounded-xl shadow-md transition " +
+            (canSave
+              ? "bg-gradient-to-r from-emerald-500 to-purple-500 hover:opacity-90 text-white"
+              : "bg-gray-400 text-white cursor-not-allowed opacity-60")
+          }
+          disabled={!canSave}
+          onClick={() => {
+            if (!canSave) {
+              toast.error("⚠️ Vui lòng nhập đầy đủ thông tin bắt buộc!");
+              return;
+            }
+            onConfirm();
+          }}
         >
-          Nhập thiết bị
+          Lưu
         </Button>
       </div>
     </div>

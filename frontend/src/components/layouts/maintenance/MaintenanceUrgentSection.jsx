@@ -57,6 +57,7 @@ export default function MaintenanceUrgentSection() {
   const [selected, setSelected] = useState(null);
   const [maintenanceSteps, setMaintenanceSteps] = useState({});
   const [cost, setCost] = useState("");
+  const [costError, setCostError] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingStart, setLoadingStart] = useState(false);
@@ -369,6 +370,7 @@ export default function MaintenanceUrgentSection() {
         toast.error(
           `Thiết bị ${selected.equipment?.name} (ID: ${selected.id}) đã hết bảo hành, vui lòng nhập chi phí bảo trì.`
         );
+        setCostError("Vui lòng nhập chi phí bảo trì"); 
         return;
       }
     }
@@ -1093,18 +1095,50 @@ export default function MaintenanceUrgentSection() {
                         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           Chi phí bảo trì:
                         </label>
+
                         <Input
                           type="number"
                           value={cost}
-                          onChange={(e) => setCost(e.target.value)}
+                          onChange={(e) => {
+                            const v = e.target.value;
+
+                            // Xoá lỗi trước
+                            setCostError("");
+
+                            if (v === "") {
+                              setCost("");
+                              setCostError("Vui lòng nhập chi phí bảo trì");
+                              return;
+                            }
+                            const parsed = Number(v);
+                            if (parsed < 0) {
+                              setCost("");
+                              setCostError("Chi phí không được âm");
+                              return;
+                            }
+                            setCost(parsed);
+                          }}
+                          className={`${
+                            costError
+                              ? "border-red-500 ring-1 ring-red-400"
+                              : ""
+                          }`}
                           placeholder="Nhập chi phí"
                         />
+
+                        {costError && (
+                          <p className="text-red-500 text-xs mt-1">
+                            {costError}
+                          </p>
+                        )}
                       </div>
                     )}
 
                     {/* Ghi chú */}
                     <div>
-                      <label className="text-sm font-medium">Ghi chú:</label>
+                      <label className="text-sm font-medium">
+                        Ghi chú (Tùy chọn):
+                      </label>
                       <Input
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
@@ -1125,7 +1159,7 @@ export default function MaintenanceUrgentSection() {
                 {selected.__result === "fail" && (
                   <div className="space-y-3 p-4 rounded-xl border border-red-300 bg-red-50">
                     {/* Chỉ hiển thị ghi chú */}
-                    <label className="text-sm font-medium">Ghi chú:</label>
+                    <label className="text-sm font-medium">Ghi chú (Tùy chọn):</label>
                     <Input
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
