@@ -19,6 +19,8 @@ export default function UserProfile() {
     confirmNewPassword: "",
   });
   const [saveMessage, setSaveMessage] = useState({ text: "", type: "" });
+  const [errors, setErrors] = useState({});
+  const [passwordErrors, setPasswordErrors] = useState({});
 
   // 🧭 Load user info từ localStorage
   useEffect(() => {
@@ -87,8 +89,42 @@ export default function UserProfile() {
     return "+84" + cleaned;
   };
 
+  const validateProfile = () => {
+    const e = {};
+
+    // name
+    if (!formData.name?.trim()) e.name = "Họ tên không được để trống";
+    else if (formData.name.trim().length < 3)
+      e.name = "Họ tên tối thiểu 3 ký tự";
+
+    // gender
+    if (!["Nam", "Nữ", "Khác"].includes(formData.gender))
+      e.gender = "Giới tính không hợp lệ";
+
+    // birthdate
+    if (formData.birthdate) {
+      const d = new Date(formData.birthdate);
+      if (isNaN(d)) e.birthdate = "Ngày sinh không hợp lệ";
+      else if (d > new Date())
+        e.birthdate = "Ngày sinh không được lớn hơn hiện tại";
+    }
+
+    // phone (sau +84)
+    if (!formData.phone_number) e.phone_number = "Vui lòng nhập số điện thoại";
+    else if (!/^\d{9,10}$/.test(formData.phone_number))
+      e.phone_number = "Số điện thoại phải 9–10 chữ số";
+
+    // address
+    if (formData.address && formData.address.trim().length < 5)
+      e.address = "Địa chỉ tối thiểu 5 ký tự";
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   // ✅ Gọi API updateSelf
   const handleSave = async () => {
+    if (!validateProfile()) return;
     try {
       setSaving(true);
 
@@ -136,8 +172,27 @@ export default function UserProfile() {
     }
   };
 
+  const validatePassword = () => {
+    const e = {};
+
+    if (!passwordData.oldPassword) e.oldPassword = "Chưa nhập mật khẩu cũ";
+
+    if (!passwordData.newPassword) e.newPassword = "Chưa nhập mật khẩu mới";
+    else if (passwordData.newPassword.length < 6)
+      e.newPassword = "Mật khẩu ≥ 6 ký tự";
+
+    if (!passwordData.confirmNewPassword)
+      e.confirmNewPassword = "Chưa xác nhận mật khẩu";
+    else if (passwordData.confirmNewPassword !== passwordData.newPassword)
+      e.confirmNewPassword = "Mật khẩu xác nhận không khớp";
+
+    setPasswordErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
   // ✅ Đổi mật khẩu
   const handleChangePassword = async () => {
+    if (!validatePassword()) return;
     const { oldPassword, newPassword, confirmNewPassword } = passwordData;
 
     if (!oldPassword || !newPassword || !confirmNewPassword) {
@@ -207,12 +262,17 @@ export default function UserProfile() {
           />
           <div>
             {editing ? (
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                className="px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-lg font-bold dark:text-white"
-              />
+              <>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleChange("name", e.target.value)}
+                  className="px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-lg font-bold dark:text-white"
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+                )}
+              </>
             ) : (
               <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
                 {formData.name || formData.username}
@@ -236,15 +296,20 @@ export default function UserProfile() {
           <p>
             <strong>Giới tính:</strong>{" "}
             {editing ? (
-              <select
-                value={formData.gender}
-                onChange={(e) => handleChange("gender", e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
-              >
-                <option value="Nam">Nam</option>
-                <option value="Nữ">Nữ</option>
-                <option value="Khác">Khác</option>
-              </select>
+              <>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => handleChange("gender", e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
+                >
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                  <option value="Khác">Khác</option>
+                </select>
+                {errors.gender && (
+                  <p className="text-red-500 text-xs mt-1">{errors.gender}</p>
+                )}
+              </>
             ) : (
               formData.gender || "—"
             )}
@@ -254,12 +319,19 @@ export default function UserProfile() {
           <p>
             <strong>Ngày sinh:</strong>{" "}
             {editing ? (
-              <input
-                type="date"
-                value={formData.birthdate || ""}
-                onChange={(e) => handleChange("birthdate", e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
-              />
+              <>
+                <input
+                  type="date"
+                  value={formData.birthdate || ""}
+                  onChange={(e) => handleChange("birthdate", e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
+                />
+                {errors.birthdate && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.birthdate}
+                  </p>
+                )}
+              </>
             ) : (
               formatDate(formData.birthdate)
             )}
@@ -285,6 +357,11 @@ export default function UserProfile() {
                   className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
                   placeholder="Nhập số"
                 />
+                {errors.phone_number && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.phone_number}
+                  </p>
+                )}
               </div>
             ) : formData.phone_number ? (
               `+84${formData.phone_number}`
@@ -302,12 +379,17 @@ export default function UserProfile() {
           <p className="col-span-2">
             <strong>Địa chỉ:</strong>{" "}
             {editing ? (
-              <input
-                type="text"
-                value={formData.address || ""}
-                onChange={(e) => handleChange("address", e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
-              />
+              <>
+                <input
+                  type="text"
+                  value={formData.address || ""}
+                  onChange={(e) => handleChange("address", e.target.value)}
+                  className="mt-1 w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-gray-50 dark:bg-gray-800 dark:text-white"
+                />
+                {errors.address && (
+                  <p className="text-red-500 text-xs mt-1">{errors.address}</p>
+                )}
+              </>
             ) : (
               formData.address || "—"
             )}
@@ -342,6 +424,11 @@ export default function UserProfile() {
                   }
                   className="w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-white dark:bg-gray-900 dark:text-white"
                 />
+                {passwordErrors.oldPassword && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {passwordErrors.oldPassword}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -359,6 +446,11 @@ export default function UserProfile() {
                   }
                   className="w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-white dark:bg-gray-900 dark:text-white"
                 />
+                {passwordErrors.newPassword && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {passwordErrors.newPassword}
+                  </p>
+                )}
               </div>
 
               <div className="md:col-span-2">
@@ -376,6 +468,11 @@ export default function UserProfile() {
                   }
                   className="w-full px-3 py-2 rounded-lg border dark:border-gray-600 bg-white dark:bg-gray-900 dark:text-white"
                 />
+                {passwordErrors.confirmNewPassword && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {passwordErrors.confirmNewPassword}
+                  </p>
+                )}
               </div>
             </div>
 
