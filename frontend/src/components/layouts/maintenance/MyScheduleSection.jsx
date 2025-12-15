@@ -910,6 +910,13 @@ export default function MyScheduleSection() {
     return counts;
   }, [dayItems]);
 
+  // 🔎 Kiểm tra tuần hiện tại có lịch không
+  const hasAnyScheduleInWeek = useMemo(() => {
+    return Object.values(weeklyMap).some(
+      (items) => Array.isArray(items) && items.length > 0
+    );
+  }, [weeklyMap]);
+
   // =====================================================
   //                       RENDER
   // =====================================================
@@ -919,7 +926,13 @@ export default function MyScheduleSection() {
       className="relative flex h-[82vh] flex-col overflow-y-auto overflow-x-hidden rounded-3xl border bg-slate-50/80"
     >
       {/* ===== HEADER PREMIUM — PHOSPHOR ICON ===== */}
-      <div className="flex min-h-[100px] max-h-[100px] items-center justify-between border-b border-slate-200 bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500 px-8 shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+      <div
+        className="flex flex-col gap-4
+            md:flex-row md:items-center md:justify-between min-h-[100px] md:max-h-[100px]
+            border-b border-slate-200
+            bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-500
+            px-4 md:px-8 py-4 md:py-0 shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
+      >
         {/* LEFT */}
         <div className="flex items-center gap-5">
           {/* ICON PREMIUM */}
@@ -1069,7 +1082,7 @@ export default function MyScheduleSection() {
                 /* --- Khi mở rộng --- */
                 <div className="mt-1">
                   {/* HEADER LINE: label + search + tổng số */}
-                  <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="mb-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     {/* LEFT: Label + Search */}
                     <div className="flex items-center gap-3">
                       <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -1287,164 +1300,179 @@ export default function MyScheduleSection() {
                   </div>
 
                   {/* LAYOUT giống Outlook: left calendar, right detail panel */}
-                  <div className="flex gap-3">
+                  <div className="flex flex-col gap-3 lg:flex-row">
                     {/* LEFT: Week timeline */}
                     <div className="flex-1 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-                      <div className="min-w-[820px]">
-                        {/* Header days */}
-                        <div className="flex border-b border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-600">
-                          <div className="w-16 border-r border-slate-200" />
-                          <div className="flex flex-1">
-                            {weekDays.map((d) => {
-                              const isSelected =
-                                selectedWeekDate &&
-                                isSameDay(selectedWeekDate, d.date);
-                              return (
-                                <button
-                                  key={d.key}
-                                  onClick={() => setSelectedWeekDate(d.date)}
-                                  className={`flex flex-1 flex-col items-center border-r border-slate-200 px-2 py-2 transition ${
-                                    isSelected
-                                      ? "bg-emerald-50 text-emerald-700"
-                                      : "hover:bg-slate-100"
-                                  }`}
-                                >
-                                  <span className="text-[11px] font-semibold">
-                                    {d.dayLabel}
-                                  </span>
-                                  <span className="text-[11px]">
-                                    {d.dateLabel}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
+                      {/* ===== MOBILE: KHÔNG CÓ LỊCH TRONG TUẦN ===== */}
+                      {!hasAnyScheduleInWeek && (
+                        <div className="flex h-[180px] items-center justify-center text-sm text-slate-400 lg:hidden">
+                          Không có lịch trong tuần
                         </div>
-
-                        {/* Body: time column + day columns */}
-                        <div className="flex">
-                          {/* Time axis */}
-                          <div className="w-16 border-r border-slate-200 bg-slate-50 text-[10px] text-slate-400">
-                            {hours.map((h) => (
-                              <div
-                                key={h}
-                                className="flex h-10 items-start justify-end border-t border-slate-100 pr-1 pt-0.5"
-                              >
-                                {h}:00
-                              </div>
-                            ))}
+                      )}
+                      {/* ===== DESKTOP HOẶC MOBILE CÓ LỊCH ===== */}
+                      <div
+                        className={`${
+                          !hasAnyScheduleInWeek ? "hidden lg:block" : ""
+                        }`}
+                      >
+                        <div className="min-w-[820px]">
+                          {/* Header days */}
+                          <div className="flex border-b border-slate-200 bg-slate-50/80 text-[11px] font-medium text-slate-600">
+                            <div className="w-16 border-r border-slate-200" />
+                            <div className="flex flex-1">
+                              {weekDays.map((d) => {
+                                const isSelected =
+                                  selectedWeekDate &&
+                                  isSameDay(selectedWeekDate, d.date);
+                                return (
+                                  <button
+                                    key={d.key}
+                                    onClick={() => setSelectedWeekDate(d.date)}
+                                    className={`flex flex-1 flex-col items-center border-r border-slate-200 px-2 py-2 transition ${
+                                      isSelected
+                                        ? "bg-emerald-50 text-emerald-700"
+                                        : "hover:bg-slate-100"
+                                    }`}
+                                  >
+                                    <span className="text-[11px] font-semibold">
+                                      {d.dayLabel}
+                                    </span>
+                                    <span className="text-[11px]">
+                                      {d.dateLabel}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
 
-                          {/* Day columns */}
-                          <div className="flex flex-1">
-                            {weekDays.map((d) => {
-                              const key = d.key;
-                              const items = weeklyMap[key] || [];
-                              const sorted = [...items].sort(
-                                (a, b) =>
-                                  new Date(a.start_date) -
-                                  new Date(b.start_date)
-                              );
-                              const isSelected =
-                                selectedWeekDate &&
-                                isSameDay(selectedWeekDate, d.date);
-
-                              return (
+                          {/* Body: time column + day columns */}
+                          <div className="flex">
+                            {/* Time axis */}
+                            <div className="w-16 border-r border-slate-200 bg-slate-50 text-[10px] text-slate-400">
+                              {hours.map((h) => (
                                 <div
-                                  key={d.key}
-                                  className={`relative flex-1 border-r border-slate-100 ${
-                                    isSelected ? "bg-emerald-50/40" : ""
-                                  }`}
-                                  onClick={() => setSelectedWeekDate(d.date)}
+                                  key={h}
+                                  className="flex h-10 items-start justify-end border-t border-slate-100 pr-1 pt-0.5"
                                 >
-                                  {/* Grid 24h */}
-                                  <div className="absolute inset-0">
-                                    {hours.map((h) => (
-                                      <div
-                                        key={h}
-                                        className="absolute left-0 right-0 border-t border-dashed border-slate-100"
-                                        style={{
-                                          top: `${(h / 24) * 100}%`,
-                                        }}
-                                      />
-                                    ))}
-                                  </div>
+                                  {h}:00
+                                </div>
+                              ))}
+                            </div>
 
-                                  {/* Container để events */}
-                                  <div className="relative h-[960px]">
-                                    {sorted.length === 0 && (
-                                      <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-300">
-                                        —
-                                      </div>
-                                    )}
+                            {/* Day columns */}
+                            <div className="flex flex-1">
+                              {weekDays.map((d) => {
+                                const key = d.key;
+                                const items = weeklyMap[key] || [];
+                                const sorted = [...items].sort(
+                                  (a, b) =>
+                                    new Date(a.start_date) -
+                                    new Date(b.start_date)
+                                );
+                                const isSelected =
+                                  selectedWeekDate &&
+                                  isSameDay(selectedWeekDate, d.date);
 
-                                    {sorted.map((item, idx) => {
-                                      const { topPercent, heightPercent } =
-                                        computeEventPosition(item);
-                                      const isReqSelected =
-                                        expandedRequest?.id === item.id;
-
-                                      return (
+                                return (
+                                  <div
+                                    key={d.key}
+                                    className={`relative flex-1 border-r border-slate-100 ${
+                                      isSelected ? "bg-emerald-50/40" : ""
+                                    }`}
+                                    onClick={() => setSelectedWeekDate(d.date)}
+                                  >
+                                    {/* Grid 24h */}
+                                    <div className="absolute inset-0">
+                                      {hours.map((h) => (
                                         <div
-                                          key={idx}
-                                          className="absolute left-1 right-1"
+                                          key={h}
+                                          className="absolute left-0 right-0 border-t border-dashed border-slate-100"
                                           style={{
-                                            top: `${topPercent}%`,
-                                            height: `${heightPercent}%`,
+                                            top: `${(h / 24) * 100}%`,
                                           }}
-                                        >
+                                        />
+                                      ))}
+                                    </div>
+
+                                    {/* Container để events */}
+                                    <div className="relative h-[960px]">
+                                      {sorted.length === 0 && (
+                                        <div className="absolute inset-0 flex items-center justify-center text-[10px] text-slate-300">
+                                          —
+                                        </div>
+                                      )}
+
+                                      {sorted.map((item, idx) => {
+                                        const { topPercent, heightPercent } =
+                                          computeEventPosition(item);
+                                        const isReqSelected =
+                                          expandedRequest?.id === item.id;
+
+                                        return (
                                           <div
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setSelectedWeekDate(d.date);
-                                              setExpandedRequest(item);
-                                              setTimeout(() => {
-                                                const el =
-                                                  document.getElementById(
-                                                    `schedule-${item.id}`
-                                                  );
-                                                if (el) {
-                                                  el.scrollIntoView({
-                                                    behavior: "smooth",
-                                                    block: "start",
-                                                  });
-                                                }
-                                              }, 80);
+                                            key={idx}
+                                            className="absolute left-1 right-1"
+                                            style={{
+                                              top: `${topPercent}%`,
+                                              height: `${heightPercent}%`,
                                             }}
-                                            className={`flex h-full cursor-pointer flex-col justify-center rounded-md px-2 py-1 text-[10px] font-semibold shadow-sm ${
-                                              isReqSelected
-                                                ? "bg-emerald-600 text-white"
-                                                : "bg-emerald-100 text-emerald-700"
-                                            }`}
-                                            title={
-                                              item.maintenance_request_id ||
-                                              item.id
-                                            }
                                           >
-                                            <div className="truncate">
-                                              {item.maintenance_request_id ||
-                                                item.id}
-                                            </div>
-                                            <div className="truncate text-[9px] font-normal opacity-80">
-                                              {item.equipment_name ||
-                                                item.equipment_unit_id ||
-                                                "Thiết bị"}
+                                            <div
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedWeekDate(d.date);
+                                                setExpandedRequest(item);
+                                                setTimeout(() => {
+                                                  const el =
+                                                    document.getElementById(
+                                                      `schedule-${item.id}`
+                                                    );
+                                                  if (el) {
+                                                    el.scrollIntoView({
+                                                      behavior: "smooth",
+                                                      block: "start",
+                                                    });
+                                                  }
+                                                }, 80);
+                                              }}
+                                              className={`flex h-full cursor-pointer flex-col justify-center rounded-md px-2 py-1 text-[10px] font-semibold shadow-sm ${
+                                                isReqSelected
+                                                  ? "bg-emerald-600 text-white"
+                                                  : "bg-emerald-100 text-emerald-700"
+                                              }`}
+                                              title={
+                                                item.maintenance_request_id ||
+                                                item.id
+                                              }
+                                            >
+                                              <div className="truncate">
+                                                {item.maintenance_request_id ||
+                                                  item.id}
+                                              </div>
+                                              <div className="truncate text-[9px] font-normal opacity-80">
+                                                {item.equipment_name ||
+                                                  item.equipment_unit_id ||
+                                                  "Thiết bị"}
+                                              </div>
                                             </div>
                                           </div>
-                                        </div>
-                                      );
-                                    })}
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     {/* RIGHT: Panel chi tiết ngày được chọn */}
-                    <div className="flex w-[380px] flex-shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-3">
+                    <div
+                      className={`flex w-[380px] flex-shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-3
+                      ${!hasAnyScheduleInWeek ? "hidden lg:flex" : ""}`}>
                       {!selectedWeekDate ? (
                         <p className="text-[12px] text-slate-400 italic">
                           Chọn một ô ngày hoặc một block lịch bên trái để xem
@@ -1485,7 +1513,7 @@ export default function MyScheduleSection() {
               )}
 
               {viewMode === "month" && (
-                <div className="flex flex-col gap-4 lg:flex-row max-h-[64vh]">
+                <div className="flex flex-col gap-4 lg:flex-row lg:max-h-[64vh]">
                   {/* Calendar bên trái */}
                   <div className="w-full lg:w-[60%]">
                     <div className="mb-3 flex items-center justify-between px-1">

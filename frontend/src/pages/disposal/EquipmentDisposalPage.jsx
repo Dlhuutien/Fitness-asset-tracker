@@ -433,6 +433,191 @@ export default function EquipmentDisposalPage() {
         />
       </div>
 
+      {/* ===== Danh sách thiết bị ===== */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-700">
+            <TableHeader>
+              <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
+                <TableHead>#</TableHead>
+                {visibleColumns.select && (
+                  <TableHead className="text-rose-600 font-bold text-center">
+                    Chọn
+                  </TableHead>
+                )}
+                {Object.entries(visibleColumns).map(([key, visible]) => {
+                  if (!visible || key === "select") return null;
+                  const columnLabels = {
+                    id: "Mã Unit",
+                    image: "Ảnh",
+                    name: "Tên thiết bị",
+                    main_name: "Nhóm",
+                    type_name: "Loại",
+                    status: "Trạng thái",
+                    vendor_name: "Nhà cung cấp",
+                    branch_id: "Chi nhánh",
+                  };
+                  return (
+                    <TableHead key={key} className="text-center">
+                      {key === "status" || key === "image" ? (
+                        columnLabels[key]
+                      ) : (
+                        <HeaderFilter
+                          selfKey={key}
+                          label={columnLabels[key]}
+                          values={uniqueValues[key]}
+                          selected={filters[key]}
+                          onChange={(v) =>
+                            setFilters((p) => ({ ...p, [key]: v }))
+                          }
+                          controller={controller}
+                        />
+                      )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {currentData.map((row, idx) => {
+                const norm = row.status?.toLowerCase();
+                const translated = STATUS_MAP[norm] || row.status;
+                const isChecked = !!selected[row.id];
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={`transition
+    ${
+      row.isScheduleLocked
+        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+        : ""
+    }
+    ${
+      isChecked
+        ? "bg-rose-50 dark:bg-rose-900/30"
+        : "hover:bg-gray-50 dark:hover:bg-gray-700"
+    }
+  `}
+                  >
+                    <TableCell className="text-center">
+                      {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                    </TableCell>
+                    {visibleColumns.select && (
+                      <TableCell className="text-center">
+                        {row.isScheduleLocked ? (
+                          <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-medium">
+                            Đã lên lịch bảo trì
+                          </span>
+                        ) : (
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSelect(row)}
+                            className="w-5 h-5 accent-rose-500 hover:scale-110 transition-transform"
+                          />
+                        )}
+                      </TableCell>
+                    )}
+                    {visibleColumns.id && <TableCell>{row.id}</TableCell>}
+                    {visibleColumns.image && (
+                      <TableCell>
+                        <img
+                          src={row.equipment?.image}
+                          alt={row.equipment?.name}
+                          className="w-12 h-10 object-contain rounded"
+                        />
+                      </TableCell>
+                    )}
+                    {visibleColumns.name && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`
+                            font-semibold truncate max-w-[220px]
+                            ${
+                              row.branch_id === "GV"
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : row.branch_id === "Q3"
+                                ? "text-blue-600 dark:text-blue-400"
+                                : "text-gray-800 dark:text-gray-200"
+                            }
+                          `}
+                          >
+                            {row.equipment?.name}
+                          </span>
+                        </div>
+                      </TableCell>
+                    )}
+                    {visibleColumns.main_name && (
+                      <TableCell>{row.equipment?.main_name}</TableCell>
+                    )}
+                    {visibleColumns.type_name && (
+                      <TableCell>{row.equipment?.type_name}</TableCell>
+                    )}
+                    {visibleColumns.status && (
+                      <TableCell className="text-center">
+                        <Status status={translated} />
+                      </TableCell>
+                    )}
+                    {visibleColumns.vendor_name && (
+                      <TableCell>{row.vendor_name}</TableCell>
+                    )}
+                    {visibleColumns.branch_id && (
+                      <TableCell>{row.branch_id}</TableCell>
+                    )}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* ===== Pagination ===== */}
+        <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            Tổng cộng: {filteredByColumn.length} thiết bị
+          </div>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="dark:border-gray-600 dark:text-gray-200 disabled:opacity-50"
+            >
+              «
+            </Button>
+
+            {Array.from({ length: totalPages }).map((_, i) => (
+              <Button
+                key={i}
+                size="sm"
+                variant={currentPage === i + 1 ? "default" : "outline"}
+                className={`transition-all ${
+                  currentPage === i + 1
+                    ? "bg-emerald-500 text-white font-semibold"
+                    : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
+                }`}
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </Button>
+            ))}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="dark:border-gray-600 dark:text-gray-200 disabled:opacity-50"
+            >
+              »
+            </Button>
+          </div>
+        </div>
+      </div>
+
       {/* ===== Card hiển thị thiết bị đang chọn ===== */}
       {selectedItems.length > 0 && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md border border-gray-200 dark:border-gray-700 p-4">
@@ -639,191 +824,6 @@ export default function EquipmentDisposalPage() {
           )}
         </div>
       )}
-
-      {/* ===== Danh sách thiết bị ===== */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table className="min-w-[1000px] border border-gray-200 dark:border-gray-700">
-            <TableHeader>
-              <TableRow className="bg-gray-100 dark:bg-gray-700 text-sm font-semibold">
-                <TableHead>#</TableHead>
-                {visibleColumns.select && (
-                  <TableHead className="text-rose-600 font-bold text-center">
-                    Chọn
-                  </TableHead>
-                )}
-                {Object.entries(visibleColumns).map(([key, visible]) => {
-                  if (!visible || key === "select") return null;
-                  const columnLabels = {
-                    id: "Mã Unit",
-                    image: "Ảnh",
-                    name: "Tên thiết bị",
-                    main_name: "Nhóm",
-                    type_name: "Loại",
-                    status: "Trạng thái",
-                    vendor_name: "Nhà cung cấp",
-                    branch_id: "Chi nhánh",
-                  };
-                  return (
-                    <TableHead key={key} className="text-center">
-                      {key === "status" || key === "image" ? (
-                        columnLabels[key]
-                      ) : (
-                        <HeaderFilter
-                          selfKey={key}
-                          label={columnLabels[key]}
-                          values={uniqueValues[key]}
-                          selected={filters[key]}
-                          onChange={(v) =>
-                            setFilters((p) => ({ ...p, [key]: v }))
-                          }
-                          controller={controller}
-                        />
-                      )}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {currentData.map((row, idx) => {
-                const norm = row.status?.toLowerCase();
-                const translated = STATUS_MAP[norm] || row.status;
-                const isChecked = !!selected[row.id];
-                return (
-                  <TableRow
-                    key={row.id}
-                    className={`transition
-    ${
-      row.isScheduleLocked
-        ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-        : ""
-    }
-    ${
-      isChecked
-        ? "bg-rose-50 dark:bg-rose-900/30"
-        : "hover:bg-gray-50 dark:hover:bg-gray-700"
-    }
-  `}
-                  >
-                    <TableCell className="text-center">
-                      {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
-                    </TableCell>
-                    {visibleColumns.select && (
-                      <TableCell className="text-center">
-                        {row.isScheduleLocked ? (
-                          <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded font-medium">
-                            Đã lên lịch bảo trì
-                          </span>
-                        ) : (
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleSelect(row)}
-                            className="w-5 h-5 accent-rose-500 hover:scale-110 transition-transform"
-                          />
-                        )}
-                      </TableCell>
-                    )}
-                    {visibleColumns.id && <TableCell>{row.id}</TableCell>}
-                    {visibleColumns.image && (
-                      <TableCell>
-                        <img
-                          src={row.equipment?.image}
-                          alt={row.equipment?.name}
-                          className="w-12 h-10 object-contain rounded"
-                        />
-                      </TableCell>
-                    )}
-                    {visibleColumns.name && (
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`
-                            font-semibold truncate max-w-[220px]
-                            ${
-                              row.branch_id === "GV"
-                                ? "text-emerald-600 dark:text-emerald-400"
-                                : row.branch_id === "Q3"
-                                ? "text-blue-600 dark:text-blue-400"
-                                : "text-gray-800 dark:text-gray-200"
-                            }
-                          `}
-                          >
-                            {row.equipment?.name}
-                          </span>
-                        </div>
-                      </TableCell>
-                    )}
-                    {visibleColumns.main_name && (
-                      <TableCell>{row.equipment?.main_name}</TableCell>
-                    )}
-                    {visibleColumns.type_name && (
-                      <TableCell>{row.equipment?.type_name}</TableCell>
-                    )}
-                    {visibleColumns.status && (
-                      <TableCell className="text-center">
-                        <Status status={translated} />
-                      </TableCell>
-                    )}
-                    {visibleColumns.vendor_name && (
-                      <TableCell>{row.vendor_name}</TableCell>
-                    )}
-                    {visibleColumns.branch_id && (
-                      <TableCell>{row.branch_id}</TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* ===== Pagination ===== */}
-        <div className="flex justify-between items-center border-t dark:border-gray-600 px-4 py-2 bg-gray-50 dark:bg-gray-700">
-          <div className="text-sm text-gray-700 dark:text-gray-300">
-            Tổng cộng: {filteredByColumn.length} thiết bị
-          </div>
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-              disabled={currentPage === 1}
-              className="dark:border-gray-600 dark:text-gray-200 disabled:opacity-50"
-            >
-              «
-            </Button>
-
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <Button
-                key={i}
-                size="sm"
-                variant={currentPage === i + 1 ? "default" : "outline"}
-                className={`transition-all ${
-                  currentPage === i + 1
-                    ? "bg-emerald-500 text-white font-semibold"
-                    : "hover:bg-gray-200 dark:hover:bg-gray-600 dark:border-gray-600 dark:text-gray-200"
-                }`}
-                onClick={() => setCurrentPage(i + 1)}
-              >
-                {i + 1}
-              </Button>
-            ))}
-
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className="dark:border-gray-600 dark:text-gray-200 disabled:opacity-50"
-            >
-              »
-            </Button>
-          </div>
-        </div>
-      </div>
 
       {/* ===== Popup thông báo thành công (FitX Simple Style) ===== */}
       {showSuccessModal && (

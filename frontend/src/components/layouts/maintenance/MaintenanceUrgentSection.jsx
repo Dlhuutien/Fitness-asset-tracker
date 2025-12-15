@@ -370,7 +370,7 @@ export default function MaintenanceUrgentSection() {
         toast.error(
           `Thiết bị ${selected.equipment?.name} (ID: ${selected.id}) đã hết bảo hành, vui lòng nhập chi phí bảo trì.`
         );
-        setCostError("Vui lòng nhập chi phí bảo trì"); 
+        setCostError("Vui lòng nhập chi phí bảo trì");
         return;
       }
     }
@@ -1159,7 +1159,9 @@ export default function MaintenanceUrgentSection() {
                 {selected.__result === "fail" && (
                   <div className="space-y-3 p-4 rounded-xl border border-red-300 bg-red-50">
                     {/* Chỉ hiển thị ghi chú */}
-                    <label className="text-sm font-medium">Ghi chú (Tùy chọn):</label>
+                    <label className="text-sm font-medium">
+                      Ghi chú (Tùy chọn):
+                    </label>
                     <Input
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
@@ -1226,8 +1228,9 @@ export default function MaintenanceUrgentSection() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center 
-                 bg-black/60 backdrop-blur-[6px]"
+            className="fixed inset-0 items-center
+             z-[9999] overflow-y-auto bg-black/60 backdrop-blur-[6px]
+             flex justify-center"
           >
             {/* 📅 Lịch chính */}
             <motion.div

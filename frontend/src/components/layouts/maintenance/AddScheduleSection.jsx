@@ -392,9 +392,9 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                     <th className="px-3 py-2 text-left">Mã dòng</th>
                     <th className="px-3 py-2 text-left">Hình</th>
                     <th className="px-3 py-2 text-left">Tên dòng</th>
-                    <th className="px-3 py-2 text-left">Chu kỳ</th>
-                    <th className="px-3 py-2 text-left">Tần suất</th>
-                    <th className="px-3 py-2 text-left">Ngày bảo trì tới</th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">Chu kỳ</th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">Tần suất</th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">Ngày bảo trì tới</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -451,12 +451,12 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                           );
                           return (
                             <>
-                              <td className="px-3 py-2">{cycle}</td>
-                              <td className="px-3 py-2">{interval}</td>
+                              <td className="px-3 py-2 hidden sm:table-cell">{cycle}</td>
+                              <td className="px-3 py-2 hidden sm:table-cell">{interval}</td>
                             </>
                           );
                         })()}
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 hidden sm:table-cell">
                           {plan.next_maintenance_date.split("T")[0]}
                         </td>
                       </tr>
@@ -592,10 +592,10 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                               <th className="px-3 py-2 text-left">
                                 Mã định danh thiết bị
                               </th>
-                              <th className="px-3 py-2 text-left">
+                              <th className="px-3 py-2 text-left hidden sm:table-cell">
                                 Tên thiết bị
                               </th>
-                              <th className="px-3 py-2 text-left">
+                              <th className="px-3 py-2 text-left hidden sm:table-cell">
                                 Trạng thái
                               </th>
                               <th className="px-3 py-2 text-left">
@@ -642,7 +642,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                                     )}
                                   </td>
                                   <td className="px-3 py-2">{unit.id}</td>
-                                  <td className="px-3 py-2">
+                                  <td className="px-3 py-2 hidden sm:table-cell">
                                     <span
                                       className={
                                         unit.branch_id === "GV"
@@ -655,7 +655,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                                       {unit.equipment?.name}
                                     </span>
                                   </td>
-                                  <td className="px-3 py-2">
+                                  <td className="px-3 py-2 hidden sm:table-cell">
                                     <Status
                                       status={
                                         STATUS_MAP[
@@ -822,7 +822,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                           {format(day, "d", { locale: vi })}
                         </span>
                         {isToday(day) && (
-                          <span className="px-1 text-[10px] rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          <span className="hidden md:inline-block px-1 text-[10px] rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
                             Hôm nay
                           </span>
                         )}
@@ -878,7 +878,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                   </span>
                 </p>
 
-                <p className="font-medium text-slate-700 mt-1 flex items-center gap-1">
+                <p className="font-medium text-slate-700 mt-1 flex flex-col md:flex-row md:items-center gap-1">
                   📅 Ngày được chọn:
                   <span className="text-emerald-700 font-semibold">
                     {selectedDateObj
@@ -1053,8 +1053,8 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                   <tr>
                     <th className="px-3 py-2 text-left">Chọn</th>
                     <th className="px-3 py-2 text-left">Tên</th>
-                    <th className="px-3 py-2 text-left">Chi nhánh</th>
-                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">Chi nhánh</th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">Email</th>
                     <th className="px-3 py-2 text-left">Role</th>
                   </tr>
                 </thead>
@@ -1096,8 +1096,8 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                             />
                           </td>
                           <td className="px-3 py-2 font-medium">{name}</td>
-                          <td className="px-3 py-2">{branch}</td>
-                          <td className="px-3 py-2">{email}</td>
+                          <td className="px-3 py-2 hidden sm:table-cell">{branch}</td>
+                          <td className="px-3 py-2 hidden sm:table-cell">{email}</td>
                           <td className="px-3 py-2">{roles}</td>
                         </tr>
                       );
@@ -1120,7 +1120,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
           </div>
 
           {/* ===== CARD 4: Lịch bảo trì hiện có ===== */}
-          <div className="p-4 rounded-2xl border border-slate-300 bg-white">
+          <div className="hidden md:block p-4 rounded-2xl border border-slate-300 bg-white">
             <h2 className="font-semibold mb-3 flex items-center gap-2 text-slate-900">
               <Clock className="w-4 h-4" /> Lịch bảo trì hiện có
             </h2>
@@ -1292,7 +1292,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
       </motion.div>
       {/* ===== ALERT XÁC NHẬN ===== */}
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent className="max-w-md z-[200000]">
+        <AlertDialogContent className="w-[90vw] max-w-[360px] md:max-w-md z-[200000]">
           {confirmMode === "confirm" && (
             <>
               <AlertDialogHeader>
@@ -1364,7 +1364,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
 
       {/* ===== ALERT THÀNH CÔNG ===== */}
       <AlertDialog open={successOpen} onOpenChange={setSuccessOpen}>
-        <AlertDialogContent className="max-w-md z-[300000]">
+        <AlertDialogContent className="w-[90vw] max-w-[360px] md:max-w-md z-[300000]">
           <AlertDialogHeader>
             <AlertDialogTitle
               className={editing ? "text-blue-700" : "text-emerald-700"}

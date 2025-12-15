@@ -53,14 +53,14 @@ const notificationService = {
         </tr>`;
     }
 
-    const subject = "Hóa đơn nhập thiết bị mới";
+    const subject = "Phiếu nhập thiết bị mới";
     const html = `
       <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto;
                   border:1px solid #e0e0e0; border-radius:8px; overflow:hidden;">
-        ${buildHeader("Hóa đơn mới được tạo")}
+        ${buildHeader("Phiếu nhập thiết bị mới được tạo")}
         <div style="padding:20px; color:#000;">
-        <p style="color:#000;">Một hóa đơn mới vừa được tạo.</p>
-        <p style="color:#000;"><b>Mã hóa đơn:</b> ${invoice.id}</p>
+        <p style="color:#000;">Một phiếu nhập thiết bị mới vừa được tạo.</p>
+        <p style="color:#000;"><b>Mã phiếu:</b> ${invoice.id}</p>
         <p style="color:#000;"><b>Tổng tiền:</b> ${invoice.total.toLocaleString()} VND</p>
         <p style="color:#000;"><b>Người tạo:</b> ${creatorName}</p>
         <p style="color:#000;"><b>Chi nhánh:</b> ${
@@ -90,8 +90,8 @@ const notificationService = {
 
     return await notificationRepository.create({
       type: "invoice",
-      title: "Hóa đơn nhập thiết bị mới",
-      message: `Hóa đơn ${
+      title: "Phiếu nhập thiết bị mới",
+      message: `Phiếu nhập ${
         invoice.id
       } được tạo bởi ${creatorName}, tổng tiền: ${invoice.total.toLocaleString()} VND`,
       invoice_id: invoice.id,

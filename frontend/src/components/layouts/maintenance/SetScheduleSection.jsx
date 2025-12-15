@@ -691,7 +691,7 @@ export default function SetScheduleSection() {
 
           <button
             onClick={goToday}
-            className="ml-2 px-3 py-1.5 rounded-lg bg-slate-100/70 text-slate-700 font-medium text-sm
+            className="hidden md:inline-block ml-2 px-3 py-1.5 rounded-lg bg-slate-100/70 text-slate-700 font-medium text-sm
              border border-slate-300 hover:bg-slate-200 hover:shadow-[0_0_8px_rgba(100,116,139,0.2)]
              transition-all duration-200"
           >
@@ -732,7 +732,7 @@ export default function SetScheduleSection() {
         )}
 
         {/* Right: View switch + Create */}
-        <div className="flex items-center gap-2 mt-3 md:mt-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-3 md:mt-0">
           <div className="flex rounded-xl overflow-hidden border border-white/30">
             <button
               onClick={() => setView("week")}
@@ -775,7 +775,8 @@ export default function SetScheduleSection() {
                 setEditingRequest(null); // reset để form load chế độ tạo mới
                 setShowForm(true);
               }}
-              className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold shadow-md flex items-center gap-1"
+              className="bg-white text-emerald-600 hover:bg-emerald-50 font-semibold shadow-md
+                flex items-center justify-center gap-1 w-full sm:w-auto"
             >
               <Plus className="w-4 h-4" /> Tạo kế hoạch
             </Button>
@@ -801,16 +802,21 @@ export default function SetScheduleSection() {
                     transition: { duration: 0.5 },
                   }}
                   onClick={() => setShowForm(false)}
-                  className="fixed top-5 right-[calc(50%-615px)] w-12 h-12 rounded-full z-[10002]
+                  className="
+    absolute top-3 right-3
+    md:fixed md:top-5 md:right-[calc(50%-615px)]
+    w-10 h-10 md:w-12 md:h-12
+    rounded-full z-[10002]
     bg-gradient-to-r from-red-500 to-rose-500 text-white 
     flex items-center justify-center
     shadow-[0_6px_22px_rgba(244,63,94,0.55)]
     hover:shadow-[0_8px_30px_rgba(244,63,94,0.7)]
     hover:scale-110 active:scale-95
     border-[3px] border-white/90 ring-[3px] ring-white/70
-    transition-all duration-300 ease-out"
+    transition-all duration-300 ease-out
+  "
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4 md:w-5 md:h-5" />
                 </motion.button>
               </>
             )}
@@ -819,11 +825,11 @@ export default function SetScheduleSection() {
       </div>
 
       {/* ====== Body (2 cột): Lịch + Panel pending ====== */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 max-h-[78vh] overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 p-5 max-h-none lg:max-h-[78vh] overflow-x-auto lg:overflow-hidden">
         {/* ====== Left: Calendar View (scroll riêng) ====== */}
         <div className="lg:col-span-8 min-h-[60vh] max-h-[74vh] overflow-y-auto pr-1">
           {/* 🔹 Bộ lọc loại lịch (có thêm nút “Tất cả”) */}
-          <div className="flex justify-center flex-wrap gap-3 mt-3 mb-3 text-sm">
+          <div className="flex gap-3 mt-3 mb-3 text-sm overflow-x-auto whitespace-nowrap px-1 md:justify-center md:flex-wrap">
             {[
               { key: "all", color: "bg-emerald-100", label: "Tất cả" },
               {
@@ -934,7 +940,7 @@ export default function SetScheduleSection() {
                           </span>
 
                           {isToday(day) && (
-                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
+                            <span className="hidden md:inline-block px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
                               Hôm nay
                             </span>
                           )}
@@ -1074,7 +1080,7 @@ export default function SetScheduleSection() {
                           </span>
 
                           {isToday(day) && (
-                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
+                            <span className="hidden md:inline-block px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
                               Hôm nay
                             </span>
                           )}
