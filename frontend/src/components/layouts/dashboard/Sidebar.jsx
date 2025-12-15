@@ -16,8 +16,8 @@ import oldLogo from "@/assets/FitXGym.png";
 import SidebarItem from "./SidebarItem";
 import useAuthRole from "@/hooks/useAuthRole";
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+export default function Sidebar({ collapsed, setCollapsed }) {
+  // const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
   const location = useLocation();
   const { isTechnician, isOperator } = useAuthRole();
