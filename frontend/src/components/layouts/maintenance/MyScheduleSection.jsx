@@ -934,60 +934,66 @@ export default function MyScheduleSection() {
             px-4 md:px-8 py-4 md:py-0 shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
       >
         {/* LEFT */}
-        <div className="flex items-center gap-5">
-          {/* ICON PREMIUM */}
-          <div className="flex items-center gap-5">
-            <div className="relative">
+        <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-5">
+          {/* ICON + TITLE */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* ICON */}
+            <div className="relative shrink-0">
+              <ClockClockwise
+                size={32}
+                weight="duotone"
+                className="text-white drop-shadow-xl sm:hidden"
+              />
               <ClockClockwise
                 size={42}
                 weight="duotone"
-                className="text-white drop-shadow-xl"
+                className="hidden sm:block text-white drop-shadow-xl"
               />
               <div className="absolute inset-0 blur-xl bg-white/40 -z-10"></div>
             </div>
 
+            {/* TITLE */}
             <div className="flex flex-col text-white drop-shadow-sm">
-              <h1 className="text-3xl font-bold tracking-wide">
+              <h1 className="text-xl sm:text-3xl font-bold tracking-wide">
                 Lịch bảo trì theo kỹ thuật viên
               </h1>
-              <p className="mt-1 text-[13px] opacity-90">
+              <p className="mt-1 text-[12px] sm:text-[13px] opacity-90">
                 Theo dõi – quản lý – giám sát lịch bảo trì
               </p>
+
+              {/* 📍 Chi nhánh làm việc (mobile nằm dưới title) */}
+              {currentUserBranch && (
+                <div className="flex items-center gap-1.5 mt-2 text-[12px] text-white sm:hidden">
+                  <MapPin className="w-3 h-3 opacity-90" />
+                  <Branch id={currentUserBranch} />
+                </div>
+              )}
             </div>
-            {/* ➕ CHI NHÁNH LÀM VIỆC — THÊM TẠI ĐÂY */}
-            {currentUserBranch && (
-              <div className="flex items-center gap-2 mt-1 text-[12px] text-white">
-                <MapPin className="w-3 h-3 opacity-90" />
-                <Branch id={currentUserBranch} />
-              </div>
-            )}
           </div>
 
-          {/* === Dropdown chọn chi nhánh giống SetSchedule === */}
+          {/* 📍 Chi nhánh (desktop giữ như cũ) */}
+          {currentUserBranch && (
+            <div className="hidden sm:flex items-center gap-2 text-[12px] text-white">
+              <MapPin className="w-3 h-3 opacity-90" />
+              <Branch id={currentUserBranch} />
+            </div>
+          )}
+
+          {/* === Dropdown chọn chi nhánh === */}
           {isSuperAdmin && (
-            <div className="ml-5">
+            <div className="w-full sm:w-auto sm:ml-5">
               <Select
                 onValueChange={(v) => setActiveBranch(v)}
                 defaultValue="all"
               >
-                <SelectTrigger className="h-8 w-40 text-sm bg-white text-slate-700 border border-white/40">
+                <SelectTrigger className="h-8 w-full sm:w-40 text-sm bg-white text-slate-700 border border-white/40">
                   <SelectValue placeholder="Chi nhánh" />
                 </SelectTrigger>
 
                 <SelectContent className="z-[9999] bg-white border border-gray-200 shadow-lg">
-                  <SelectItem
-                    value="all"
-                    className="bg-white hover:bg-gray-100 text-slate-700"
-                  >
-                    Tất cả chi nhánh
-                  </SelectItem>
-
+                  <SelectItem value="all">Tất cả chi nhánh</SelectItem>
                   {branches.map((b) => (
-                    <SelectItem
-                      key={b.id}
-                      value={b.id}
-                      className="bg-white hover:bg-gray-100 text-slate-700"
-                    >
+                    <SelectItem key={b.id} value={b.id}>
                       {b.name}
                     </SelectItem>
                   ))}
@@ -1472,7 +1478,8 @@ export default function MyScheduleSection() {
                     {/* RIGHT: Panel chi tiết ngày được chọn */}
                     <div
                       className={`flex w-[380px] flex-shrink-0 flex-col rounded-2xl border border-slate-200 bg-white p-3
-                      ${!hasAnyScheduleInWeek ? "hidden lg:flex" : ""}`}>
+                      ${!hasAnyScheduleInWeek ? "hidden lg:flex" : ""}`}
+                    >
                       {!selectedWeekDate ? (
                         <p className="text-[12px] text-slate-400 italic">
                           Chọn một ô ngày hoặc một block lịch bên trái để xem
