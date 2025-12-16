@@ -333,8 +333,8 @@ export default function TransferCreateSection() {
   return (
     <div className="space-y-6">
       {/* ===== Toolbar ===== */}
-      <div className="flex flex-wrap justify-between items-center gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2 w-full md:w-auto">
           <Input
             placeholder="🔍 Tìm tên, loại, nhà cung cấp..."
             value={search}
@@ -400,8 +400,8 @@ export default function TransferCreateSection() {
       </div>
 
       {/* ===== Chọn chi nhánh đích + nút tạo yêu cầu ===== */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+        <div className="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
           <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
             Chuyển đến:
           </span>
@@ -428,7 +428,7 @@ export default function TransferCreateSection() {
         <Button
           onClick={handleCreateTransfer}
           disabled={!canSubmit || creating}
-          className={`flex items-center justify-center text-white ${
+          className={`self-start md:self-auto flex items-center justify-center text-white ${
             canSubmit ? "bg-emerald-500 hover:bg-emerald-600" : "bg-gray-400"
           }`}
         >

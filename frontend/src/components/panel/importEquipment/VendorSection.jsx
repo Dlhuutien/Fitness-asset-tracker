@@ -35,7 +35,7 @@ export default function VendorSection({
           <Building2 size={18} /> Nhà cung cấp
         </h3>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden md:flex flex items-center gap-2">
           {onAddVendor && (
             <Button
               size="sm"

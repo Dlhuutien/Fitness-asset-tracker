@@ -1,10 +1,24 @@
 import { Outlet } from "react-router-dom";
-import { useState } from "react";
 import Header from "@/components/layouts/header/Header";
 import Sidebar from "./Sidebar";
+import { useState, useEffect } from "react";
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
+
+  // Auto collapse sidebar trên mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+      }
+    };
+
+    handleResize(); // chạy ngay khi vào dashboard
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-bg-light dark:bg-bg-dark font-sans transition-colors">
