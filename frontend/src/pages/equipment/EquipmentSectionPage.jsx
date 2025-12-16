@@ -155,8 +155,12 @@ export default function EquipmentSectionPage() {
   return (
     <div className="p-4 space-y-4 font-jakarta">
       {/* ==== Toolbar ==== */}
-      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
-        <div className="flex items-center gap-2">
+      <div
+        className="sticky top-0 z-20 flex flex-col md:flex-row
+        md:items-center md:justify-between gap-3 p-3
+        bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm"
+      >
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2 items-start">
           <h2 className="text-base md:text-lg font-semibold text-emerald-600 mr-2">
             Danh sách dòng thiết bị
           </h2>
@@ -202,12 +206,11 @@ export default function EquipmentSectionPage() {
             Export Excel
           </Button>
         </div>
-
         <div className="flex items-center gap-2">
           {!isTechnician && (
             <Button
               onClick={() => setOpenAddCard(true)}
-              className="flex items-center gap-2 h-9 px-3 text-sm font-medium rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all"
+              className="hidden md:flex items-center gap-2 h-9 px-3 text-sm font-medium rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all"
             >
               <Plus size={16} /> Thêm dòng thiết bị
             </Button>

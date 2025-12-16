@@ -254,10 +254,14 @@ export default function EquipmentGroupPage() {
         .animate-rowPulse { animation: rowPulse 1.2s ease-in-out infinite; }
       `}</style>
       {/* ===== Toolbar ===== */}
-      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 p-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm">
+      <div
+        className="sticky top-0 z-20 flex flex-col md:flex-row
+        md:items-center md:justify-between gap-3 p-3
+        bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm"
+      >
         {/* ==== Nhóm trái: Tìm kiếm + Sắp xếp + Export Excel ==== */}
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-base md:text-lg font-semibold text-emerald-600 mr-2">
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:gap-2 items-start">
+          <h2 className="text-base md:text-lg font-semibold text-emerald-600">
             Danh sách nhóm thiết bị
           </h2>
           <Input

@@ -124,7 +124,7 @@ export default function ImportSummary({
 
       {/* === Danh sách thiết bị đã chọn === */}
       {rows.length > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[60vh] md:max-h-none overflow-y-auto overscroll-contain pr-1">
           {rows.map((item) => {
             const total = (Number(item.price) || 0) * (Number(item.qty) || 0);
             return (
@@ -261,24 +261,35 @@ export default function ImportSummary({
           </div>
         </div>
 
-        <Button
-          className={
-            "font-semibold px-6 py-2 rounded-xl shadow-md transition " +
-            (canSave
-              ? "bg-gradient-to-r from-emerald-500 to-purple-500 hover:opacity-90 text-white"
-              : "bg-gray-400 text-white cursor-not-allowed opacity-60")
-          }
-          disabled={!canSave}
-          onClick={() => {
-            if (!canSave) {
-              toast.error("⚠️ Vui lòng nhập đầy đủ thông tin bắt buộc!");
-              return;
+        <div className="flex gap-2">
+          <Button
+            className={
+              "font-semibold px-6 py-2 rounded-xl shadow-md transition " +
+              (canSave
+                ? "bg-gradient-to-r from-emerald-500 to-purple-500 hover:opacity-90 text-white"
+                : "bg-gray-400 text-white cursor-not-allowed opacity-60")
             }
-            onConfirm();
-          }}
-        >
-          Lưu
-        </Button>
+            disabled={!canSave}
+            onClick={() => {
+              if (!canSave) {
+                toast.error("⚠️ Vui lòng nhập đầy đủ thông tin bắt buộc!");
+                return;
+              }
+              onConfirm();
+            }}
+          >
+            Lưu
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              setSelectedItems({});
+            }}
+            className="md:hidden flex-1 h-10 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg"
+          >
+            Đóng
+          </Button>
+        </div>
       </div>
     </div>
   );

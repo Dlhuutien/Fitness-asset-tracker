@@ -237,7 +237,7 @@ export default function EquipmentImportPage({
   // 🧱 RENDER
   // ==============================
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative pb-28 md:pb-0">
       {/* 🌀 OVERLAY NHẬP HÀNG */}
       {overlayOpen && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -331,17 +331,24 @@ export default function EquipmentImportPage({
       />
 
       {/* 3️⃣ IMPORT SUMMARY */}
-      <ImportSummary
-        selectedVendor={selectedVendor}
-        setSelectedVendor={setSelectedVendor}
-        selectedItems={selectedItems}
-        setSelectedItems={setSelectedItems}
-        vendorLatestPrices={vendorLatestPrices}
-        checkedEquipmentId={checkedEquipmentId}
-        onConfirm={handleConfirmImport}
-        isSuperAdmin={isSuperAdmin}
-        branchId={isSuperAdmin ? selectedBranch : branchId}
-      />
+      <div className="md:static fixed bottom-0 left-0 right-0 z-[900] 
+                bg-white dark:bg-gray-900 
+                border-t border-gray-200 dark:border-gray-700
+                px-3 py-3
+                md:p-0 md:border-0">
+  <ImportSummary
+    selectedVendor={selectedVendor}
+    setSelectedVendor={setSelectedVendor}
+    selectedItems={selectedItems}
+    setSelectedItems={setSelectedItems}
+    vendorLatestPrices={vendorLatestPrices}
+    checkedEquipmentId={checkedEquipmentId}
+    onConfirm={handleConfirmImport}
+    isSuperAdmin={isSuperAdmin}
+    branchId={isSuperAdmin ? selectedBranch : branchId}
+  />
+</div>
+
 
       {/* ➕ MODAL THÊM NHANH NHÀ CUNG CẤP */}
       {openAddVendor && (
