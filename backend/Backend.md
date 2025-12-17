@@ -114,6 +114,8 @@
     - `GET /equipmentUnit/status/:status` — Lấy tất cả thiết bị có 1 trạng thái cụ thể
     - `GET /equipmentUnit/status-group?statuses=Ready,Failed` — Lấy thiết bị có nhiều trạng thái
     - `PUT /equipmentUnit/:id` — Cập nhật equipment unit
+    - `PUT /equipmentUnit/:id/activeUnit` — Đưa thiết bị vào hoạt động (gán khu vực)
+    - `PUT /equipmentUnit/:id/inStockUnit` — Đưa thiết bị vào kho (bỏ khu vực)
     - `DELETE /equipmentUnit/:id` — Xóa equipment unit
 
 14. [Equipment Transfer APIs (`/equipmentTransfer`)](#equipment-transfer-apis-equipmenttransfer)
@@ -168,6 +170,22 @@
     - `GET /dashboard/statistics` — Thống kê tổng hợp (theo tháng / quý / năm)
     - `GET /dashboard/equipment-hierarchy` — Cấu trúc phân cấp nhóm thiết bị
     - `GET /dashboard/statistics/trend` — Biểu đồ xu hướng (theo tháng / quý / tuần)
+
+20. [Floor APIs (`/floor`)](#floor-apis-floor)
+
+    - `POST /floor` — Tạo tầng mới cho chi nhánh
+    - `GET /floor` — Lấy danh sách tất cả tầng
+    - `GET /floor/:id` — Lấy chi tiết tầng theo ID
+    - `PUT /floor/:id` — Cập nhật thông tin tầng (không cho đổi chi nhánh)
+    - `DELETE /floor/:id` — Xóa tầng (chặn nếu còn khu vực)
+
+21. [Area APIs (`/area`)](#area-apis-area)
+
+    - `POST /area` — Tạo khu vực mới trong tầng
+    - `GET /area` — Lấy danh sách tất cả khu vực
+    - `GET /area/:id` — Lấy chi tiết khu vực theo ID
+    - `PUT /area/:id` — Cập nhật khu vực (không cho đổi tầng)
+    - `DELETE /area/:id` — Xóa khu vực (chặn nếu còn thiết bị)
 
 ---
 
@@ -2448,7 +2466,87 @@ Cập nhật equipment unit (ví dụ thay đổi `status`).
 ```json
 { "error": "Equipment Unit not found" }
 ```
+---
+## ĐƯA VÀO HOẠT ĐỘNG
 
+### PUT `/equipmentUnit/:id/activeUnit`
+> Đưa thiết bị vào **trạng thái hoạt động**, gán vào **khu vực (Area)** cụ thể.
+
+**Authentication**
+* Yêu cầu `Authorization: Bearer <accessToken>`
+* Người dùng chỉ được thao tác trên **thiết bị thuộc chi nhánh của mình**
+
+**Request body**
+
+```json
+{
+  "area_id": "area-uuid-1"
+}
+```
+
+**Rule nghiệp vụ**
+* `area_id` **bắt buộc**
+* `area_id` phải tồn tại
+* Thiết bị phải thuộc cùng chi nhánh
+
+**Response (200)**
+
+```json
+{
+  "id": "unit-uuid-1",
+  "branch_id": "GV",
+  "area_id": "area-uuid-1",
+  "status": "Active",
+  "updated_at": "2025-12-16T14:30:00.000Z"
+}
+```
+
+**Lỗi**
+
+```json
+{ "error": "area_id is required" }
+```
+
+```json
+{ "error": "Area with id xxx does not exist" }
+```
+
+---
+
+## ĐƯA VÀO KHO
+### PUT `/equipmentUnit/:id/inStockUnit`
+> Đưa thiết bị về **kho**
+
+**Authentication**
+* Yêu cầu `Authorization: Bearer <accessToken>`
+* Người dùng chỉ được thao tác trên thiết bị thuộc chi nhánh của mình
+
+**Request body**
+
+**Không cần body**
+
+**Rule nghiệp vụ**
+
+* `area_id` sẽ được set = `null`
+* `status` = `In Stock`
+
+**Response (200)**
+
+```json
+{
+  "id": "unit-uuid-1",
+  "branch_id": "GV",
+  "area_id": null,
+  "status": "In Stock",
+  "updated_at": "2025-12-16T14:35:00.000Z"
+}
+```
+
+**Lỗi (400 / 403)**
+
+```json
+{ "error": "Equipment Unit not found" }
+```
 ---
 
 ### DELETE `/equipmentUnit/:id`
@@ -3867,6 +3965,293 @@ Với tháng hiện hành, các tuần **chưa tới** sẽ **tự động ẩn*
     "warrantyExpired": 0
   }
 ]
+```
+---
+
+## Floor APIs (`/floor`)
+
+> **Authentication**
+>
+> * Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`
+> * Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**
+> * Mọi role (`operator`, `technician`, `admin`, `super-admin`) đều có thể **xem danh sách / chi tiết**
+---
+
+### POST `/floor`
+
+Tạo **tầng mới cho chi nhánh**.
+* `name` được **tự động tạo theo format** `F{số}`
+* Ví dụ: Branch đã có `F1, F2, F3` → tạo mới sẽ là `F4`
+
+**Request body (JSON):**
+
+```json
+{
+  "branch_id": "GV",
+  "description": "Tầng tập Cardio"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "b7e2d3e9-9d9f-4c71-9f35-3b6c3a7c8f12",
+  "branch_id": "GV",
+  "name": "F4",
+  "description": "Tầng tập Cardio",
+  "created_at": "2025-12-16T09:30:00.000Z",
+  "updated_at": "2025-12-16T09:30:00.000Z"
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "branch_id is required" }
+```
+
+```json
+{ "error": "Branch with id GV does not exist" }
+```
+
+---
+
+### GET `/floor`
+
+Lấy danh sách tất cả các tầng.
+
+**Response (200):**
+
+```json
+[
+  {
+    "id": "uuid-1",
+    "branch_id": "GV",
+    "name": "F1",
+    "description": "",
+    "created_at": "...",
+    "updated_at": "..."
+  },
+  {
+    "id": "uuid-2",
+    "branch_id": "GV",
+    "name": "F2",
+    "description": ""
+  }
+]
+```
+
+---
+
+### GET `/floor/:id`
+
+Lấy chi tiết tầng theo `id`.
+
+**Response (200):**
+
+```json
+{
+  "id": "uuid-1",
+  "branch_id": "GV",
+  "name": "F1",
+  "description": "Tầng 1"
+}
+```
+
+**Lỗi (404):**
+
+```json
+{ "error": "Floor not found" }
+```
+
+---
+
+### PUT `/floor/:id`
+
+Cập nhật thông tin tầng.
+
+* **Không cho phép thay đổi `branch_id`**
+* Chỉ update `description`
+
+**Request body:**
+
+```json
+{
+  "description": "Tầng lễ tân & cardio"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "uuid-1",
+  "branch_id": "GV",
+  "name": "F1",
+  "description": "Tầng lễ tân & cardio",
+  "updated_at": "2025-12-16T10:00:00.000Z"
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Changing branch of a floor is not allowed" }
+```
+
+---
+
+### DELETE `/floor/:id`
+
+Xóa tầng.
+
+**Rule ràng buộc**:
+
+* **Không cho xóa nếu tầng còn Area**
+* **Không cho xóa nếu Area trong tầng còn Equipment Unit**
+
+**Response (200):**
+
+```json
+{ "message": "Floor deleted successfully" }
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Cannot delete floor because it still has areas" }
+```
+
+```json
+{ "error": "Cannot delete floor because areas still contain equipment units" }
+```
+
+---
+
+## Area APIs (`/area`)
+
+> **Authentication**
+>
+> * Tạo / sửa / xóa: yêu cầu header `Authorization: Bearer <accessToken>`
+> * Roles: chỉ `admin`, `super-admin` được phép **create / update / delete**
+> * Mọi role đều có thể **xem**
+---
+
+### POST `/area`
+
+Tạo khu vực mới trong một tầng.
+
+**Rule**:
+
+* `floor_id` **bắt buộc tồn tại**
+* Cho phép nhiều area cùng tầng
+
+**Request body:**
+
+```json
+{
+  "floor_id": "floor-uuid-1",
+  "name": "Khu Cardio",
+  "description": "Máy chạy bộ"
+}
+```
+
+**Response (201):**
+
+```json
+{
+  "id": "area-uuid-1",
+  "floor_id": "floor-uuid-1",
+  "name": "Khu Cardio",
+  "description": "Máy chạy bộ",
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Floor_id and name are required" }
+```
+
+```json
+{ "error": "Floor with id xxx does not exist" }
+```
+
+---
+
+### GET `/area`
+
+Lấy danh sách tất cả khu vực.
+
+---
+
+### GET `/area/:id`
+
+Lấy chi tiết khu vực.
+
+**Lỗi (404):**
+
+```json
+{ "error": "Area not found" }
+```
+
+---
+
+### PUT `/area/:id`
+
+Cập nhật khu vực.
+
+* **KHÔNG cho phép update `floor_id`**
+* Chỉ update `name`, `description`
+
+**Request body:**
+
+```json
+{
+  "name": "Khu Cardio nâng cao"
+}
+```
+
+**Response (200):**
+
+```json
+{
+  "id": "area-uuid-1",
+  "floor_id": "floor-uuid-1",
+  "name": "Khu Cardio nâng cao",
+  "updated_at": "..."
+}
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Changing floor of an area is not allowed" }
+```
+
+---
+
+### DELETE `/area/:id`
+
+Xóa khu vực.
+
+**Rule ràng buộc**:
+
+* **Không cho xóa nếu area còn Equipment Unit**
+
+**Response (200):**
+
+```json
+{ "message": "Area deleted successfully" }
+```
+
+**Lỗi (400):**
+
+```json
+{ "error": "Cannot delete area because it still has equipment units" }
 ```
 
 ---

@@ -30,6 +30,9 @@ const equipmentTransferHistoryRoutes = require("./routes/equipmentTransferHistor
 const equipmentDisposalRoutes = require("./routes/equipmentDisposalRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 
+const floorRoutes = require("./routes/floorRoutes");
+const areaRoutes = require("./routes/areaRoutes");
+
 const app = express();
 app.use(cors());
 // app.use(bodyParser.json());
@@ -68,5 +71,8 @@ app.use("/equipment-transfer-history", equipmentTransferHistoryRoutes);
 
 app.use("/disposal", equipmentDisposalRoutes);
 app.use("/dashboard", dashboardRoutes);
+
+app.use("/floor", floorRoutes);
+app.use("/area", areaRoutes);
 
 module.exports = app;

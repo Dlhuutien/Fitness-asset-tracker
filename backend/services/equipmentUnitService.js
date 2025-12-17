@@ -6,6 +6,8 @@ const categoryMainRepository = require("../repositories/categoryMainRepository")
 const attributeValueRepository = require("../repositories/attributeValueRepository");
 const attributeRepository = require("../repositories/attributeRepository");
 const equipmentTransferHistoryRepository = require("../repositories/equipmentTransferHistoryRepository");
+const areaRepository = require("../repositories/areaRepository");
+const floorRepository = require("../repositories/floorRepository");
 
 const equipmentUnitService = {
   getAllUnits: async (branchFilter = null) => {
@@ -76,12 +78,50 @@ const equipmentUnitService = {
       enrichedEquipments.filter(Boolean).map((eq) => [eq.id, eq])
     );
 
+    // ===============================
+    // 📍 JOIN AREA + FLOOR
+    // ===============================
+    const areaIds = [...new Set(units.map((u) => u.area_id).filter(Boolean))];
+
+    const areas = areaIds.length
+      ? await Promise.all(areaIds.map((id) => areaRepository.findById(id)))
+      : [];
+
+    const areaMap = Object.fromEntries(
+      areas.filter(Boolean).map((a) => [a.id, a])
+    );
+
+    // Gom floor_id từ area
+    const floorIds = [
+      ...new Set(
+        areas
+          .filter(Boolean)
+          .map((a) => a.floor_id)
+          .filter(Boolean)
+      ),
+    ];
+
+    const floors = floorIds.length
+      ? await Promise.all(floorIds.map((id) => floorRepository.findById(id)))
+      : [];
+
+    const floorMap = Object.fromEntries(
+      floors.filter(Boolean).map((f) => [f.id, f])
+    );
+
     // 7️⃣ Gộp vào kết quả cuối
-    const result = units.map((u) => ({
-      ...u,
-      vendor_name: vendorMap[u.vendor_id]?.name || null,
-      equipment: equipmentMap[u.equipment_id] || null,
-    }));
+    const result = units.map((u) => {
+      const area = u.area_id ? areaMap[u.area_id] : null;
+      const floor = area?.floor_id ? floorMap[area.floor_id] : null;
+
+      return {
+        ...u,
+        vendor_name: vendorMap[u.vendor_id]?.name || null,
+        area_name: area?.name || null,
+        floor_name: floor?.name || null,
+        equipment: equipmentMap[u.equipment_id] || null,
+      };
+    });
 
     console.timeEnd("getAllUnits");
     return result;
@@ -127,10 +167,22 @@ const equipmentUnitService = {
       attributes,
     };
 
+    let area = null;
+    let floor = null;
+
+    if (unit.area_id) {
+      area = await areaRepository.findById(unit.area_id);
+      if (area?.floor_id) {
+        floor = await floorRepository.findById(area.floor_id);
+      }
+    }
+
     // 6️⃣ Gộp dữ liệu cuối cùng
     return {
       ...unit,
       vendor_name: vendor?.name || null,
+      area_name: area?.name || null,
+      floor_name: floor?.name || null,
       equipment,
     };
   },
@@ -276,6 +328,41 @@ const equipmentUnitService = {
       vendor_name: vendorMap[u.vendor_id]?.name || null,
       equipment: equipmentMap[u.equipment_id] || null,
     }));
+  },
+
+  activateUnit: async (id, area_id, userBranchId = null) => {
+    const existing = await equipmentUnitRepository.findById(id);
+    if (!existing) throw new Error("Equipment Unit not found");
+
+    // Check quyền theo chi nhánh
+    if (userBranchId && userBranchId !== existing.branch_id) {
+      throw new Error("Bạn không có quyền cập nhật thiết bị này");
+    }
+
+    // CHECK AREA TỒN TẠI
+    const area = await areaRepository.findById(area_id);
+    if (!area) {
+      throw new Error(`Area with id ${area_id} does not exist`);
+    }
+
+    return equipmentUnitRepository.update(id, {
+      area_id,
+      status: "Active",
+    });
+  },
+
+  moveUnitToStock: async (id, userBranchId = null) => {
+    const existing = await equipmentUnitRepository.findById(id);
+    if (!existing) throw new Error("Equipment Unit not found");
+
+    if (userBranchId && userBranchId !== existing.branch_id) {
+      throw new Error("Bạn không có quyền cập nhật thiết bị này");
+    }
+
+    return equipmentUnitRepository.update(id, {
+      area_id: null,
+      status: "In Stock",
+    });
   },
 };
 

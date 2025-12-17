@@ -89,6 +89,37 @@ const equipmentUnitController = {
       res.status(500).json({ error: err.message });
     }
   },
+  activateUnit: async (req, res) => {
+    try {
+      const { area_id } = req.body;
+      if (!area_id) {
+        return res.status(400).json({ error: "area_id is required" });
+      }
+
+      const updated = await equipmentUnitService.activateUnit(
+        req.params.id,
+        area_id,
+        req.user.branch_id
+      );
+
+      res.json(updated);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
+
+  moveToStock: async (req, res) => {
+    try {
+      const updated = await equipmentUnitService.moveUnitToStock(
+        req.params.id,
+        req.user.branch_id
+      );
+
+      res.json(updated);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  },
 };
 
 module.exports = equipmentUnitController;
