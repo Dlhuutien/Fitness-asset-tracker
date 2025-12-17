@@ -49,10 +49,20 @@ router.get(
 router.get("/:id", equipmentUnitController.getUnitById);
 
 // UPDATE
+router.put("/:id", verifyAccessToken, equipmentUnitController.updateUnit);
+
+// Đưa thiết bị vào hoạt động (gắn area)
 router.put(
-  "/:id",
+  "/:id/activeUnit",
   verifyAccessToken,
-  equipmentUnitController.updateUnit
+  equipmentUnitController.activateUnit
+);
+
+// Đưa thiết bị vào kho (bỏ area)
+router.put(
+  "/:id/inStockUnit",
+  verifyAccessToken,
+  equipmentUnitController.moveToStock
 );
 
 // DELETE

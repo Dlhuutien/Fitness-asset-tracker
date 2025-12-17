@@ -97,7 +97,7 @@ const EquipmentUnitModel = {
   },
 
   updateUnit: async (id, data) => {
-    const allowedFields = ["branch_id", "status", "description", "isScheduleLocked"];
+    const allowedFields = ["branch_id", "status", "description", "isScheduleLocked","area_id"];
     const updateExp = [];
     const expAttrNames = {};
     const expAttrValues = {};
