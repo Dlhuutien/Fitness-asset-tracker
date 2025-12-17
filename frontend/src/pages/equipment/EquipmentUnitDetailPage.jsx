@@ -16,7 +16,10 @@ import MaintainService from "@/services/MaintainService";
 import EquipmentUnitService from "@/services/equipmentUnitService";
 import useAuthRole from "@/hooks/useAuthRole";
 import EquipmentTransferHistoryService from "@/services/EquipmentTransferHistoryService";
+import QR from "@/components/common/QR";
+import QRCode from "qrcode";
 
+import { Download } from "lucide-react";
 // Map vi -> en status for Status chip display
 const STATUS_MAP = {
   active: "Hoạt động",
@@ -49,6 +52,7 @@ export default function EquipmentProfilePage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const [showQR, setShowQR] = useState(false);
 
   const [data, setData] = useState(location.state || null);
   const [loading, setLoading] = useState(!location.state);
@@ -135,6 +139,26 @@ export default function EquipmentProfilePage() {
 
   const translatedStatus =
     STATUS_MAP[data?.status?.toLowerCase()] || "Không xác định";
+  const handleDownloadQR = async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    try {
+      const dataUrl = await QRCode.toDataURL(data.id, {
+        width: 600,
+        margin: 2,
+      });
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `QR_${data.id}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error("Download QR failed:", err);
+    }
+  };
 
   // ===== Save =====
   const handleSave = async () => {
@@ -348,7 +372,7 @@ export default function EquipmentProfilePage() {
 
       {/* Card chính */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6">
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="grid grid-cols-[260px_1fr_220px] gap-6 items-start">
           <img
             src={eq.image || "/placeholder.jpg"}
             alt={eq.name}
@@ -512,6 +536,48 @@ export default function EquipmentProfilePage() {
               </FieldEdit>
             </div>
           </div>
+          {/* ===== QR CODE ===== */}
+          <div className="flex justify-center pt-6">
+            <div className="relative group">
+              {/* ICON DOWNLOAD – KHÔNG PHẢI BUTTON */}
+              <div
+                role="button"
+                onClick={handleDownloadQR}
+                title="Tải mã QR"
+                className="
+        absolute top-2 left-2 z-20
+        p-1.5 rounded-full
+        bg-white border border-gray-200
+        shadow-md cursor-pointer
+        hover:bg-emerald-50 hover:border-emerald-400
+        transition
+      "
+              >
+                <Download className="w-4 h-4 text-emerald-600" />
+              </div>
+
+              {/* CLICK XEM QR */}
+              <button
+                type="button"
+                onClick={() => setShowQR(true)}
+                className="focus:outline-none"
+              >
+                <div
+                  className="
+          flex flex-col items-center gap-3 p-4 rounded-2xl
+          border-2 border-emerald-400 bg-white shadow-md
+          transition-transform duration-200
+          group-hover:scale-105 group-hover:shadow-xl
+        "
+                >
+                  <QR value={data.id} size={180} />
+                  <span className="text-xs font-medium text-gray-600">
+                    {data.id}
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -556,8 +622,9 @@ function FieldView({ icon, label, children }) {
       <div className="text-brand">{icon}</div>
       <div>
         <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-<p className="text-base font-medium text-gray-800 dark:text-white">{children}</p>
-
+        <p className="text-base font-medium text-gray-800 dark:text-white">
+          {children}
+        </p>
       </div>
     </div>
   );
@@ -581,7 +648,6 @@ function FieldEdit({
         <p className="text-sm text-gray-500">{label}</p>
         {!editMode ? (
           <p className="text-base font-medium text-gray-800 dark:text-white">
-
             {children ?? "—"}
           </p>
         ) : type === "textarea" ? (
@@ -592,7 +658,6 @@ function FieldEdit({
             onChange={(e) => onChange?.(e.target.value)}
             className="w-full mt-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-400 outline-none 
            dark:bg-gray-800 dark:text-white dark:border-gray-700"
-
           />
         ) : (
           <input
@@ -611,7 +676,7 @@ function FieldEdit({
 /* ===== Thông số kỹ thuật ===== */
 function SpecSection({ showSpecs, setShowSpecs, eq }) {
   return (
-   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
       <button
         onClick={() => setShowSpecs(!showSpecs)}
         className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -637,21 +702,21 @@ function SpecSection({ showSpecs, setShowSpecs, eq }) {
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
               {eq.attributes.map((attr, i) => (
                 <div
-  key={i}
-  className="
+                  key={i}
+                  className="
     bg-gray-50 dark:bg-gray-800
     border dark:border-gray-700
     rounded-lg p-3 
     hover:border-emerald-400/60 
     transition
   "
->
-
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{attr.attribute}</p>
-<p className="text-sm font-medium text-gray-800 dark:text-white">
-  {attr.value || "—"}
-</p>
-
+                >
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {attr.attribute}
+                  </p>
+                  <p className="text-sm font-medium text-gray-800 dark:text-white">
+                    {attr.value || "—"}
+                  </p>
                 </div>
               ))}
             </div>
@@ -670,7 +735,6 @@ function SpecSection({ showSpecs, setShowSpecs, eq }) {
 function HistorySection({ historyOpen, setHistoryOpen, maintenanceHistory }) {
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
-
       <button
         onClick={() => setHistoryOpen((p) => !p)}
         className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800"
@@ -696,20 +760,28 @@ function HistorySection({ historyOpen, setHistoryOpen, maintenanceHistory }) {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border">
                 <thead className="bg-gray-100 dark:bg-gray-800 dark:text-gray-200">
-
                   <tr>
-                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Chi nhánh</th>
-                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Bắt đầu</th>
-                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Kết thúc</th>
-                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Lý do</th>
-                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">Chi phí</th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">
+                      Chi nhánh
+                    </th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">
+                      Bắt đầu
+                    </th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">
+                      Kết thúc
+                    </th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">
+                      Lý do
+                    </th>
+                    <th className="p-2 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 text-center">
+                      Chi phí
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {maintenanceHistory.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
-                     <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-
+                      <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
                         {item.branch_id || "—"}
                       </td>
                       <td className="p-2 border">
@@ -753,11 +825,10 @@ function TransferHistorySection({
   transferHistory,
 }) {
   return (
-   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
-
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md overflow-hidden">
       <button
         onClick={() => setTransferHistoryOpen((p) => !p)}
-       className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800"
+        className="w-full flex justify-between items-center p-6 hover:bg-gray-50 dark:hover:bg-gray-800"
       >
         <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
           Lịch sử điều chuyển thiết bị
@@ -792,21 +863,17 @@ function TransferHistorySection({
                   {transferHistory.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-
                         {item.moved_at
                           ? new Date(item.moved_at).toLocaleString("vi-VN")
                           : "—"}
                       </td>
-                     <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-
+                      <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
                         {item.from_branch_name || item.from_branch_id || "—"}
                       </td>
                       <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-
                         {item.to_branch_name || item.to_branch_id || "—"}
                       </td>
-                     <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-
+                      <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
                         {item.receiver_name || "—"}
                       </td>
                       <td className="p-2 border">{item.description || "—"}</td>
@@ -878,6 +945,41 @@ function PauseSection({
       <div className="inline-block px-4 py-2 text-sm font-medium text-amber-600 bg-amber-50 border rounded-lg shadow-sm">
         ⚠️ Thiết bị hiện đang ở trạng thái <b>“Ngừng tạm thời”</b>.
       </div>
+      {showQR && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center
+      bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowQR(false)}
+        >
+          {/* Chặn click xuyên */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-gray-900
+        rounded-3xl p-8 shadow-2xl
+        flex flex-col items-center gap-6
+        animate-fadeIn"
+          >
+            {/* QR TO */}
+            <QR value={data.id} size={320} />
+
+            {/* Mã */}
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Mã thiết bị</p>
+              <p className="text-lg font-semibold tracking-widest">{data.id}</p>
+            </div>
+
+            {/* Nút đóng */}
+            <button
+              onClick={() => setShowQR(false)}
+              className="mt-2 px-6 py-2 rounded-full
+          bg-emerald-500 text-white font-medium
+          hover:bg-emerald-600 transition"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

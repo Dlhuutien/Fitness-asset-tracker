@@ -44,6 +44,7 @@ import UserProfile from "@/pages/userProfile/UserProfile";
 // 🔔 Notification
 import NotificationScreen from "@/pages/NotificationScreen";
 
+import QRGuildPage from "@/pages/QRGuidePage";
 
 function ProtectedTransferRoute() {
   const { isTechnician, isOperator } = useAuthRole();
@@ -312,6 +313,15 @@ const routes = [
         element: (
           <PageTransition>
             <NotificationScreen />
+          </PageTransition>
+        ),
+      },
+      // 📷 QR Scan (Guide + Scan chung 1 page)
+      {
+        path: "/app/qr-scan",
+        element: (
+          <PageTransition>
+            <QRGuildPage />
           </PageTransition>
         ),
       },

@@ -40,8 +40,8 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
-import Branch from "@/components/common/Branch";
-
+// import Branch from "@/components/common/Branch";
+import QR from "@/components/common/QR";
 const ITEMS_PER_PAGE = 8;
 
 export default function EquipmentUnitListSection() {
@@ -59,7 +59,8 @@ export default function EquipmentUnitListSection() {
   const { isSuperAdmin } = useAuthRole();
   const [openImport, setOpenImport] = useState(false);
   const { isTechnician, isOperator } = useAuthRole();
-  
+  const [openQR, setOpenQR] = useState(false);
+  const [qrValue, setQrValue] = useState(null);
 
   // ⚙️ Dữ liệu thiết bị
   const { eqUnits, eqErr, unitLoading, cats, catErr, catLoading } =
@@ -377,6 +378,9 @@ export default function EquipmentUnitListSection() {
                 <TableHead className="text-center border dark:border-gray-600">
                   #
                 </TableHead>
+                <TableHead className="text-center border dark:border-gray-600">
+                  Xem QR
+                </TableHead>
 
                 {visibleColumns.id && (
                   <TableHead className="border dark:border-gray-600">
@@ -498,6 +502,20 @@ export default function EquipmentUnitListSection() {
                   >
                     <TableCell className="text-center">
                       {(currentPage - 1) * ITEMS_PER_PAGE + idx + 1}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-emerald-600 border-emerald-400 hover:bg-emerald-50"
+                        onClick={(e) => {
+                          e.stopPropagation(); // 🚫 không navigate
+                          setQrValue(row.id);
+                          setOpenQR(true);
+                        }}
+                      >
+                        QR Code
+                      </Button>
                     </TableCell>
 
                     {visibleColumns.id && (
@@ -684,6 +702,69 @@ export default function EquipmentUnitListSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+{openQR && (
+  <div
+    className="
+      fixed inset-0 z-[9999]
+      flex items-center justify-center
+      bg-black/60 backdrop-blur-sm
+      animate-fadeIn
+    "
+    onClick={() => {
+      setOpenQR(false);
+      setQrValue(null);
+    }}
+  >
+    {/* BOX QR */}
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="
+        bg-white dark:bg-gray-900
+        rounded-3xl
+        p-8
+        shadow-[0_30px_80px_rgba(16,185,129,0.45)]
+        border border-emerald-400
+        animate-zoomIn
+      "
+    >
+      <h3
+        className="
+          text-center text-xl font-semibold mb-6
+          bg-gradient-to-r from-emerald-400 to-cyan-400
+          bg-clip-text text-transparent
+        "
+      >
+        Mã QR thiết bị
+      </h3>
+
+      <div className="flex flex-col items-center gap-4">
+        <div className="p-4 rounded-2xl bg-white shadow-md">
+          <QR value={qrValue} size={240} />
+        </div>
+
+        <p className="text-xs text-gray-500 break-all text-center max-w-[260px]">
+          {qrValue}
+        </p>
+      </div>
+
+      <button
+        onClick={() => {
+          setOpenQR(false);
+          setQrValue(null);
+        }}
+        className="
+          mt-6 w-full rounded-xl py-2
+          bg-gradient-to-r from-emerald-400 to-cyan-400
+          text-white font-semibold
+          hover:opacity-90 transition
+        "
+      >
+        Đóng
+      </button>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
