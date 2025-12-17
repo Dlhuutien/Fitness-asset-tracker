@@ -8,6 +8,7 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
+QrCode ,
   FileX,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -82,6 +83,13 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       path: "/app/invoice",
     },
   ];
+menuItems.push({
+  key: "qr-scan",
+  label: "Quét QR Code",
+  icon: QrCode,
+  path: "/app/qr-scan",
+});
+
 
   // 🧩 Lọc bỏ “Chuyển thiết bị” cho technician & operator
   if (isTechnician || isOperator) {

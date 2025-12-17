@@ -16,6 +16,7 @@ import AttributeService from "@/services/attributeService";
 import { toast } from "sonner";
 import useAuthRole from "@/hooks/useAuthRole";
 import MaintenancePlanService from "@/services/MaintenancePlanService";
+import QR from "@/components/common/QR";
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleString("vi-VN") : "—");
 
@@ -28,7 +29,6 @@ export default function EquipmentProfilePage() {
   const [equipment, setEquipment] = useState(null);
   const [saveMessage, setSaveMessage] = useState({ type: "", text: "" });
   const { isTechnician, isSuperAdmin } = useAuthRole();
-
 
   const [formData, setFormData] = useState({
     name: "",
@@ -471,13 +471,12 @@ export default function EquipmentProfilePage() {
         </div>
       </div>
 
-      {/* CARD 1: Thông tin cơ bản */}
-      {/* <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-md p-8 space-y-8 font-jakarta transition-all duration-300 hover:shadow-lg"> */}
       {/* ==================== CARD 1: THÔNG TIN CƠ BẢN ==================== */}
-      <div className="bg-white dark:bg-gray-900 border rounded-3xl shadow p-8 space-y-6 transition-all hover:shadow-lg">
-        <div className="flex flex-col md:flex-row gap-8 items-start">
-          {/* ẢNH THIẾT BỊ */}
-          <div className="flex-shrink-0">
+      {/* ==================== CARD 1: THÔNG TIN CƠ BẢN ==================== */}
+      <div className="bg-white dark:bg-gray-900 border rounded-3xl shadow p-8 transition-all hover:shadow-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_160px] gap-8 items-start">
+          {/* ===== CỘT 1: ẢNH THIẾT BỊ ===== */}
+          <div className="flex justify-center">
             <img
               src={formData.preview || equipment.image || "/placeholder.png"}
               alt={formData.name}
@@ -485,32 +484,36 @@ export default function EquipmentProfilePage() {
             />
           </div>
 
-          {/* THÔNG TIN CHI TIẾT */}
-          <div className="flex-1 grid sm:grid-cols-2 gap-x-10 gap-y-4 text-[15px]">
+          {/* ===== CỘT 2: THÔNG TIN CHI TIẾT ===== */}
+          <div className="grid sm:grid-cols-2 gap-x-10 gap-y-4 text-[15px]">
             <p>
               <strong className="text-gray-600 dark:text-gray-400">
                 Mã thiết bị:
               </strong>{" "}
               {equipment.id}
             </p>
+
             <p>
               <strong className="text-gray-600 dark:text-gray-400">
                 Nhóm:
               </strong>{" "}
               {equipment.main_name || "—"}
             </p>
+
             <p>
               <strong className="text-gray-600 dark:text-gray-400">
                 Loại:
               </strong>{" "}
               {equipment.type_name || "—"}
             </p>
+
             <p>
               <strong className="text-gray-600 dark:text-gray-400">
                 Ngày tạo:
               </strong>{" "}
               {fmtDate(equipment.created_at)}
             </p>
+
             <p>
               <strong className="text-gray-600 dark:text-gray-400">
                 Cập nhật gần nhất:
@@ -546,363 +549,16 @@ export default function EquipmentProfilePage() {
                   className="mt-1 text-sm"
                 />
               ) : (
-                <p className="mt-1 leading-relaxed text-gray-800 dark:text-gray-200 max-w-2xl whitespace-pre-line">
+                <p className="mt-1 leading-relaxed text-gray-800 dark:text-gray-200 whitespace-pre-line">
                   {formData.description || "—"}
                 </p>
               )}
             </div>
           </div>
-        </div>
 
-        {/* ==================== BẢO TRÌ ĐỊNH KỲ ==================== */}
-        <div className="relative mt-8 rounded-3xl border border-emerald-100/70 bg-gradient-to-b from-emerald-50 via-cyan-50/40 to-white dark:from-gray-900 dark:via-gray-850 dark:to-gray-800 shadow-[0_8px_25px_rgba(0,0,0,0.05)] p-8 backdrop-blur-sm space-y-8">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl animate-bounce-slow">🛠️</span>
-            <h4 className="text-2xl font-bold tracking-wide bg-gradient-to-r from-emerald-600 to-cyan-600 bg-clip-text text-transparent">
-              Cài đặt bảo trì định kỳ
-            </h4>
-          </div>
 
-          {/* Inputs */}
-          <div className="grid md:grid-cols-3 gap-x-10 gap-y-5 text-[15px]">
-            <div>
-              <p className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500 text-base tracking-wide mb-1">
-                Thời gian bắt đầu
-              </p>
-              {editing && isSuperAdmin ? (
-                <Input
-                  type="date"
-                  value={formData.periodic_maintenance_date || ""}
-                  onChange={(e) =>
-                    handleChange("periodic_maintenance_date", e.target.value)
-                  }
-                  className="h-11 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-400"
-                />
-              ) : (
-                <p className="font-semibold text-gray-900 dark:text-gray-100 text-lg">
-                  {formData.periodic_maintenance_date ||
-                  currentPlan?.next_maintenance_date
-                    ? new Date(
-                        formData.periodic_maintenance_date ||
-                          currentPlan.next_maintenance_date
-                      ).toLocaleDateString("vi-VN")
-                    : "—"}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <p className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500 text-base tracking-wide mb-1">
-                Chu kỳ
-              </p>
-              {editing && isSuperAdmin ? (
-                <select
-                  value={formData.periodic_frequency_type || ""}
-                  onChange={(e) =>
-                    handleChange("periodic_frequency_type", e.target.value)
-                  }
-                  className="h-11 w-full border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 focus:ring-2 focus:ring-emerald-400"
-                >
-                  <option value="">— Chọn chu kỳ —</option>
-                  <option value="week">Tuần</option>
-                  <option value="month">Tháng</option>
-                  <option value="year">Năm</option>
-                </select>
-              ) : (
-                <p className="font-semibold text-gray-900 dark:text-gray-100 text-lg">
-                  {formData.periodic_frequency_type
-                    ? { week: "Tuần", month: "Tháng", year: "Năm" }[
-                        formData.periodic_frequency_type
-                      ]
-                    : currentPlan
-                    ? currentPlan.frequency.includes("week")
-                      ? "Tuần"
-                      : currentPlan.frequency.includes("month")
-                      ? "Tháng"
-                      : "Năm"
-                    : "—"}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <p className="font-semibold text-transparent bg-clip-text bg-gradient-to-r from-emerald-500 to-cyan-500 text-base tracking-wide mb-1">
-                Tần suất
-              </p>
-              {editing && isSuperAdmin ? (
-                <Input
-                  type="number"
-                  min={1}
-                  value={formData.periodic_frequency_interval || ""}
-                  onChange={(e) =>
-                    handleChange(
-                      "periodic_frequency_interval",
-                      e.target.value.replace(/\D/g, "")
-                    )
-                  }
-                  placeholder="VD: 2"
-                  className="h-11 border border-gray-200 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-emerald-400"
-                />
-              ) : (
-                <p className="font-semibold text-gray-900 dark:text-gray-100 text-lg">
-                  {formData.periodic_frequency_interval
-                    ? `${formData.periodic_frequency_interval} ${
-                        formData.periodic_frequency_type === "week"
-                          ? "tuần/lần"
-                          : formData.periodic_frequency_type === "month"
-                          ? "tháng/lần"
-                          : "năm/lần"
-                      }`
-                    : currentPlan
-                    ? `${parseInt(currentPlan.frequency) || 1} ${
-                        currentPlan.frequency.includes("week")
-                          ? "tuần/lần"
-                          : currentPlan.frequency.includes("month")
-                          ? "tháng/lần"
-                          : "năm/lần"
-                      }`
-                    : "—"}
-                </p>
-              )}
-            </div>
-          </div>
-          {/* === FITX Timeline v2: Label to, lắc nhún nhẹ, chú thích rõ === */}
-          {(formData.periodic_maintenance_date ||
-            currentPlan?.next_maintenance_date) &&
-            (formData.periodic_frequency_type || currentPlan?.frequency) &&
-            (formData.periodic_frequency_interval || currentPlan?.frequency) &&
-            (() => {
-              // ===== Dưới đây là logic timeline giữ nguyên =====
-              const start = new Date(
-                formData.periodic_maintenance_date ||
-                  currentPlan.next_maintenance_date
-              );
-
-              const type =
-                formData.periodic_frequency_type ||
-                (currentPlan.frequency.includes("week")
-                  ? "week"
-                  : currentPlan.frequency.includes("month")
-                  ? "month"
-                  : "year");
-
-              const freq = Number(
-                formData.periodic_frequency_interval ||
-                  parseInt(currentPlan.frequency) ||
-                  1
-              );
-
-              const next = new Date(start);
-              if (type === "week") next.setDate(start.getDate() + freq * 7);
-              if (type === "month") next.setMonth(start.getMonth() + freq);
-              if (type === "year") next.setFullYear(start.getFullYear() + freq);
-
-              const remind = new Date(next);
-              remind.setDate(next.getDate() - 3);
-              const today = new Date();
-
-              let nextMilestone = "done";
-              if (today < start) nextMilestone = "start";
-              else if (today < remind) nextMilestone = "remind";
-              else if (today < next) nextMilestone = "next";
-
-              const fmt = (d) => {
-                const dd = String(d.getDate()).padStart(2, "0");
-                const mm = String(d.getMonth() + 1).padStart(2, "0");
-                const yyyy = d.getFullYear();
-                return `${dd}/${mm}/${yyyy}`;
-              };
-
-              return (
-                <div className="relative bg-white/80 dark:bg-gray-800/60 rounded-2xl border border-emerald-100 dark:border-gray-700 shadow-inner p-10 overflow-hidden">
-                  {/* ==== LINE ==== */}
-                  <div className="relative h-[7px] w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mb-14">
-                    <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-indigo-500 rounded-full w-full opacity-70"></div>
-                  </div>
-
-                  {/* ==== 3 MỐC ==== */}
-                  <div className="flex justify-between items-start text-center select-none">
-                    {/* ==== BẮT ĐẦU ==== */}
-                    <div className="flex flex-col items-center w-1/3 group relative">
-                      <div
-                        className={`text-6xl ${
-                          nextMilestone === "start"
-                            ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]"
-                            : ""
-                        } text-emerald-500 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)] cursor-pointer`}
-                      >
-                        🗓️
-                      </div>
-                      <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
-                        Bắt đầu
-                      </p>
-                      <p className="text-emerald-600 dark:text-emerald-400 font-bold text-xl mt-1">
-                        {fmt(start)}
-                      </p>
-
-                      {/* Tooltip */}
-                      {nextMilestone === "start" && (
-                        <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                          <div className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-emerald-300 whitespace-nowrap">
-                            ⚡ Sự kiện sắp xảy ra
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ==== NHẮC NHỞ ==== */}
-                    <div className="flex flex-col items-center w-1/3 group relative">
-                      <div
-                        className={`text-6xl ${
-                          nextMilestone === "remind"
-                            ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]"
-                            : ""
-                        } text-indigo-500 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)] cursor-pointer`}
-                      >
-                        ⏰
-                      </div>
-                      <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
-                        Nhắc nhở
-                      </p>
-                      <p className="text-indigo-600 dark:text-indigo-400 font-bold text-xl mt-1">
-                        {fmt(remind)}
-                      </p>
-
-                      {/* Tooltip */}
-                      {nextMilestone === "remind" && (
-                        <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                          <div className="bg-gradient-to-r from-indigo-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-indigo-300 whitespace-nowrap">
-                            ⚡ Sự kiện sắp xảy ra
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ==== BẢO TRÌ ==== */}
-                    <div className="flex flex-col items-center w-1/3 group relative">
-                      <div
-                        className={`text-6xl ${
-                          nextMilestone === "next"
-                            ? "animate-[shakeBounce_1.3s_ease-in-out_infinite]"
-                            : ""
-                        } text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.6)] cursor-pointer`}
-                      >
-                        🔔
-                      </div>
-                      <p className="mt-2 text-gray-700 dark:text-gray-300 text-lg font-semibold tracking-wide">
-                        Bảo trì kế tiếp
-                      </p>
-                      <p className="text-emerald-600 dark:text-emerald-400 font-bold text-xl mt-1">
-                        {fmt(next)}
-                      </p>
-
-                      {/* Tooltip */}
-                      {nextMilestone === "next" && (
-                        <div className="absolute -top-14 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                          <div className="bg-gradient-to-r from-amber-500 to-cyan-500 text-white text-sm px-5 py-2 rounded-xl shadow-xl border border-amber-300 whitespace-nowrap">
-                            ⚡ Sự kiện sắp xảy ra
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* ==== CHU KỲ ==== */}
-                  <div className="mt-12 border-t border-gray-200 dark:border-gray-700 pt-5 text-base text-center text-gray-700 dark:text-gray-300 font-medium">
-                    <span className="inline-block bg-gradient-to-r from-emerald-500 to-cyan-500 text-transparent bg-clip-text font-semibold text-lg">
-                      ⏳ Chu kỳ:
-                    </span>{" "}
-                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                      {formData.periodic_frequency_interval}{" "}
-                      {formData.periodic_frequency_type === "week"
-                        ? "tuần"
-                        : formData.periodic_frequency_type === "month"
-                        ? "tháng"
-                        : "năm"}
-                    </span>{" "}
-                    kể từ ngày{" "}
-                    <span className="font-bold text-indigo-600 dark:text-indigo-400">
-                      {fmt(start)}
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
-
-          {/* ===== DANH SÁCH CÁC KỲ BẢO TRÌ (GỌN + SCROLL + COLLAPSE) ===== */}
-          <div className="mt-10 p-5 bg-white/70 dark:bg-gray-800/60 rounded-2xl border border-emerald-100 dark:border-gray-700 shadow-md">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-lg text-emerald-600">
-                📅 Lịch bảo trì dự kiến
-              </h3>
-
-              {/* Nút mở / đóng panel */}
-              <button
-                onClick={() => setShowMaintPanel((p) => !p)}
-                className="text-sm px-3 py-1 rounded-lg border bg-gray-100 dark:bg-gray-700 dark:text-white hover:bg-gray-200 transition"
-              >
-                {showMaintPanel ? "Đóng" : "Mở"}
-              </button>
-            </div>
-
-            {/* Panel */}
-            {showMaintPanel && (
-              <div className="mt-4 max-h-[200px] overflow-y-auto pr-1 custom-scroll">
-                {allMaintDates.length === 0 ? (
-                  <p className="text-gray-500 italic">Chưa có dữ liệu...</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {(showAllMaint
-                      ? allMaintDates
-                      : allMaintDates.slice(0, 3)
-                    ).map((d, i) => (
-                      <li
-                        key={i}
-                        className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-lg border border-gray-200 dark:border-gray-600"
-                      >
-                        <span className="font-semibold">{`Kỳ ${i + 1}: `}</span>
-                        {d.toLocaleDateString("vi-VN")}
-
-                        {nextMaintDate &&
-                          d.toDateString() === nextMaintDate.toDateString() && (
-                            <span className="ml-2 text-emerald-600 font-bold">
-                              ← Kỳ kế tiếp
-                            </span>
-                          )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                {/* Nút "Xem thêm" */}
-                {allMaintDates.length > 3 && (
-                  <button
-                    onClick={() => setShowAllMaint((p) => !p)}
-                    className="mt-3 text-sm text-emerald-600 hover:text-emerald-700 font-semibold"
-                  >
-                    {showAllMaint ? "Thu gọn" : "Xem thêm..."}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* === Animation Shake Bounce (nhún nhẹ) === */}
-          <style>
-            {`
-@keyframes shakeBounce {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  20% { transform: translateY(-5px) rotate(-2deg); }
-  40% { transform: translateY(3px) rotate(2deg); }
-  60% { transform: translateY(-3px) rotate(-1deg); }
-  80% { transform: translateY(2px) rotate(1deg); }
-}
-`}
-          </style>
         </div>
       </div>
-      {/* </div> */}
 
       {/* CARD 2: Thông số kỹ thuật */}
       <div className="bg-white dark:bg-gray-900 border rounded-2xl shadow p-6 space-y-5">

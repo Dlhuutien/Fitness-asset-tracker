@@ -361,3 +361,36 @@ body {
   background: rgba(55, 65, 81, 0.9);
 }
 
+@keyframes qr-simple {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-qr-simple {
+  animation: qr-simple 0.18s ease-out;
+}
+/* ================= FIX html5-qrcode overlay issues ================= */
+
+/* ===== html5-qrcode FIX (mobile + desktop) ===== */
+#qr-reader,
+#qr-reader video,
+#qr-reader canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#qr-reader video {
+  object-fit: cover;
+}
+
+/* Ẩn canvas gây vạch đen */
+#qr-reader canvas {
+  display: none !important;
+}
+
