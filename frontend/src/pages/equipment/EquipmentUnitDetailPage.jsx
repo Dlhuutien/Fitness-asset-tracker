@@ -18,6 +18,9 @@ import useAuthRole from "@/hooks/useAuthRole";
 import EquipmentTransferHistoryService from "@/services/EquipmentTransferHistoryService";
 import QR from "@/components/common/QR";
 import QRCode from "qrcode";
+import FloorService from "@/services/floorService";
+import AreaService from "@/services/areaService";
+import { Layers, Grid3X3, Plus } from "lucide-react";
 
 import { Download } from "lucide-react";
 // Map vi -> en status for Status chip display
@@ -81,6 +84,15 @@ export default function EquipmentProfilePage() {
   const eq = data?.equipment || {};
   const isTemporarilyStopped =
     data?.status?.toLowerCase() === "Temporary Urgent";
+  // ===== Select location popup =====
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [floors, setFloors] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [selectedAreaId, setSelectedAreaId] = useState(null);
+
+  // add new area
+  const [addingFloorId, setAddingFloorId] = useState(null);
+  const [newAreaName, setNewAreaName] = useState("");
 
   // Load unit detail when no prefetched state
   useEffect(() => {
@@ -128,6 +140,30 @@ export default function EquipmentProfilePage() {
       }
     })();
   }, [data?.id]);
+  useEffect(() => {
+    if (!showLocationModal || !data?.branch_id) return;
+
+    (async () => {
+      try {
+        const allFloors = await FloorService.getAll();
+        const allAreas = await AreaService.getAll();
+
+        const branchFloors = allFloors.filter(
+          (f) => f.branch_id === data.branch_id
+        );
+
+        const branchAreas = allAreas.filter((a) =>
+          branchFloors.some((f) => f.id === a.floor_id)
+        );
+
+        setFloors(branchFloors);
+        setAreas(branchAreas);
+      } catch (err) {
+        console.error(err);
+        toast.error("❌ Không thể tải cấu trúc chi nhánh");
+      }
+    })();
+  }, [showLocationModal, data?.branch_id]);
 
   // Helper: tính ngày kết thúc bảo hành theo số năm
   const computeWarrantyEnd = (startDate, years) => {
@@ -406,9 +442,12 @@ export default function EquipmentProfilePage() {
                   {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
                   {data.status?.toLowerCase() === "in stock" && !editMode && (
                     <Button
-                      onClick={handleActivate}
-                      disabled={loading}
-                      className="bg-gradient-to-r from-emerald-400 to-emerald-600 hover:from-emerald-500 hover:to-emerald-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 font-semibold"
+                      onClick={() => {
+                        setShowLocationModal(true);
+                        setSelectedAreaId(null);
+                        setAddingFloorId(null);
+                      }}
+                      className="bg-gradient-to-r from-emerald-400 to-emerald-600 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-semibold"
                     >
                       🚀 Đưa vào hoạt động
                     </Button>
@@ -491,6 +530,13 @@ export default function EquipmentProfilePage() {
 
               <FieldView icon={<CalendarDays />} label="Ngày kết thúc bảo hành">
                 {new Date(data.warranty_end_date).toLocaleDateString("vi-VN")}
+              </FieldView>
+              <FieldView icon={<Layers />} label="Tầng">
+                {data.floor_name || "—"}
+              </FieldView>
+
+              <FieldView icon={<Grid3X3 />} label="Khu">
+                {data.area_name || "—"}
               </FieldView>
 
               <FieldEdit
@@ -611,6 +657,160 @@ export default function EquipmentProfilePage() {
         successMsg={successMsg}
         errorMsg={errorMsg}
       />
+      {showLocationModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-3xl p-6 space-y-4">
+            <h2 className="flex items-center gap-2 text-xl font-bold text-emerald-600">
+              <Building2 className="w-5 h-5" />
+              Đặt thiết bị <span className="text-gray-800">{data.id}</span> tại
+              vị trí
+            </h2>
+
+            <div className="space-y-3 max-h-[420px] overflow-y-auto">
+              {floors.map((floor, idx) => {
+                const floorAreas = areas.filter((a) => a.floor_id === floor.id);
+
+                return (
+                  <div
+                    key={floor.id}
+                    className="border rounded-xl p-3 bg-gray-50 dark:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-2 font-semibold text-emerald-700 mb-3">
+                      <Layers className="w-4 h-4" />
+                      Tầng {idx + 1}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {floorAreas.map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => setSelectedAreaId(a.id)}
+                          className={`px-3 py-2 rounded-lg border text-sm
+                      ${
+                        selectedAreaId === a.id
+                          ? "bg-emerald-500 text-white border-emerald-500"
+                          : "bg-white dark:bg-gray-900"
+                      }`}
+                        >
+                          {a.name}
+                        </button>
+                      ))}
+
+                      <button
+                        onClick={() =>
+                          setAddingFloorId(
+                            addingFloorId === floor.id ? null : floor.id
+                          )
+                        }
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed text-sm text-emerald-600 hover:bg-emerald-50"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Khu
+                      </button>
+                    </div>
+
+                    {addingFloorId === floor.id && (
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          className="
+    flex-1 px-3 py-2 border rounded-xl
+    focus:ring-2 focus:ring-emerald-400 outline-none
+  "
+                          placeholder="Tên khu mới..."
+                          value={newAreaName}
+                          onChange={(e) => setNewAreaName(e.target.value)}
+                        />
+
+                        <Button
+                          onClick={async () => {
+                            if (!newAreaName.trim()) return;
+
+                            const res = await AreaService.create({
+                              floor_id: floor.id,
+                              name: newAreaName,
+                              description: "",
+                            });
+
+                            setAreas((prev) => [...prev, res]);
+                            setSelectedAreaId(res.id);
+                            setNewAreaName("");
+                            setAddingFloorId(null);
+                          }}
+                        >
+                          Thêm
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowLocationModal(false);
+                  setAddingFloorId(null);
+                  setNewAreaName("");
+                  setSelectedAreaId(null);
+                }}
+              >
+                Hủy
+              </Button>
+
+              <Button
+                disabled={!selectedAreaId}
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+
+                    await EquipmentUnitService.activateUnit(
+                      data.id,
+                      selectedAreaId
+                    );
+
+                    // lấy tên khu + tầng từ data đang load trong popup
+                    const pickedArea = areas.find(
+                      (x) => x.id === selectedAreaId
+                    );
+                    const pickedFloor = floors.find(
+                      (f) => f.id === pickedArea?.floor_id
+                    );
+
+                    const floorIndex = pickedFloor
+                      ? floors.findIndex((f) => f.id === pickedFloor.id) + 1
+                      : null;
+
+                    setData((prev) => ({
+                      ...prev,
+                      status: "Active",
+                      area_id: selectedAreaId,
+                      area_name: pickedArea?.name || prev.area_name,
+                      floor_name: floorIndex
+                        ? `Tầng ${floorIndex}`
+                        : prev.floor_name,
+                    }));
+
+                    toast.success("✅ Thiết bị đã được đưa vào hoạt động!");
+                    setShowLocationModal(false);
+                    setAddingFloorId(null);
+                    setNewAreaName("");
+                    setSelectedAreaId(null);
+                  } catch (err) {
+                    console.error("Activate failed:", err);
+                    toast.error("❌ Không thể đưa thiết bị vào hoạt động!");
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              >
+                Đồng ý
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
