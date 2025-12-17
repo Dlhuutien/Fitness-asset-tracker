@@ -33,6 +33,8 @@ import {
   getUniqueValues,
 } from "@/components/common/ExcelTableTools";
 import { AnimatePresence, motion } from "framer-motion";
+import FloorService from "@/services/floorService";
+import AreaService from "@/services/areaService";
 
 const ITEMS_PER_PAGE = 6;
 
@@ -44,6 +46,10 @@ export default function BranchListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [floorCountMap, setFloorCountMap] = useState({});
+  const [areaCountMap, setAreaCountMap] = useState({});
+  const [originalFloors, setOriginalFloors] = useState([]);
+  const [originalAreas, setOriginalAreas] = useState([]);
 
   /* ================= FORM ================= */
   const [form, setForm] = useState({
@@ -76,6 +82,7 @@ export default function BranchListPage() {
     try {
       const data = await BranchService.getAll();
       setBranches(Array.isArray(data) ? data : []);
+      await fetchFloorAreaStats(data);
     } catch {
       toast.error("❌ Không thể tải danh sách chi nhánh");
     } finally {
@@ -104,31 +111,105 @@ export default function BranchListPage() {
     setFormError("");
   };
 
-  const handleEdit = (branch) => {
+  const fetchFloorAreaStats = async (branches) => {
+    try {
+      const floors = await FloorService.getAll();
+      const areas = await AreaService.getAll();
+
+      // Đếm floor theo branch
+      const floorMap = {};
+      floors.forEach((f) => {
+        floorMap[f.branch_id] = (floorMap[f.branch_id] || 0) + 1;
+      });
+
+      // Map floor_id → branch_id
+      const floorToBranch = {};
+      floors.forEach((f) => {
+        floorToBranch[f.id] = f.branch_id;
+      });
+
+      // Đếm area theo branch (qua floor)
+      const areaMap = {};
+      areas.forEach((a) => {
+        const branchId = floorToBranch[a.floor_id];
+        if (!branchId) return;
+        areaMap[branchId] = (areaMap[branchId] || 0) + 1;
+      });
+
+      setFloorCountMap(floorMap);
+      setAreaCountMap(areaMap);
+    } catch (err) {
+      console.error("❌ Lỗi load floor / area stats", err);
+    }
+  };
+
+  const loadFloorAreaToForm = async (branchId) => {
+    try {
+      const floors = await FloorService.getAll();
+      const areas = await AreaService.getAll();
+
+      // Lọc floor theo branch + sort F1, F2, F3
+      const branchFloors = floors
+        .filter((f) => f.branch_id === branchId)
+        .sort((a, b) => {
+          const na = Number(a.name.replace("F", ""));
+          const nb = Number(b.name.replace("F", ""));
+          return na - nb;
+        });
+
+      // Map floor_id → số tầng (1-based)
+      const floorIndexMap = {};
+      branchFloors.forEach((f, idx) => {
+        floorIndexMap[f.id] = idx + 1;
+      });
+
+      // Lấy area thuộc các floor đó
+      const branchAreas = areas.filter(
+        (a) => floorIndexMap[a.floor_id] !== undefined
+      );
+
+      setForm((prev) => ({
+        ...prev,
+        floorCount: branchFloors.length || 1,
+        areas: branchAreas.map((a) => ({
+          id: a.id,
+          floor: floorIndexMap[a.floor_id],
+          name: a.name,
+        })),
+      }));
+      setOriginalFloors(branchFloors);
+      setOriginalAreas(branchAreas);
+    } catch (err) {
+      console.error("❌ Lỗi load floor/area vào form", err);
+      toast.error("❌ Không thể tải cấu trúc tầng/khu");
+    }
+  };
+
+  const handleEdit = async (branch) => {
     setEditMode(true);
     setShowForm(true);
 
-    const floorCount = Number(branch?.floorCount) > 0 ? Number(branch.floorCount) : 1;
-    const areas = Array.isArray(branch?.areas) ? branch.areas : [];
-
+    // set thông tin branch trước
     setForm({
-      id: branch?.id || "",
-      name: branch?.name || "",
-      address: branch?.address || "",
-      floorCount,
-      areas: areas
-        .filter((a) => Number(a?.floor) >= 1 && Number(a?.floor) <= floorCount)
-        .map((a) => ({
-          floor: Number(a.floor) || 1,
-          name: a?.name || "",
-        })),
+      id: branch.id,
+      name: branch.name,
+      address: branch.address,
+      floorCount: 1,
+      areas: [],
     });
+
+    // load floor + area thật
+    await loadFloorAreaToForm(branch.id);
 
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // ===== Areas helpers (layout mới) =====
   const addAreaToFloor = (floor) => {
+    if (editMode && floor > originalFloors.length) {
+      toast.warning("⚠️ Vui lòng lưu để tạo tầng trước khi thêm khu");
+      return;
+    }
     setForm((prev) => ({
       ...prev,
       areas: [...prev.areas, { floor, name: "" }],
@@ -153,51 +234,130 @@ export default function BranchListPage() {
   const handleSubmit = async () => {
     const name = (form.name || "").trim();
     const address = (form.address || "").trim();
-    const id = (form.id || "").trim();
+    const branchId = (form.id || "").trim();
 
     if (!name || !address) {
       setFormError("⚠️ Vui lòng nhập tên và địa chỉ chi nhánh!");
       return;
     }
-    if (!editMode && !id) {
+    if (!editMode && !branchId) {
       setFormError("⚠️ Vui lòng nhập mã chi nhánh!");
       return;
     }
 
-    // cleanup areas
-    const cleanedAreas = (form.areas || [])
-      .map((a) => ({
-        floor: Number(a.floor) || 1,
-        name: (a.name || "").trim(),
-      }))
-      .filter((a) => a.floor >= 1 && a.floor <= form.floorCount && a.name);
-
     setLoading(true);
+
     try {
+      /* ================= CREATE / UPDATE BRANCH ================= */
       if (editMode) {
-        await BranchService.update(form.id, {
-          name,
-          address,
-          floorCount: form.floorCount,
-          areas: cleanedAreas,
+        // 1️⃣ Update branch
+        await BranchService.update(branchId, { name, address });
+
+        const currentFloorCount = originalFloors.length;
+        const targetFloorCount = Number(form.floorCount);
+
+        // Thêm tầng mới nếu tăng
+        const createdNewFloors = [];
+        if (targetFloorCount > currentFloorCount) {
+          const addCount = targetFloorCount - currentFloorCount;
+          for (let i = 0; i < addCount; i++) {
+            const f = await FloorService.create({
+              branch_id: branchId,
+              description: "",
+            });
+            createdNewFloors.push(f);
+          }
+        }
+
+        // Map floor number -> floor_id
+        const floorMap = {};
+        originalFloors.forEach((f, idx) => {
+          floorMap[idx + 1] = f.id;
         });
-        toast.success("✅ Cập nhật chi nhánh thành công");
+
+        createdNewFloors.forEach((f, idx) => {
+          floorMap[currentFloorCount + idx + 1] = f.id;
+        });
+
+        // gom area gốc theo floor_id (CHỈ 1 LẦN)
+        const originalAreasByFloor = {};
+        originalAreas.forEach((a) => {
+          if (!originalAreasByFloor[a.floor_id]) {
+            originalAreasByFloor[a.floor_id] = [];
+          }
+          originalAreasByFloor[a.floor_id].push(a);
+        });
+
+        // duyệt area trong form (CHỈ 1 LẦN)
+        for (const area of form.areas) {
+          const floorId = floorMap[area.floor];
+          if (!floorId || !area.name.trim()) continue;
+
+          // 1️⃣ AREA CŨ → UPDATE
+          if (area.id) {
+            const original = originalAreas.find((o) => o.id === area.id);
+            if (!original) continue;
+
+            // chỉ update nếu đổi tên
+            if (
+              original.name.trim().toLowerCase() !==
+              area.name.trim().toLowerCase()
+            ) {
+              await AreaService.update(area.id, {
+                name: area.name,
+              });
+            }
+            continue;
+          }
+
+          // 2️⃣ AREA MỚI → CREATE
+          await AreaService.create({
+            floor_id: floorId,
+            name: area.name,
+            description: "",
+          });
+        }
       } else {
-        await BranchService.create({
-          id,
-          name,
-          address,
-          floorCount: form.floorCount,
-          areas: cleanedAreas,
-        });
-        toast.success("✅ Thêm chi nhánh mới thành công");
+        await BranchService.create({ id: branchId, name, address });
       }
+
+      if (!editMode) {
+        /* ================= CREATE FLOORS ================= */
+        const createdFloors = [];
+        for (let i = 0; i < form.floorCount; i++) {
+          const floor = await FloorService.create({
+            branch_id: branchId,
+            description: "",
+          });
+          createdFloors.push(floor);
+        }
+
+        /* ================= CREATE AREAS ================= */
+        for (const area of form.areas) {
+          const floorIndex = Number(area.floor) - 1;
+          const floor = createdFloors[floorIndex];
+          if (!floor) continue;
+
+          await AreaService.create({
+            floor_id: floor.id,
+            name: area.name,
+            description: "",
+          });
+        }
+      }
+
+      toast.success(
+        editMode
+          ? "✅ Cập nhật chi nhánh thành công"
+          : "✅ Thêm chi nhánh + tầng + khu thành công"
+      );
 
       await fetchBranches();
       resetForm();
       setShowForm(false);
     } catch (err) {
-      toast.error("❌ Lỗi lưu chi nhánh");
+      console.error(err);
+      toast.error("❌ Lỗi khi lưu chi nhánh");
     } finally {
       setLoading(false);
     }
@@ -214,7 +374,8 @@ export default function BranchListPage() {
         (b?.address || "").toLowerCase().includes(q);
 
       const matchId = selectedId.length === 0 || selectedId.includes(b.id);
-      const matchName = selectedName.length === 0 || selectedName.includes(b.name);
+      const matchName =
+        selectedName.length === 0 || selectedName.includes(b.name);
       const matchAddress =
         selectedAddress.length === 0 || selectedAddress.includes(b.address);
 
@@ -379,13 +540,11 @@ export default function BranchListPage() {
                         setForm((prev) => ({
                           ...prev,
                           floorCount: v,
-                          areas: (prev.areas || []).filter(
-                            (a) => Number(a.floor) >= 1 && Number(a.floor) <= v
-                          ),
                         }));
                       }}
                       className="w-32 h-10"
                     />
+
                     <span className="text-sm text-gray-500">
                       số tầng của chi nhánh
                     </span>
@@ -399,69 +558,70 @@ export default function BranchListPage() {
                   </label>
 
                   <div className="mt-2 max-h-[420px] overflow-y-auto space-y-2 pr-2">
-                    {Array.from({ length: form.floorCount }, (_, i) => i + 1).map(
-                      (floor) => {
-                        const areasInFloor = (form.areas || [])
-                          .map((a, idx) => ({ ...a, _idx: idx }))
-                          .filter((a) => Number(a.floor) === floor);
+                    {Array.from(
+                      { length: form.floorCount },
+                      (_, i) => i + 1
+                    ).map((floor) => {
+                      const areasInFloor = (form.areas || [])
+                        .map((a, idx) => ({ ...a, _idx: idx }))
+                        .filter((a) => Number(a.floor) === floor);
 
-                        return (
-                          <div
-                            key={floor}
-                            className="flex items-start gap-3 p-3 rounded-xl border bg-gray-50 dark:bg-gray-900"
-                          >
-                            <div className="w-24 shrink-0 pt-2 font-semibold text-emerald-700 dark:text-emerald-300">
-                              Tầng {floor}
-                            </div>
-
-                            <div className="flex-1 overflow-x-auto">
-                              <div className="flex items-center gap-2 min-h-[44px]">
-                                {areasInFloor.length === 0 && (
-                                  <span className="text-sm text-gray-400 italic">
-                                    Chưa có khu — bấm + để thêm
-                                  </span>
-                                )}
-
-                                {areasInFloor.map((a) => (
-                                  <div
-                                    key={a._idx}
-                                    className="flex items-center gap-2 bg-white dark:bg-gray-800 border rounded-lg px-2 py-2"
-                                  >
-                                    <Input
-                                      className="h-9 w-44"
-                                      placeholder="Tên khu"
-                                      value={a.name}
-                                      onChange={(e) =>
-                                        updateAreaName(a._idx, e.target.value)
-                                      }
-                                    />
-
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-9 w-9"
-                                      onClick={() => removeArea(a._idx)}
-                                    >
-                                      ✕
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* nút + có màu */}
-                            <Button
-                              size="icon"
-                              className="h-10 w-10 shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white"
-                              onClick={() => addAreaToFloor(floor)}
-                              title="Thêm khu"
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
+                      return (
+                        <div
+                          key={floor}
+                          className="flex items-start gap-3 p-3 rounded-xl border bg-gray-50 dark:bg-gray-900"
+                        >
+                          <div className="w-24 shrink-0 pt-2 font-semibold text-emerald-700 dark:text-emerald-300">
+                            Tầng {floor}
                           </div>
-                        );
-                      }
-                    )}
+
+                          <div className="flex-1 overflow-x-auto">
+                            <div className="flex items-center gap-2 min-h-[44px]">
+                              {areasInFloor.length === 0 && (
+                                <span className="text-sm text-gray-400 italic">
+                                  Chưa có khu — bấm + để thêm
+                                </span>
+                              )}
+
+                              {areasInFloor.map((a) => (
+                                <div
+                                  key={a._idx}
+                                  className="flex items-center gap-2 bg-white dark:bg-gray-800 border rounded-lg px-2 py-2"
+                                >
+                                  <Input
+                                    className="h-9 w-44"
+                                    placeholder="Tên khu"
+                                    value={a.name}
+                                    onChange={(e) =>
+                                      updateAreaName(a._idx, e.target.value)
+                                    }
+                                  />
+
+                                  {/* <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-9 w-9"
+                                    onClick={() => removeArea(a._idx)}
+                                  >
+                                    ✕
+                                  </Button> */}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* nút + có màu */}
+                          <Button
+                            size="icon"
+                            className="h-10 w-10 shrink-0 bg-emerald-500 hover:bg-emerald-600 text-white"
+                            onClick={() => addAreaToFloor(floor)}
+                            title="Thêm khu"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* ===== TỔNG QUAN (bạn bị mất, mình trả lại) ===== */}
@@ -526,10 +686,24 @@ export default function BranchListPage() {
 
                 <Button
                   onClick={handleSubmit}
-                  className="px-6 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white"
+                  disabled={loading}
+                  className={`
+    px-6 text-white
+    bg-gradient-to-r from-emerald-500 to-cyan-500
+    ${loading ? "opacity-70 cursor-not-allowed" : ""}
+  `}
                 >
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  {editMode ? "Cập nhật" : "Lưu chi nhánh"}
+                  {loading ? (
+                    <span className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Đang lưu...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      {editMode ? "Cập nhật" : "Lưu chi nhánh"}
+                    </span>
+                  )}
                 </Button>
               </div>
             </motion.div>
@@ -619,11 +793,15 @@ export default function BranchListPage() {
                   )}
 
                   {visibleColumns.floor && (
-                    <TableCell>{Number(b.floorCount) || 0}</TableCell>
+                    <TableCell className="text-center font-medium">
+                      {floorCountMap[b.id] || 0}
+                    </TableCell>
                   )}
 
                   {visibleColumns.area && (
-                    <TableCell>{Array.isArray(b.areas) ? b.areas.length : 0}</TableCell>
+                    <TableCell className="text-center font-medium">
+                      {areaCountMap[b.id] || 0}
+                    </TableCell>
                   )}
 
                   {visibleColumns.action && (
@@ -644,7 +822,10 @@ export default function BranchListPage() {
 
               {!loading && currentData.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center text-gray-500 py-10">
+                  <TableCell
+                    colSpan={10}
+                    className="text-center text-gray-500 py-10"
+                  >
                     Không có dữ liệu.
                   </TableCell>
                 </TableRow>
@@ -674,7 +855,9 @@ export default function BranchListPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
                 disabled={currentPage >= totalPages}
                 className="flex items-center gap-2"
               >

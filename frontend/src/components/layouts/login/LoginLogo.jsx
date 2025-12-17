@@ -50,11 +50,7 @@ export default function LoginLogo() {
       <motion.img
         src={logo}
         alt="Logo"
-        className="relative w-36 h-36
-        sm:w-44 sm:h-44
-        md:w-56 md:h-56
-        lg:w-72 lg:h-72
-        object-contain drop-shadow-[0_0_25px_rgba(34,197,94,0.8)]"
+        className="relative w-72 h-72 object-contain drop-shadow-[0_0_25px_rgba(34,197,94,0.8)]"
         animate={{ y: [0, -12, 0], scale: [1, 1.04, 1] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       />

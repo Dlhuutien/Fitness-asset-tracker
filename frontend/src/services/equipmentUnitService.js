@@ -173,6 +173,53 @@ const EquipmentUnitService = {
     mutate(KEY_UNIT);
     return res;
   },
+
+  /**
+   * 🔹 Đưa thiết bị vào hoạt động (gắn vào Area)
+   * PUT /equipmentUnit/:id/activeUnit
+   * body: { area_id }
+   */
+  async activateUnit(id, area_id) {
+    if (!area_id) {
+      throw new Error("area_id is required");
+    }
+
+    try {
+      const res = await axios.put(`${API}equipmentUnit/${id}/activeUnit`, {
+        area_id,
+      });
+
+      // refresh danh sách unit
+      mutate(KEY_UNIT);
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi khi đưa thiết bị vào hoạt động:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
+
+  /**
+   * 🔹 Đưa thiết bị về kho
+   * PUT /equipmentUnit/:id/inStockUnit
+   */
+  async moveToStock(id) {
+    try {
+      const res = await axios.put(`${API}equipmentUnit/${id}/inStockUnit`);
+
+      // refresh danh sách unit
+      mutate(KEY_UNIT);
+      return res.data;
+    } catch (err) {
+      console.error(
+        "❌ Lỗi khi đưa thiết bị về kho:",
+        err.response?.data || err.message
+      );
+      throw err.response?.data || err;
+    }
+  },
 };
 
 export default EquipmentUnitService;
