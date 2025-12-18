@@ -205,16 +205,18 @@ export default function BranchListPage() {
   };
 
   // ===== Areas helpers (layout mới) =====
-  const addAreaToFloor = (floor) => {
-    if (editMode && floor > originalFloors.length) {
-      toast.warning("⚠️ Vui lòng lưu để tạo tầng trước khi thêm khu");
-      return;
-    }
-    setForm((prev) => ({
-      ...prev,
-      areas: [...prev.areas, { floor, name: "" }],
-    }));
-  };
+const addAreaToFloor = (floor) => {
+  // editMode: chỉ chặn tầng CHƯA TỒN TẠI
+  if (editMode && floor > originalFloors.length) {
+    toast.warning("⚠️ Vui lòng lưu để tạo tầng trước khi thêm khu");
+    return;
+  }
+
+  setForm((prev) => ({
+    ...prev,
+    areas: [...prev.areas, { floor, name: "" }],
+  }));
+};
 
   const updateAreaName = (index, value) => {
     setForm((prev) => {
@@ -253,31 +255,31 @@ export default function BranchListPage() {
         // 1️⃣ Update branch
         await BranchService.update(branchId, { name, address });
 
-        const currentFloorCount = originalFloors.length;
-        const targetFloorCount = Number(form.floorCount);
+const currentFloorCount = originalFloors.length;
+const targetFloorCount = Number(form.floorCount);
 
-        // Thêm tầng mới nếu tăng
-        const createdNewFloors = [];
-        if (targetFloorCount > currentFloorCount) {
-          const addCount = targetFloorCount - currentFloorCount;
-          for (let i = 0; i < addCount; i++) {
-            const f = await FloorService.create({
-              branch_id: branchId,
-              description: "",
-            });
-            createdNewFloors.push(f);
-          }
-        }
+// 🔥 GỘP FLOOR CŨ + FLOOR MỚI
+const allFloors = [...originalFloors];
 
-        // Map floor number -> floor_id
-        const floorMap = {};
-        originalFloors.forEach((f, idx) => {
-          floorMap[idx + 1] = f.id;
-        });
+// 1️⃣ Tạo thêm tầng nếu tăng
+if (targetFloorCount > currentFloorCount) {
+  const addCount = targetFloorCount - currentFloorCount;
+  for (let i = 0; i < addCount; i++) {
+    const f = await FloorService.create({
+      branch_id: branchId,
+      description: "",
+    });
+    allFloors.push(f); // 🔥 CỰC KỲ QUAN TRỌNG
+  }
+}
 
-        createdNewFloors.forEach((f, idx) => {
-          floorMap[currentFloorCount + idx + 1] = f.id;
-        });
+// 2️⃣ Map floor number -> floor_id (CHUẨN 100%)
+const floorMap = {};
+allFloors.forEach((f, idx) => {
+  floorMap[idx + 1] = f.id;
+});
+
+
 
         // gom area gốc theo floor_id (CHỈ 1 LẦN)
         const originalAreasByFloor = {};
