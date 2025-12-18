@@ -223,6 +223,8 @@ export default function QRGuidePage() {
           status: data?.status || "—",
           vendor: data?.vendor_name || "—",
           branch: data?.branch_id || "—",
+          floor: data?.floor_name || "—",
+          area: data?.area_name || "—",
         });
       } catch (err) {
         results.push({
@@ -531,7 +533,9 @@ export default function QRGuidePage() {
                               <th className="p-2 border-r">Tên thiết bị</th>
                               <th className="p-2 border-r">Trạng thái</th>
                               <th className="p-2 border-r">Nhà cung cấp</th>
-                              <th className="p-2">Chi nhánh</th>
+                              <th className="p-2 border-r">Chi nhánh</th>
+                              <th className="p-2 border-r">Tầng</th>
+                              <th className="p-2">Khu</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -565,7 +569,13 @@ export default function QRGuidePage() {
                                   <td className="p-2 border-t border-r">
                                     {row.vendor}
                                   </td>
-                                  <td className="p-2 border-t">{row.branch}</td>
+                                  <td className="p-2 border-t border-r">
+                                    {row.branch}
+                                  </td>
+                                  <td className="p-2 border-t border-r">
+                                    {row.floor}
+                                  </td>
+                                  <td className="p-2 border-t">{row.area}</td>
                                 </tr>
                               );
                             })}
@@ -653,119 +663,126 @@ export default function QRGuidePage() {
         {/* ✅ div ẩn: html5-qrcode cần 1 container id để scanFile */}
         <div id="qr-import-temp" className="hidden" />
       </div>
-      
-{/* ================= FITX LIGHT PRO POPUP ================= */}
-<AnimatePresence>
-  {previewOpen && previewData && (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={() => setPreviewOpen(false)}
-    >
-      <motion.div
-        onClick={(e) => e.stopPropagation()}
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 40, opacity: 0 }}
-        transition={{ duration: 0.25, ease: "easeOut" }}
-        className="
+
+      {/* ================= FITX LIGHT PRO POPUP ================= */}
+      <AnimatePresence>
+        {previewOpen && previewData && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPreviewOpen(false)}
+          >
+            <motion.div
+              onClick={(e) => e.stopPropagation()}
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="
           w-[92vw] max-w-5xl
           bg-white
           rounded-[28px]
           shadow-[0_40px_120px_rgba(0,0,0,0.18)]
           overflow-hidden
         "
-      >
-        {/* TOP ACCENT */}
-        <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-cyan-400" />
+            >
+              {/* TOP ACCENT */}
+              <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-cyan-400" />
 
-        <div className="p-10">
-          {/* ===== HEADER ===== */}
-          <div className="flex gap-10">
-            {/* IMAGE */}
-            <div className="
+              <div className="p-10">
+                {/* ===== HEADER ===== */}
+                <div className="flex gap-10">
+                  {/* IMAGE */}
+                  <div
+                    className="
               w-64 h-64
               rounded-2xl
               bg-gradient-to-br from-emerald-50 to-cyan-50
               border border-emerald-100
               flex items-center justify-center
-            ">
-              <img
-                src={previewData.equipment?.image || "/placeholder.jpg"}
-                alt={previewData.equipment?.name}
-                className="max-w-full max-h-full object-contain"
-              />
-            </div>
+            "
+                  >
+                    <img
+                      src={previewData.equipment?.image || "/placeholder.jpg"}
+                      alt={previewData.equipment?.name}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                  </div>
 
-            {/* MAIN INFO */}
-            <div className="flex-1 space-y-5">
-              {/* TITLE */}
-              <h1 className="
+                  {/* MAIN INFO */}
+                  <div className="flex-1 space-y-5">
+                    {/* TITLE */}
+                    <h1
+                      className="
                 text-4xl font-extrabold
                 tracking-tight
                 text-gray-900
-              ">
-                {previewData.equipment?.name}
-              </h1>
+              "
+                    >
+                      {previewData.equipment?.name}
+                    </h1>
 
-              {/* STATUS */}
-              <div>
-                <Status status={previewData.status} />
-              </div>
+                    {/* STATUS */}
+                    <div>
+                      <Status status={previewData.status} />
+                    </div>
 
-              {/* ID */}
-              <p className="text-base text-gray-500">
-                Mã định danh thiết bị:&nbsp;
-                <span className="font-mono font-medium text-gray-800">
-                  {previewData.id}
-                </span>
-              </p>
+                    {/* ID */}
+                    <p className="text-base text-gray-500">
+                      Mã định danh thiết bị:&nbsp;
+                      <span className="font-mono font-medium text-gray-800">
+                        {previewData.id}
+                      </span>
+                    </p>
 
-              {/* INFO GRID */}
-              <div className="grid grid-cols-2 gap-x-12 gap-y-6 text-base mt-6">
-                <LightSpec
-                  label="Nhà cung cấp"
-                  value={previewData.vendor_name}
-                />
-                <LightSpec
-                  label="Chi nhánh"
-                  value={previewData.branch_id}
-                />
-                <LightSpec
-                  label="Nhóm thiết bị"
-                  value={previewData.equipment?.main_name}
-                />
-                <LightSpec
-                  label="Loại thiết bị"
-                  value={previewData.equipment?.type_name}
-                />
-              </div>
-            </div>
-          </div>
+                    {/* INFO GRID */}
+                    <div className="grid grid-cols-2 gap-x-12 gap-y-6 text-base mt-6">
+                      <LightSpec
+                        label="Nhà cung cấp"
+                        value={previewData.vendor_name}
+                      />
+                      <LightSpec
+                        label="Chi nhánh"
+                        value={previewData.branch_id}
+                      />
+                      <LightSpec
+                        label="Nhóm thiết bị"
+                        value={previewData.equipment?.main_name}
+                      />
+                      <LightSpec
+                        label="Loại thiết bị"
+                        value={previewData.equipment?.type_name}
+                      />
+                      <LightSpec label="Tầng" value={previewData.floor_name} />
 
-          {/* DIVIDER */}
-          <div className="my-10 h-px bg-gray-200" />
+                      <LightSpec label="Khu" value={previewData.area_name} />
+                    </div>
+                  </div>
+                </div>
 
-          {/* ACTION */}
-          <div className="flex justify-end gap-4">
-            <button
-              onClick={() => setPreviewOpen(false)}
-              className="
+                {/* DIVIDER */}
+                <div className="my-10 h-px bg-gray-200" />
+
+                {/* ACTION */}
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => setPreviewOpen(false)}
+                    className="
                 px-8 py-3
                 rounded-xl
                 border border-gray-300
                 text-gray-700
                 hover:bg-gray-100
               "
-            >
-              Đóng
-            </button>
+                  >
+                    Đóng
+                  </button>
 
-            <button
-              onClick={() => navigate(`/app/equipment/${previewData.id}`)}
-              className="
+                  <button
+                    onClick={() => navigate(`/app/equipment/${previewData.id}`)}
+                    className="
                 px-10 py-3
                 rounded-xl
                 bg-emerald-500
@@ -773,17 +790,15 @@ export default function QRGuidePage() {
                 hover:bg-emerald-600
                 shadow-lg shadow-emerald-500/30
               "
-            >
-              Đi đến thiết bị →
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
-
-
+                  >
+                    Đi đến thiết bị →
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </PageContainer>
   );
 }
@@ -811,11 +826,7 @@ function LightSpec({ label, value }) {
   return (
     <div>
       <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-lg font-semibold text-gray-900">
-        {value || "—"}
-      </p>
+      <p className="text-lg font-semibold text-gray-900">{value || "—"}</p>
     </div>
   );
 }
-
-
