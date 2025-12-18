@@ -413,7 +413,7 @@ export default function EquipmentProfilePage() {
     );
 
   return (
-    <div className="p-6 font-jakarta space-y-8">
+    <div className="px-0 sm:px-6 space-y-6 font-jakarta transition-colors duration-300">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Button

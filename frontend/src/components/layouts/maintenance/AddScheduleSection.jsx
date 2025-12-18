@@ -44,6 +44,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import MaintainService from "@/services/MaintainService";
 
+const formatLocation = (floor, area) => {
+  if (floor && area) return `${floor}, ${area}`;
+  return floor || area || "—";
+};
+
 export default function AddScheduleSection({ editing, onClose, onSaved }) {
   const [maintenancePlans, setMaintenancePlans] = useState([]);
   const [users, setUsers] = useState([]);
@@ -392,9 +397,15 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                     <th className="px-3 py-2 text-left">Mã dòng</th>
                     <th className="px-3 py-2 text-left">Hình</th>
                     <th className="px-3 py-2 text-left">Tên dòng</th>
-                    <th className="px-3 py-2 text-left hidden sm:table-cell">Chu kỳ</th>
-                    <th className="px-3 py-2 text-left hidden sm:table-cell">Tần suất</th>
-                    <th className="px-3 py-2 text-left hidden sm:table-cell">Ngày bảo trì tới</th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">
+                      Chu kỳ
+                    </th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">
+                      Tần suất
+                    </th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">
+                      Ngày bảo trì tới
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -451,8 +462,12 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                           );
                           return (
                             <>
-                              <td className="px-3 py-2 hidden sm:table-cell">{cycle}</td>
-                              <td className="px-3 py-2 hidden sm:table-cell">{interval}</td>
+                              <td className="px-3 py-2 hidden sm:table-cell">
+                                {cycle}
+                              </td>
+                              <td className="px-3 py-2 hidden sm:table-cell">
+                                {interval}
+                              </td>
                             </>
                           );
                         })()}
@@ -593,7 +608,7 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                                 Mã định danh thiết bị
                               </th>
                               <th className="px-3 py-2 text-left hidden sm:table-cell">
-                                Tên thiết bị
+                                Vị trí
                               </th>
                               <th className="px-3 py-2 text-left hidden sm:table-cell">
                                 Trạng thái
@@ -652,7 +667,11 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                                           : "text-slate-700"
                                       }
                                     >
-                                      {unit.equipment?.name}
+                                      {unit.floor_name && unit.area_name
+                                        ? `${unit.floor_name}, ${unit.area_name}`
+                                        : unit.floor_name ||
+                                          unit.area_name ||
+                                          "—"}
                                     </span>
                                   </td>
                                   <td className="px-3 py-2 hidden sm:table-cell">
@@ -1053,8 +1072,12 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                   <tr>
                     <th className="px-3 py-2 text-left">Chọn</th>
                     <th className="px-3 py-2 text-left">Tên</th>
-                    <th className="px-3 py-2 text-left hidden sm:table-cell">Chi nhánh</th>
-                    <th className="px-3 py-2 text-left hidden sm:table-cell">Email</th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">
+                      Chi nhánh
+                    </th>
+                    <th className="px-3 py-2 text-left hidden sm:table-cell">
+                      Email
+                    </th>
                     <th className="px-3 py-2 text-left">Role</th>
                   </tr>
                 </thead>
@@ -1096,8 +1119,12 @@ export default function AddScheduleSection({ editing, onClose, onSaved }) {
                             />
                           </td>
                           <td className="px-3 py-2 font-medium">{name}</td>
-                          <td className="px-3 py-2 hidden sm:table-cell">{branch}</td>
-                          <td className="px-3 py-2 hidden sm:table-cell">{email}</td>
+                          <td className="px-3 py-2 hidden sm:table-cell">
+                            {branch}
+                          </td>
+                          <td className="px-3 py-2 hidden sm:table-cell">
+                            {email}
+                          </td>
                           <td className="px-3 py-2">{roles}</td>
                         </tr>
                       );

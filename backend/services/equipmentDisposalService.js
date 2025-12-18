@@ -37,6 +37,7 @@ const equipmentDisposalService = {
 
       // Update trạng thái thiết bị
       await equipmentUnitRepository.update(item.equipment_unit_id, {
+        area_id: null,
         status: "Disposed",
         description: `Đã thanh lý (${note || ""})`,
       });

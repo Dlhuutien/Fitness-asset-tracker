@@ -51,6 +51,11 @@ const STATUS_MAP = {
 
 const ITEMS_PER_PAGE = 8;
 
+const formatLocation = (floor, area) => {
+  if (floor && area) return `${floor}, ${area}`;
+  return floor || area || "—";
+};
+
 export default function MaintenanceUrgentSection() {
   const [equipments, setEquipments] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -101,6 +106,7 @@ export default function MaintenanceUrgentSection() {
     name: [],
     main_name: [],
     type_name: [],
+    location: [],
     vendor_name: [],
     branch_id: [],
     status: [],
@@ -112,6 +118,7 @@ export default function MaintenanceUrgentSection() {
     name: true,
     main_name: true,
     type_name: true,
+    location: true,
     status: true,
     vendor_name: true,
     branch_id: true,
@@ -178,6 +185,9 @@ export default function MaintenanceUrgentSection() {
       name: getUniqueValues(equipments, (e) => e.equipment?.name),
       main_name: getUniqueValues(equipments, (e) => e.equipment?.main_name),
       type_name: getUniqueValues(equipments, (e) => e.equipment?.type_name),
+      location: getUniqueValues(equipments, (e) =>
+        formatLocation(e.floor_name, e.area_name)
+      ).filter((v) => v !== "—"),
       vendor_name: getUniqueValues(equipments, (e) => e.vendor_name),
       branch_id: getUniqueValues(equipments, (e) => e.branch_id),
       status: getUniqueValues(
@@ -205,6 +215,9 @@ export default function MaintenanceUrgentSection() {
             break;
           case "type_name":
             val = e.equipment?.type_name;
+            break;
+          case "location":
+            val = formatLocation(e.floor_name, e.area_name);
             break;
           case "vendor_name":
             val = e.vendor_name;
@@ -587,6 +600,7 @@ export default function MaintenanceUrgentSection() {
               name: "Tên thiết bị",
               main_name: "Nhóm",
               type_name: "Loại",
+              location: "Vị trí",
               status: "Trạng thái",
               vendor_name: "Nhà cung cấp",
               branch_id: "Chi nhánh",
@@ -618,6 +632,7 @@ export default function MaintenanceUrgentSection() {
                     name: "Tên thiết bị",
                     main_name: "Nhóm thiết bị",
                     type_name: "Loại thiết bị",
+                    location: "Vị trí",
                     status: "Trạng thái",
                     vendor_name: "Nhà cung cấp",
                     branch_id: "Chi nhánh",
@@ -759,6 +774,12 @@ export default function MaintenanceUrgentSection() {
 
                     {visibleColumns.type_name && (
                       <TableCell>{row.equipment?.type_name}</TableCell>
+                    )}
+
+                    {visibleColumns.location && (
+                      <TableCell className="text-center">
+                        {formatLocation(row.floor_name, row.area_name)}
+                      </TableCell>
                     )}
 
                     {visibleColumns.status && (
@@ -1397,23 +1418,23 @@ export default function MaintenanceUrgentSection() {
         </div>
       )}
 
-{openQR && (
-  <div
-    className="
+      {openQR && (
+        <div
+          className="
       fixed inset-0 z-[9999]
       flex items-center justify-center
       bg-black/60 backdrop-blur-sm
       animate-fadeIn
     "
-    onClick={() => {
-      setOpenQR(false);
-      setQrValue(null);
-    }}
-  >
-    {/* BOX QR */}
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="
+          onClick={() => {
+            setOpenQR(false);
+            setQrValue(null);
+          }}
+        >
+          {/* BOX QR */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="
         bg-white dark:bg-gray-900
         rounded-3xl
         p-8
@@ -1421,45 +1442,44 @@ export default function MaintenanceUrgentSection() {
         border border-emerald-400
         animate-zoomIn
       "
-    >
-      <h3
-        className="
+          >
+            <h3
+              className="
           text-center text-xl font-semibold mb-6
           bg-gradient-to-r from-emerald-400 to-cyan-400
           bg-clip-text text-transparent
         "
-      >
-        Mã QR thiết bị
-      </h3>
+            >
+              Mã QR thiết bị
+            </h3>
 
-      <div className="flex flex-col items-center gap-4">
-        <div className="p-4 rounded-2xl bg-white shadow-md">
-          <QR value={qrValue} size={240} />
-        </div>
+            <div className="flex flex-col items-center gap-4">
+              <div className="p-4 rounded-2xl bg-white shadow-md">
+                <QR value={qrValue} size={240} />
+              </div>
 
-        <p className="text-xs text-gray-500 break-all text-center max-w-[260px]">
-          {qrValue}
-        </p>
-      </div>
+              <p className="text-xs text-gray-500 break-all text-center max-w-[260px]">
+                {qrValue}
+              </p>
+            </div>
 
-      <button
-        onClick={() => {
-          setOpenQR(false);
-          setQrValue(null);
-        }}
-        className="
+            <button
+              onClick={() => {
+                setOpenQR(false);
+                setQrValue(null);
+              }}
+              className="
           mt-6 w-full rounded-xl py-2
           bg-gradient-to-r from-emerald-400 to-cyan-400
           text-white font-semibold
           hover:opacity-90 transition
         "
-      >
-        Đóng
-      </button>
-    </div>
-  </div>
-)}
-
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

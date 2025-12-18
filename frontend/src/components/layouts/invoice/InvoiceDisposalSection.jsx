@@ -18,8 +18,88 @@ import {
   useGlobalFilterController,
 } from "@/components/common/ExcelTableTools";
 import EquipmentDisposalService from "@/services/EquipmentDisposalService";
+import DatePicker from "react-datepicker";
+import { vi } from "date-fns/locale";
+import "react-datepicker/dist/react-datepicker.css";
+import { Calendar } from "lucide-react";
 
 const ITEMS_PER_PAGE = 6;
+
+function DateRangeHeaderFilter({
+  label,
+  start,
+  end,
+  onChangeStart,
+  onChangeEnd,
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative inline-flex items-center gap-1 select-none">
+      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+        {label}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((p) => !p);
+        }}
+        className={`w-4 h-4 opacity-70 hover:opacity-100 ${
+          open ? "text-emerald-500" : "text-gray-400 dark:text-gray-300"
+        }`}
+      >
+        <Calendar size={14} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute z-[9999] top-[120%] left-0 min-w-[280px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="text-xs text-gray-500 mb-2">Khoảng ngày tạo</div>
+          <div className="flex items-center gap-2">
+            <DatePicker
+              selected={start ? new Date(start) : null}
+              onChange={(d) =>
+                onChangeStart(d ? d.toISOString().split("T")[0] : "")
+              }
+              dateFormat="dd/MM/yyyy"
+              locale={vi}
+              placeholderText="dd/mm/yyyy"
+              className="h-8 text-sm border rounded-md px-2 w-full"
+            />
+            <span>—</span>
+            <DatePicker
+              selected={end ? new Date(end) : null}
+              onChange={(d) =>
+                onChangeEnd(d ? d.toISOString().split("T")[0] : "")
+              }
+              dateFormat="dd/MM/yyyy"
+              locale={vi}
+              placeholderText="dd/mm/yyyy"
+              className="h-8 text-sm border rounded-md px-2 w-full"
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                onChangeStart("");
+                onChangeEnd("");
+                setOpen(false);
+              }}
+            >
+              Xóa
+            </Button>
+            <Button size="sm" onClick={() => setOpen(false)}>
+              Áp dụng
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function InvoiceDisposalSection() {
   const [expandedId, setExpandedId] = useState(null);
@@ -29,6 +109,9 @@ export default function InvoiceDisposalSection() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [gotoPage, setGotoPage] = useState("");
+
+  const [dateStart, setDateStart] = useState("");
+  const [dateEnd, setDateEnd] = useState("");
 
   const [visibleColumns, setVisibleColumns] = useState({
     id: true,
@@ -62,6 +145,10 @@ export default function InvoiceDisposalSection() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterBranch, filterUser, dateStart, dateEnd]);
+
   const toggleExpand = (id) =>
     setExpandedId((prev) => (prev === id ? null : id));
 
@@ -90,8 +177,17 @@ export default function InvoiceDisposalSection() {
       list = list.filter((i) => filterBranch.includes(i.branch_name));
     if (filterUser.length > 0)
       list = list.filter((i) => filterUser.includes(i.user_name));
+    if (dateStart) {
+      const start = new Date(dateStart);
+      list = list.filter((i) => new Date(i.created_at) >= start);
+    }
+    if (dateEnd) {
+      const end = new Date(dateEnd);
+      end.setHours(23, 59, 59, 999);
+      list = list.filter((i) => new Date(i.created_at) <= end);
+    }
     return list;
-  }, [invoices, searchTerm, filterBranch, filterUser]);
+  }, [invoices, searchTerm, filterBranch, filterUser, dateStart, dateEnd]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice(
@@ -184,7 +280,17 @@ export default function InvoiceDisposalSection() {
               )}
               {visibleColumns.total && <TableHead>Tổng giá trị</TableHead>}
               {visibleColumns.note && <TableHead>Ghi chú</TableHead>}
-              {visibleColumns.created_at && <TableHead>Ngày tạo</TableHead>}
+              {visibleColumns.created_at && (
+                <TableHead>
+                  <DateRangeHeaderFilter
+                    label="Ngày tạo"
+                    start={dateStart}
+                    end={dateEnd}
+                    onChangeStart={setDateStart}
+                    onChangeEnd={setDateEnd}
+                  />
+                </TableHead>
+              )}
               <TableHead className="text-center">Chi tiết</TableHead>
             </TableRow>
           </TableHeader>
