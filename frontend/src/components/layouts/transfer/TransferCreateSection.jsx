@@ -57,6 +57,11 @@ const DISALLOWED_FOR_TRANSFER = new Set([
   "moving",
 ]);
 
+const formatLocation = (floor, area) => {
+  if (floor && area) return `${floor}, ${area}`;
+  return floor || area || "—";
+};
+
 export default function TransferCreateSection() {
   const [units, setUnits] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -84,6 +89,7 @@ export default function TransferCreateSection() {
     name: [],
     main_name: [],
     type_name: [],
+    location: [],
     vendor_name: [],
     branch_id: [],
     status: [],
@@ -95,6 +101,7 @@ export default function TransferCreateSection() {
     name: true,
     main_name: true,
     type_name: true,
+    location: true,
     status: true,
     vendor_name: true,
     branch_id: true,
@@ -203,6 +210,9 @@ export default function TransferCreateSection() {
       name: getUniqueValues(filtered, (e) => e.equipment?.name),
       main_name: getUniqueValues(filtered, (e) => e.equipment?.main_name),
       type_name: getUniqueValues(filtered, (e) => e.equipment?.type_name),
+      location: getUniqueValues(filtered, (e) =>
+        formatLocation(e.floor_name, e.area_name)
+      ).filter((v) => v !== "—"),
       vendor_name: getUniqueValues(filtered, (e) => e.vendor_name),
       branch_id: getUniqueValues(filtered, (e) => e.branch_id),
       status: getUniqueValues(
@@ -232,6 +242,9 @@ export default function TransferCreateSection() {
             break;
           case "type_name":
             v = e.equipment?.type_name;
+            break;
+          case "location":
+            v = formatLocation(e.floor_name, e.area_name);
             break;
           case "vendor_name":
             v = e.vendor_name;
@@ -392,6 +405,7 @@ export default function TransferCreateSection() {
             name: "Tên thiết bị",
             main_name: "Nhóm",
             type_name: "Loại",
+            location: "Vị trí",
             status: "Trạng thái",
             vendor_name: "Nhà cung cấp",
             branch_id: "Chi nhánh",
@@ -480,6 +494,7 @@ export default function TransferCreateSection() {
                 <TableHead>Tên thiết bị</TableHead>
                 <TableHead>Nhóm</TableHead>
                 <TableHead>Loại</TableHead>
+                <TableHead>Vị trí</TableHead>
                 <TableHead>Trạng thái</TableHead>
                 <TableHead>Chi nhánh hiện tại</TableHead>
               </TableRow>
@@ -492,6 +507,9 @@ export default function TransferCreateSection() {
                   <TableCell>{item.equipment?.name}</TableCell>
                   <TableCell>{item.equipment?.main_name}</TableCell>
                   <TableCell>{item.equipment?.type_name}</TableCell>
+                  <TableCell>
+                    {formatLocation(item.floor_name, item.area_name)}
+                  </TableCell>
                   <TableCell>
                     <Status
                       status={
@@ -526,6 +544,7 @@ export default function TransferCreateSection() {
                     name: "Tên thiết bị",
                     main_name: "Nhóm",
                     type_name: "Loại",
+                    location: "Vị trí",
                     status: "Trạng thái",
                     vendor_name: "Nhà cung cấp",
                     branch_id: "Chi nhánh",
@@ -629,6 +648,11 @@ export default function TransferCreateSection() {
                     )}
                     {visibleColumns.type_name && (
                       <TableCell>{row.equipment?.type_name}</TableCell>
+                    )}
+                    {visibleColumns.location && (
+                      <TableCell className="text-center">
+                        {formatLocation(row.floor_name, row.area_name)}
+                      </TableCell>
                     )}
                     {visibleColumns.status && (
                       <TableCell className="text-center">

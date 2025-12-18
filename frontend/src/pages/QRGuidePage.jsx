@@ -32,12 +32,18 @@ export default function QRGuidePage() {
   const STATUS_LABEL = {
     active: "Hoạt động",
     inactive: "Ngưng sử dụng",
-    paused: "Ngừng tạm thời",
-    in_stock: "Thiết bị trong kho",
-    transferring: "Đang điều chuyển",
-    cancelrequested: "Chờ xác nhận hủy",
-    maintaining: "Đang bảo trì",
+    "temporary urgent": "Ngừng tạm thời",
+    "in progress": "Đang bảo trì",
+    ready: "Bảo trì thành công",
+    failed: "Bảo trì thất bại",
+    moving: "Đang điều chuyển",
+    "in stock": "Thiết bị trong kho",
+    deleted: "Đã xóa",
     disposed: "Đã thanh lý",
+  };
+  const convertUnitStatus = (status) => {
+    if (!status) return "Không xác định";
+    return STATUS_LABEL[status.toLowerCase()] || "Không xác định";
   };
 
   // Import UI
@@ -48,6 +54,11 @@ export default function QRGuidePage() {
   //
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState(null);
+  //Lưu data
+  const IMPORT_CACHE_KEY = "qr_import_results";
+  const IMPORT_OPEN_KEY = "qr_import_open";
+  const QR_HISTORY_KEY = "qr_history";
+  const [qrHistory, setQrHistory] = useState([]);
 
   /* ================= START SCAN ================= */
   useEffect(() => {
@@ -73,6 +84,19 @@ export default function QRGuidePage() {
 
         try {
           const data = await EquipmentUnitService.getById(decodedText);
+
+          pushHistory({
+            id: decodedText,
+            name: data?.equipment?.name || "—",
+            status: convertUnitStatus(data?.status),
+            vendor: data?.vendor_name || "—",
+            branch: data?.branch_id || "—",
+            floor: data?.floor_name || "—",
+            area: data?.area_name || "—",
+            time: new Date().toISOString(),
+            source: "scan",
+          });
+
           setPreviewData(data);
           setPreviewOpen(true);
         } catch {
@@ -226,6 +250,17 @@ export default function QRGuidePage() {
           floor: data?.floor_name || "—",
           area: data?.area_name || "—",
         });
+        pushHistory({
+          id: decodedText,
+          name: data?.equipment?.name || "—",
+          status: convertUnitStatus(data?.status),
+          vendor: data?.vendor_name || "—",
+          branch: data?.branch_id || "—",
+          floor: data?.floor_name || "—",
+          area: data?.area_name || "—",
+          time: new Date().toISOString(),
+          source: "import",
+        });
       } catch (err) {
         results.push({
           index: i + 1,
@@ -242,6 +277,9 @@ export default function QRGuidePage() {
       await scanner.clear();
     } catch {}
     setImportResults(results);
+    sessionStorage.setItem(IMPORT_CACHE_KEY, JSON.stringify(results));
+    sessionStorage.setItem(IMPORT_OPEN_KEY, "1");
+
     setImporting(false);
     toast.success("✅ Import QR hoàn tất");
   };
@@ -320,6 +358,39 @@ export default function QRGuidePage() {
 
   const tableRows = useMemo(() => importResults || [], [importResults]);
 
+  // =======Lưu Storage===========
+  useEffect(() => {
+    const cached = sessionStorage.getItem(IMPORT_CACHE_KEY);
+    const open = sessionStorage.getItem(IMPORT_OPEN_KEY);
+
+    if (cached) {
+      try {
+        setImportResults(JSON.parse(cached));
+        setShowImport(open === "1");
+      } catch {
+        sessionStorage.removeItem(IMPORT_CACHE_KEY);
+        sessionStorage.removeItem(IMPORT_OPEN_KEY);
+      }
+    }
+  }, []);
+  useEffect(() => {
+    const cached = sessionStorage.getItem(QR_HISTORY_KEY);
+    if (cached) {
+      try {
+        setQrHistory(JSON.parse(cached));
+      } catch {
+        sessionStorage.removeItem(QR_HISTORY_KEY);
+      }
+    }
+  }, []);
+  const pushHistory = (item) => {
+    setQrHistory((prev) => {
+      const next = [item, ...prev].slice(0, 10); // giữ 10 bản ghi gần nhất
+      sessionStorage.setItem(QR_HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
     <PageContainer>
       <div className="max-w-5xl mx-auto space-y-6 px-2 sm:px-0">
@@ -327,7 +398,7 @@ export default function QRGuidePage() {
         <div className="rounded-2xl p-5 sm:p-6 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-lg flex items-center gap-4">
           <QrCode className="w-9 h-9 sm:w-10 sm:h-10" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold">
+            <h1 className="text-lg sm:text-2xl font-bold">
               Quét / Import QR thiết bị
             </h1>
             <p className="text-xs sm:text-sm opacity-90">
@@ -427,7 +498,12 @@ export default function QRGuidePage() {
 
                       <Button
                         variant="outline"
-                        onClick={() => setShowImport(false)}
+                        onClick={() => {
+                          setShowImport(false);
+                          setImportResults([]);
+                          sessionStorage.removeItem(IMPORT_CACHE_KEY);
+                          sessionStorage.removeItem(IMPORT_OPEN_KEY);
+                        }}
                         className="flex items-center gap-2"
                         disabled={importing}
                       >
@@ -523,7 +599,7 @@ export default function QRGuidePage() {
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm border-t">
+                        <table className="w-full text-xs sm:text-sm border-t">
                           <thead className="bg-gray-100 dark:bg-gray-800">
                             <tr>
                               <th className="p-2 border-r text-center w-[60px]">
@@ -564,7 +640,9 @@ export default function QRGuidePage() {
                                     {row.name}
                                   </td>
                                   <td className="p-2 border-t border-r">
-                                    {row.status}
+                                    <Status
+                                      status={convertUnitStatus(row.status)}
+                                    />
                                   </td>
                                   <td className="p-2 border-t border-r">
                                     {row.vendor}
@@ -662,6 +740,93 @@ export default function QRGuidePage() {
 
         {/* ✅ div ẩn: html5-qrcode cần 1 container id để scanFile */}
         <div id="qr-import-temp" className="hidden" />
+
+        {qrHistory.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow space-y-3">
+            {/* HEADER */}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-semibold text-emerald-600">
+                Lịch sử quét / import QR
+              </h3>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setQrHistory([]);
+                  sessionStorage.removeItem(QR_HISTORY_KEY);
+                  toast.success("✅ Đã xoá lịch sử");
+                }}
+              >
+                Xoá lịch sử
+              </Button>
+            </div>
+
+            {/* TABLE */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs sm:text-sm border-t">
+                <thead className="bg-gray-100 dark:bg-gray-700">
+                  <tr>
+                    <th className="p-2 border-r">Dạng</th>
+                    <th className="p-2 border-r">Thời điểm</th>
+                    <th className="p-2 border-r">ID thiết bị</th>
+                    <th className="p-2 border-r">Tên thiết bị</th>
+                    <th className="p-2 border-r">Trạng thái</th>
+                    <th className="p-2 border-r">Nhà cung cấp</th>
+                    <th className="p-2 border-r">Chi nhánh</th>
+                    <th className="p-2 border-r">Tầng</th>
+                    <th className="p-2">Khu</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {qrHistory.map((item, idx) => (
+                    <tr
+                      key={idx}
+                      className="
+                hover:bg-emerald-50 dark:hover:bg-gray-700/50
+                cursor-pointer
+                transition
+              "
+                      onClick={() => navigate(`/app/equipment/${item.id}`)}
+                    >
+                      <td className="p-2 border-t border-r whitespace-nowrap">
+                        {item.source === "scan" ? "📷 Quét" : "📁 Import"}
+                      </td>
+
+                      <td className="p-2 border-t border-r whitespace-nowrap">
+                        {new Date(item.time).toLocaleTimeString("vi-VN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+
+                      <td className="p-2 border-t border-r font-mono">
+                        {item.id}
+                      </td>
+
+                      <td className="p-2 border-t border-r">{item.name}</td>
+
+                      <td className="p-2 border-t border-r">
+                        <Status status={item.status} />
+                      </td>
+
+                      <td className="p-2 border-t border-r">{item.vendor}</td>
+
+                      <td className="p-2 border-t border-r">{item.branch}</td>
+
+                      <td className="p-2 border-t border-r text-center">
+                        {item.floor}
+                      </td>
+
+                      <td className="p-2 border-t text-center">{item.area}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ================= FITX LIGHT PRO POPUP ================= */}
@@ -680,29 +845,19 @@ export default function QRGuidePage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 40, opacity: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              className="
-          w-[92vw] max-w-5xl
-          bg-white
-          rounded-[28px]
-          shadow-[0_40px_120px_rgba(0,0,0,0.18)]
-          overflow-hidden
-        "
+              className="w-[92vw] max-w-5xl bg-white rounded-[28px] 
+              shadow-[0_40px_120px_rgba(0,0,0,0.18)] overflow-hidden"
             >
               {/* TOP ACCENT */}
               <div className="h-1.5 bg-gradient-to-r from-emerald-400 to-cyan-400" />
 
               <div className="p-10">
                 {/* ===== HEADER ===== */}
-                <div className="flex gap-10">
+                <div className="flex-col sm:flex-row">
                   {/* IMAGE */}
                   <div
-                    className="
-              w-64 h-64
-              rounded-2xl
-              bg-gradient-to-br from-emerald-50 to-cyan-50
-              border border-emerald-100
-              flex items-center justify-center
-            "
+                    className="w-64 h-64 rounded-2xl bg-gradient-to-br from-emerald-50 to-cyan-50
+                    border border-emerald-100 flex items-center justify-center"
                   >
                     <img
                       src={previewData.equipment?.image || "/placeholder.jpg"}
@@ -714,19 +869,13 @@ export default function QRGuidePage() {
                   {/* MAIN INFO */}
                   <div className="flex-1 space-y-5">
                     {/* TITLE */}
-                    <h1
-                      className="
-                text-4xl font-extrabold
-                tracking-tight
-                text-gray-900
-              "
-                    >
+                    <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-gray-900">
                       {previewData.equipment?.name}
                     </h1>
 
                     {/* STATUS */}
                     <div>
-                      <Status status={previewData.status} />
+                      <Status status={convertUnitStatus(previewData.status)} />
                     </div>
 
                     {/* ID */}
@@ -738,7 +887,7 @@ export default function QRGuidePage() {
                     </p>
 
                     {/* INFO GRID */}
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-6 text-base mt-6">
+                    <div className="grid grid-cols-2 gap-x-6 sm:gap-x-12 gap-y-4 sm:gap-y-6 text-sm sm:text-base mt-6">
                       <LightSpec
                         label="Nhà cung cấp"
                         value={previewData.vendor_name}
@@ -809,8 +958,10 @@ function GuideCard({ icon, title, text }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow border space-y-3">
       {icon}
-      <h3 className="font-semibold">{title}</h3>
-      <p className="text-sm text-gray-600 dark:text-gray-300">{text}</p>
+      <h3 className="text-sm sm:text-base font-semibold">{title}</h3>
+      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+        {text}
+      </p>
     </div>
   );
 }

@@ -42,6 +42,10 @@ const STATUS_MAP = {
 };
 
 const ITEMS_PER_PAGE = 8;
+const formatLocation = (floor, area) => {
+  if (floor && area) return `${floor}, ${area}`;
+  return floor || area || "—";
+};
 
 export default function MaintenanceReadySection() {
   const [equipments, setEquipments] = useState([]);
@@ -55,7 +59,7 @@ export default function MaintenanceReadySection() {
   const [activeBranch, setActiveBranch] = useState("all");
 
   const { isSuperAdmin, branchId } = useAuthRole();
-const [bulkSelectAll, setBulkSelectAll] = useState(false);
+  const [bulkSelectAll, setBulkSelectAll] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -125,6 +129,7 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
     name: [],
     main_name: [],
     type_name: [],
+    location: [],
     vendor_name: [],
     branch_id: [],
     status: [],
@@ -136,6 +141,7 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
     name: true,
     main_name: true,
     type_name: true,
+    location: true,
     status: true,
     vendor_name: true,
     branch_id: true,
@@ -202,6 +208,9 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
       name: getUniqueValues(equipments, (e) => e.equipment?.name),
       main_name: getUniqueValues(equipments, (e) => e.equipment?.main_name),
       type_name: getUniqueValues(equipments, (e) => e.equipment?.type_name),
+      location: getUniqueValues(equipments, (e) =>
+        formatLocation(e.floor_name, e.area_name)
+      ).filter((v) => v !== "—"),
       vendor_name: getUniqueValues(equipments, (e) => e.vendor_name),
       branch_id: getUniqueValues(equipments, (e) => e.branch_id),
       status: getUniqueValues(
@@ -229,6 +238,9 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
             break;
           case "type_name":
             val = e.equipment?.type_name;
+            break;
+          case "location":
+            val = formatLocation(e.floor_name, e.area_name);
             break;
           case "vendor_name":
             val = e.vendor_name;
@@ -388,24 +400,23 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
           <Button
             className="bg-emerald-600 text-white"
             onClick={() => {
-  setBulkMode("success");
+              setBulkMode("success");
 
-  // Toggle trạng thái
-  setBulkSelectAll((prev) => {
-    const newState = !prev;
-    const m = {};
+              // Toggle trạng thái
+              setBulkSelectAll((prev) => {
+                const newState = !prev;
+                const m = {};
 
-    filteredByColumn.forEach((row) => {
-      if (row.status?.toLowerCase() === "ready") {
-        m[row.id] = newState; // true = chọn hết, false = bỏ hết
-      }
-    });
+                filteredByColumn.forEach((row) => {
+                  if (row.status?.toLowerCase() === "ready") {
+                    m[row.id] = newState; // true = chọn hết, false = bỏ hết
+                  }
+                });
 
-    setCheckedMap(newState ? m : {});
-    return newState;
-  });
-}}
-
+                setCheckedMap(newState ? m : {});
+                return newState;
+              });
+            }}
           >
             Phê duyệt thành công
           </Button>
@@ -413,23 +424,22 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
           <Button
             className="bg-rose-600 text-white"
             onClick={() => {
-  setBulkMode("fail");
+              setBulkMode("fail");
 
-  setBulkSelectAll((prev) => {
-    const newState = !prev;
-    const m = {};
+              setBulkSelectAll((prev) => {
+                const newState = !prev;
+                const m = {};
 
-    filteredByColumn.forEach((row) => {
-      if (row.status?.toLowerCase() === "failed") {
-        m[row.id] = newState;
-      }
-    });
+                filteredByColumn.forEach((row) => {
+                  if (row.status?.toLowerCase() === "failed") {
+                    m[row.id] = newState;
+                  }
+                });
 
-    setCheckedMap(newState ? m : {});
-    return newState;
-  });
-}}
-
+                setCheckedMap(newState ? m : {});
+                return newState;
+              });
+            }}
           >
             Phê duyệt thất bại
           </Button>
@@ -444,6 +454,7 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
               name: "Tên thiết bị",
               main_name: "Nhóm",
               type_name: "Loại",
+              location: "Vị trí",
               status: "Trạng thái",
               vendor_name: "Nhà cung cấp",
               branch_id: "Chi nhánh",
@@ -511,6 +522,20 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
                         selected={filters.type_name}
                         onChange={(v) =>
                           setFilters((p) => ({ ...p, type_name: v }))
+                        }
+                        controller={controller}
+                      />
+                    </TableHead>
+                  )}
+                  {visibleColumns.location && (
+                    <TableHead>
+                      <HeaderFilter
+                        selfKey="location"
+                        label="Vị trí"
+                        values={uniqueValues.location}
+                        selected={filters.location}
+                        onChange={(v) =>
+                          setFilters((p) => ({ ...p, location: v }))
                         }
                         controller={controller}
                       />
@@ -634,6 +659,11 @@ const [bulkSelectAll, setBulkSelectAll] = useState(false);
                       )}
                       {visibleColumns.type_name && (
                         <TableCell>{row.equipment?.type_name}</TableCell>
+                      )}
+                      {visibleColumns.location && (
+                        <TableCell className="text-center">
+                          {formatLocation(row.floor_name, row.area_name)}
+                        </TableCell>
                       )}
                       {visibleColumns.status && (
                         <TableCell className="text-center">

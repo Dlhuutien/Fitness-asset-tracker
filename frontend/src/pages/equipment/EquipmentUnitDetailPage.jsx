@@ -347,7 +347,7 @@ export default function EquipmentProfilePage() {
   // ====== UI ======
   return (
     <motion.div
-      className="p-6 space-y-6 font-jakarta transition-colors duration-300"
+      className="px-0 sm:px-6 space-y-6 font-jakarta transition-colors duration-300"
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -407,12 +407,12 @@ export default function EquipmentProfilePage() {
       </div>
 
       {/* Card chính */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-6">
-        <div className="grid grid-cols-[260px_1fr_220px] gap-6 items-start">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 sm:p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_220px] gap-6 items-start">
           <img
             src={eq.image || "/placeholder.jpg"}
             alt={eq.name}
-            className="w-64 h-48 object-contain rounded-lg bg-gray-50 dark:bg-gray-800 border"
+            className="w-full lg:w-64 h-56 lg:h-48 object-contain rounded-lg bg-gray-50 dark:bg-gray-800 border mx-auto lg:mx-0"
           />
 
           <div className="flex-1 space-y-3">
@@ -438,7 +438,7 @@ export default function EquipmentProfilePage() {
               )}
 
               {!isForeignBranch && !isTechnician && (
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full">
                   {/* 🚀 Nếu thiết bị đang trong kho => cho phép kích hoạt */}
                   {data.status?.toLowerCase() === "in stock" && !editMode && (
                     <Button
@@ -583,7 +583,7 @@ export default function EquipmentProfilePage() {
             </div>
           </div>
           {/* ===== QR CODE ===== */}
-          <div className="flex justify-center pt-6">
+          <div className="flex justify-center pt-4 lg:pt-6">
             <div className="relative group">
               {/* ICON DOWNLOAD – KHÔNG PHẢI BUTTON */}
               <div
@@ -616,7 +616,7 @@ export default function EquipmentProfilePage() {
           group-hover:scale-105 group-hover:shadow-xl
         "
                 >
-                  <QR value={data.id} size={180} />
+                  <QR value={data.id} size={150} />
                   <span className="text-xs font-medium text-gray-600">
                     {data.id}
                   </span>

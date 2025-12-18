@@ -381,6 +381,7 @@ const equipmentTransferService = {
     for (const d of details) {
       await equipmentUnitRepository.update(d.equipment_unit_id, {
         branch_id: existing.to_branch_id,
+        area_id: null,
         status: "In Stock",
         description,
       });

@@ -44,6 +44,11 @@ import EquipmentImportPage from "@/pages/equipment/EquipmentImportPage";
 import QR from "@/components/common/QR";
 const ITEMS_PER_PAGE = 8;
 
+const formatLocation = (floor, area) => {
+  if (floor && area) return `${floor}, ${area}`;
+  return floor || area || "—";
+};
+
 export default function EquipmentUnitListSection() {
   // 🧠 State & hooks
   const [activeGroup, setActiveGroup] = useState("all");
@@ -146,6 +151,7 @@ export default function EquipmentUnitListSection() {
     name: true,
     main: true,
     type: true,
+    location: true,
     vendor_name: true,
     status: true,
     description: true,
@@ -157,6 +163,7 @@ export default function EquipmentUnitListSection() {
     name: [],
     main: [],
     type: [],
+    location: [],
     vendor_name: [],
     status: [],
     description: [],
@@ -170,6 +177,9 @@ export default function EquipmentUnitListSection() {
       name: getUniqueValues(units, (u) => u.equipment?.name),
       main: getUniqueValues(units, (u) => u.equipment?.main_name),
       type: getUniqueValues(units, (u) => u.equipment?.type_name),
+      location: getUniqueValues(units, (u) =>
+        formatLocation(u.floor_name, u.area_name)
+      ).filter((v) => v !== "—"),
       vendor_name: getUniqueValues(units, (u) => u.vendor_name),
       description: getUniqueValues(units, (u) => u.equipment?.description),
       status: getUniqueValues(units, (u) => getStatusVN(u.status)),
@@ -199,7 +209,7 @@ export default function EquipmentUnitListSection() {
         const matchGroup = activeGroup === "all" || main === activeGroup;
         const matchBranch = activeBranch === "all" || branchId === activeBranch;
         const matchStatus = activeStatus === "all" || statusVN === activeStatus;
-
+        const locationValue = `${u.floor_name || ""}, ${u.area_name || ""}`;
         const matchColumn = {
           id: filters.id.length === 0 || filters.id.includes(u.id),
           name:
@@ -211,6 +221,9 @@ export default function EquipmentUnitListSection() {
           type:
             filters.type.length === 0 ||
             filters.type.includes(u.equipment?.type_name),
+          location:
+            filters.location.length === 0 ||
+            filters.location.includes(locationValue),
           status:
             filters.status.length === 0 || filters.status.includes(statusVN),
         };
@@ -325,6 +338,7 @@ export default function EquipmentUnitListSection() {
                 "Tên thiết bị": u.equipment?.name,
                 Nhóm: u.equipment?.main_name,
                 Loại: u.equipment?.type_name,
+                "Vị trí": formatLocation(u.floor_name, u.area_name),
                 "Trạng thái": getStatusVN(u.status),
                 "Mô tả": u.equipment?.description || "",
                 "Ngày nhập": new Date(u.created_at).toLocaleDateString("vi-VN"),
@@ -360,6 +374,7 @@ export default function EquipmentUnitListSection() {
               name: "Tên thiết bị",
               main: "Nhóm",
               type: "Loại",
+              location: "Vị trí",
               vendor_name: "Nhà cung cấp",
               status: "Trạng thái",
               description: "Mô tả",
@@ -435,6 +450,21 @@ export default function EquipmentUnitListSection() {
                       values={uniqueValues.type}
                       selected={filters.type}
                       onChange={(v) => setFilters((p) => ({ ...p, type: v }))}
+                      controller={controller}
+                    />
+                  </TableHead>
+                )}
+
+                {visibleColumns.location && (
+                  <TableHead className="border dark:border-gray-600">
+                    <HeaderFilter
+                      selfKey="location"
+                      label="Vị trí"
+                      values={uniqueValues.location}
+                      selected={filters.location}
+                      onChange={(v) =>
+                        setFilters((p) => ({ ...p, location: v }))
+                      }
                       controller={controller}
                     />
                   </TableHead>
@@ -566,6 +596,12 @@ export default function EquipmentUnitListSection() {
 
                     {visibleColumns.type && (
                       <TableCell>{row.equipment?.type_name}</TableCell>
+                    )}
+
+                    {visibleColumns.location && (
+                      <TableCell className="text-center">
+                        {formatLocation(row.floor_name, row.area_name)}
+                      </TableCell>
                     )}
 
                     {visibleColumns.status && (
@@ -702,23 +738,23 @@ export default function EquipmentUnitListSection() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-{openQR && (
-  <div
-    className="
+      {openQR && (
+        <div
+          className="
       fixed inset-0 z-[9999]
       flex items-center justify-center
       bg-black/60 backdrop-blur-sm
       animate-fadeIn
     "
-    onClick={() => {
-      setOpenQR(false);
-      setQrValue(null);
-    }}
-  >
-    {/* BOX QR */}
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="
+          onClick={() => {
+            setOpenQR(false);
+            setQrValue(null);
+          }}
+        >
+          {/* BOX QR */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="
         bg-white dark:bg-gray-900
         rounded-3xl
         p-8
@@ -726,45 +762,44 @@ export default function EquipmentUnitListSection() {
         border border-emerald-400
         animate-zoomIn
       "
-    >
-      <h3
-        className="
+          >
+            <h3
+              className="
           text-center text-xl font-semibold mb-6
           bg-gradient-to-r from-emerald-400 to-cyan-400
           bg-clip-text text-transparent
         "
-      >
-        Mã QR thiết bị
-      </h3>
+            >
+              Mã QR thiết bị
+            </h3>
 
-      <div className="flex flex-col items-center gap-4">
-        <div className="p-4 rounded-2xl bg-white shadow-md">
-          <QR value={qrValue} size={240} />
-        </div>
+            <div className="flex flex-col items-center gap-4">
+              <div className="p-4 rounded-2xl bg-white shadow-md">
+                <QR value={qrValue} size={240} />
+              </div>
 
-        <p className="text-xs text-gray-500 break-all text-center max-w-[260px]">
-          {qrValue}
-        </p>
-      </div>
+              <p className="text-xs text-gray-500 break-all text-center max-w-[260px]">
+                {qrValue}
+              </p>
+            </div>
 
-      <button
-        onClick={() => {
-          setOpenQR(false);
-          setQrValue(null);
-        }}
-        className="
+            <button
+              onClick={() => {
+                setOpenQR(false);
+                setQrValue(null);
+              }}
+              className="
           mt-6 w-full rounded-xl py-2
           bg-gradient-to-r from-emerald-400 to-cyan-400
           text-white font-semibold
           hover:opacity-90 transition
         "
-      >
-        Đóng
-      </button>
-    </div>
-  </div>
-)}
-
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

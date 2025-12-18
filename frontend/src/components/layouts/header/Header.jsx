@@ -22,10 +22,10 @@ export default function Header() {
                    dark:border-gray-800 dark:bg-gray-900/70"
       >
         {/* Hiển thị branch hiện tại ở giữa (trừ super-admin) */}
-        <div className="flex-1 flex justify-center items-center">
+        <div className="flex-1 flex justify-center sm:justify-center justify-end pl-11 items-center">
           {!isSuperAdmin && branchId && (
             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold text-sm bg-emerald-100/60 dark:bg-emerald-900/30 px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700">
-              <span>🏢 Chi nhánh đang làm việc:</span>
+             <span className="hidden sm:inline">🏢 Chi nhánh đang làm việc:</span>
               <Branch id={branchId} />
             </div>
           )}
