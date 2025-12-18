@@ -21,6 +21,7 @@ import QRCode from "qrcode";
 import FloorService from "@/services/floorService";
 import AreaService from "@/services/areaService";
 import { Layers, Grid3X3, Plus } from "lucide-react";
+import Branch from "@/components/common/Branch";
 
 import { Download } from "lucide-react";
 // Map vi -> en status for Status chip display
@@ -982,7 +983,7 @@ function HistorySection({ historyOpen, setHistoryOpen, maintenanceHistory }) {
                   {maintenanceHistory.map((item, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-                        {item.branch_id || "—"}
+                        {item.branch_id ? <Branch id={item.branch_id} /> : "—"}
                       </td>
                       <td className="p-2 border">
                         {item.start_date
@@ -1067,11 +1068,20 @@ function TransferHistorySection({
                           ? new Date(item.moved_at).toLocaleString("vi-VN")
                           : "—"}
                       </td>
-                      <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-                        {item.from_branch_name || item.from_branch_id || "—"}
+                      <td className="p-2 border text-center">
+                        {item.from_branch_id ? (
+                          <Branch id={item.from_branch_id} />
+                        ) : (
+                          "—"
+                        )}
                       </td>
-                      <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
-                        {item.to_branch_name || item.to_branch_id || "—"}
+
+                      <td className="p-2 border text-center">
+                        {item.to_branch_id ? (
+                          <Branch id={item.to_branch_id} />
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="p-2 border text-center text-gray-800 dark:text-gray-200">
                         {item.receiver_name || "—"}
