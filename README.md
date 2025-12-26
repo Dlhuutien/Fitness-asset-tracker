@@ -237,7 +237,7 @@ Hệ thống được triển khai hoàn toàn trên **AWS Cloud** theo mô hìn
   - Operator (Nhân viên trực phòng)
 - Token-based Authentication (JWT)
 - Mọi thao tác nghiệp vụ đều được ghi nhận lịch sử
-- 
+
 ---
 
 ## Các màn hình chính *(Main Screens)*
