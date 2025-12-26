@@ -239,6 +239,21 @@ Hệ thống được triển khai hoàn toàn trên **AWS Cloud** theo mô hìn
 - Mọi thao tác nghiệp vụ đều được ghi nhận lịch sử
 
 ---
+## Các màn hình chính
+- Giao diện tổng quan (Dashboard Overview)
+<img width="1706" height="781" alt="image" src="https://github.com/user-attachments/assets/39c43a49-a17b-4aa6-8835-f52b94934158" />
+<img width="1703" height="713" alt="image" src="https://github.com/user-attachments/assets/0967f9b1-df91-4f5e-b44b-d0f946699a8c" />
+- Giao diện danh sách thiết (Equipment List Interface)
 <img width="1919" height="820" alt="image" src="https://github.com/user-attachments/assets/a2e0a452-52f3-4c45-8bbc-ca4a1e6f38f2" />
+- Giao diện thông tin thiết bị (Equipment Detail Interface)
+<img width="1878" height="815" alt="image" src="https://github.com/user-attachments/assets/9762cee0-18b0-4ca1-b6d4-0f32cbab7955" />
+- Giao diện điều chuyển thiết bị (Equipment Transfer Interface)
+<img width="1698" height="771" alt="image" src="https://github.com/user-attachments/assets/233ca110-c674-46af-8e2a-399d3e91eba4" />
+- Giao diện xếp lịch bảo trì thiết bị (Maintenance Scheduling Interface)
+<img width="1035" height="642" alt="image" src="https://github.com/user-attachments/assets/c683ea0f-d648-40ef-8dc6-b2775d497a2d" />
+- Giao diện xem lịch bảo trì (Maintenance Calendar View)
+<img width="1051" height="716" alt="image" src="https://github.com/user-attachments/assets/b39b51e5-938b-4d46-81d8-a164516885bd" />
+- Giao diện thanh lý thiết bị (Equipment Disposal Interface)
+<img width="1698" height="762" alt="image" src="https://github.com/user-attachments/assets/77d0a628-658d-4b20-91a3-cdf9d2b6e37c" />
 
 
