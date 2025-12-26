@@ -239,4 +239,6 @@ Hệ thống được triển khai hoàn toàn trên **AWS Cloud** theo mô hìn
 - Mọi thao tác nghiệp vụ đều được ghi nhận lịch sử
 
 ---
+<img width="1919" height="820" alt="image" src="https://github.com/user-attachments/assets/a2e0a452-52f3-4c45-8bbc-ca4a1e6f38f2" />
+
 
