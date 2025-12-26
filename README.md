@@ -1,4 +1,132 @@
-# Fitness Asset Tracker – FitX Gym
+# Fitness Asset Tracker – FitX Gym (EN)
+
+The system aims to **digitalize the entire lifecycle of gym equipment**, including equipment import, status tracking, scheduled and emergency maintenance, inter-branch transfer, and equipment disposal.
+The solution is built on a **Serverless Architecture on AWS**, ensuring high scalability, performance efficiency, and optimized operational costs.
+
+---
+
+## System Objectives
+
+* Centrally manage all gym equipment throughout its **complete lifecycle**
+* Standardize workflows for **equipment import, maintenance, transfer, and disposal**
+* Support **multi-branch operations**
+* Enhance transparency and reduce human errors compared to manual management by **recording the full history of system actions and data changes**
+
+---
+
+## Overall System Architecture
+
+The FitX Gym system is designed based on a **Layered Architecture**, combined with **Serverless Architecture** on AWS.
+
+### Main Layers
+
+1. **Presentation Layer**
+
+   * User interface
+   * Handles user requests and authentication
+   * Communicates with the backend via RESTful APIs (HTTPS)
+
+2. **Business Logic Layer**
+
+   * Core business processing:
+
+     * Equipment management
+     * Scheduled and emergency maintenance
+     * Equipment transfer
+     * Equipment disposal
+     * User role management
+   * Orchestrates workflows and triggers automated events
+
+3. **Persistence Layer**
+
+   * Repository layer
+   * Performs CRUD operations
+   * Optimizes queries for DynamoDB
+   * Contains no business logic
+
+4. **Data Access Layer**
+
+   * Defines data models
+   * Manages schema, primary keys (PK/SK), and GSIs
+   * Ensures data integrity before persistence
+
+---
+
+## Deployment Architecture (Cloud Architecture)
+
+The system is fully deployed on **AWS Cloud** following a **Serverless** model:
+
+* **Frontend**
+
+  * Web-based Single Page Application (SPA)
+  * Communicates with backend services via HTTPS
+  * Does not depend on traditional server infrastructure
+
+* **Backend**
+
+  * Node.js + ExpressJS
+  * Deployed using **AWS Lambda**
+    *(AWS Lambda is a serverless service that allows backend execution without managing servers. Costs are incurred only when functions are executed (on requests), with no charges when idle, enabling cost optimization and scalability.)*
+
+* **Database & Services**
+
+  * **Amazon DynamoDB**: stores equipment, maintenance, and transfer data
+  * **Amazon S3**: stores equipment images
+  * **AWS Cognito**: authentication and authorization
+  * **AWS EventBridge Scheduler**: automated maintenance reminders
+  * **Amazon CloudWatch**: logging and performance monitoring
+
+---
+
+## Technologies Used
+
+### Frontend
+
+* ReactJS
+* Tailwind CSS
+* Shadcn UI
+* Single Page Application (SPA)
+
+### Backend
+
+* Node.js
+* ExpressJS
+* RESTful API
+* Serverless Architecture
+
+### Cloud & Infrastructure
+
+* AWS Lambda
+* Amazon DynamoDB (NoSQL)
+* Amazon S3
+* AWS Cognito
+* AWS EventBridge Scheduler
+* Amazon CloudWatch
+
+### Supporting Tools
+
+* Git & GitHub
+* Visual Studio Code
+* Postman
+* Figma (UI/UX Design)
+
+---
+
+## Security & Authorization
+
+* User authentication via **AWS Cognito**
+* Role-based access control:
+
+  * Super Admin
+  * Admin (Branch Manager)
+  * Technician
+  * Operator
+* Token-based Authentication (JWT)
+* All business actions and data changes are **fully logged for traceability**
+
+---
+
+# Fitness Asset Tracker – FitX Gym (VN)
 
 Hệ thống hướng đến việc **số hóa toàn bộ vòng đời thiết bị phòng gym**, bao gồm: nhập thiết bị, theo dõi trạng thái, bảo trì định kỳ – ngừng khẩn cấp, điều chuyển giữa các chi nhánh và thanh lý thiết bị. Giải pháp được xây dựng theo kiến trúc **Serverless trên nền tảng AWS**, đảm bảo khả năng mở rộng, hiệu năng cao và chi phí vận hành tối ưu.
 
